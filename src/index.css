@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+.portal-bg-wallpaper {
+  background-color: #f1f5f9;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(219, 234, 254, 0.7) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(243, 232, 255, 0.6) 0px, transparent 55%),
+    radial-gradient(at 100% 0%, rgba(224, 242, 254, 0.5) 0px, transparent 40%),
+    radial-gradient(#cbd5e1 0.75px, transparent 0.75px);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 24px 24px;
+}
+
+.portal-glass-card {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 20px 45px -12px rgba(37, 99, 235, 0.09), 0 0 1px 1px rgba(226, 232, 240, 0.8);
+}
+
+.portal-glass-card:hover {
+  box-shadow: 0 28px 56px -12px rgba(37, 99, 235, 0.18), 0 0 1px 1px rgba(147, 197, 253, 0.7);
+}
