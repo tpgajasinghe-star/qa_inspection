@@ -11,24 +11,6 @@ export const WorkspaceSelection: React.FC<WorkspaceSelectionProps> = ({
 }) => {
   return (
     <div className="w-full flex flex-col items-center justify-between min-h-[calc(100vh-5rem)] py-6 z-10">
-      {/* Prominently Highlighted Company Brand Banner */}
-      <div 
-        className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-white/95 border-2 border-blue-500/25 shadow-lg shadow-blue-500/10 backdrop-blur-md mb-6 hover:shadow-xl hover:border-blue-500/40 transition-all duration-300 group"
-        id="company-highlight-badge"
-      >
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-sm ring-2 ring-blue-100">
-          <Building2 className="w-4 h-4" />
-        </div>
-        <div className="flex items-center gap-2.5">
-          <span className="text-sm sm:text-base font-extrabold tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
-            ABC Company Private Limited
-          </span>
-          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 shadow-2xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Verified Enterprise
-          </span>
-        </div>
-      </div>
 
       {/* Main Title & Brand Icon */}
       <div className="text-center mb-8 sm:mb-12">

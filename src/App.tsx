@@ -22,6 +22,8 @@ import { LiveInspectionWorkspace } from './components/LiveInspectionWorkspace';
 import { AdminSubviews } from './components/AdminSubviews';
 import { IncomingInspectionPortal } from './components/IncomingInspectionPortal';
 import { InProcessInspectionPortal } from './components/InProcessInspectionPortal';
+import { ModuleInspectionPortal } from './components/ModuleInspectionPortal';
+import { AddRemoveInspectionPortal } from './components/AddRemoveInspectionPortal';
 
 export default function App() {
   // Navigation & Auth State
@@ -31,6 +33,7 @@ export default function App() {
   const [userId, setUserId] = useState<string>('');
   const [pendingRole, setPendingRole] = useState<'inspector' | 'admin'>('inspector');
   const [selectedModule, setSelectedModule] = useState<InspectionModule>('in-process');
+  const [selectedMainCardId, setSelectedMainCardId] = useState<string>('main-incoming');
 
   // Application Data States
   const [inspections, setInspections] = useState<InspectionRecord[]>(INITIAL_INSPECTIONS);
@@ -89,14 +92,16 @@ export default function App() {
   };
 
   // Handle Starting an Inspection Module
-  const handleStartInspectionModule = (mod: InspectionModule) => {
+  const handleStartInspectionModule = (mod: InspectionModule, cardId?: string) => {
     setSelectedModule(mod);
-    if (mod === 'incoming') {
+    const resolvedCardId = cardId || (mod === 'incoming' ? 'main-incoming' : mod === 'in-process' ? 'main-inprocess' : 'main-subcontracting');
+    setSelectedMainCardId(resolvedCardId);
+    if (resolvedCardId === 'main-incoming' || mod === 'incoming') {
       setCurrentMode('incoming-inspection');
-    } else if (mod === 'in-process') {
+    } else if (resolvedCardId === 'main-inprocess' || mod === 'in-process') {
       setCurrentMode('in-process-inspection');
     } else {
-      setCurrentMode('live-inspection');
+      setCurrentMode('module-inspection');
     }
   };
 
@@ -195,6 +200,7 @@ export default function App() {
             }}
             onAddInspectionRecord={handleAddInspection}
             userId={userId}
+            inspections={inspections}
           />
         )}
 
@@ -207,6 +213,17 @@ export default function App() {
             }}
             onAddInspectionRecord={handleAddInspection}
             userId={userId}
+            inspections={inspections}
+          />
+        )}
+
+        {currentMode === 'module-inspection' && (
+          <ModuleInspectionPortal
+            mainCardId={selectedMainCardId || 'main-subcontracting'}
+            onBack={() => setCurrentMode('inspection-dashboard')}
+            userId={userId}
+            inspections={inspections}
+            onAddInspectionRecord={handleAddInspection}
           />
         )}
 
@@ -235,8 +252,14 @@ export default function App() {
           />
         )}
 
-        {(currentMode === 'admin-specs' || 
-          currentMode === 'admin-records' || 
+        {currentMode === 'admin-specs' && (
+          <AddRemoveInspectionPortal
+            onBack={() => setCurrentMode('admin-dashboard')}
+            userId={userId}
+          />
+        )}
+
+        {(currentMode === 'admin-records' || 
           currentMode === 'admin-analytics' || 
           currentMode === 'admin-users') && (
           <AdminSubviews

@@ -25,6 +25,7 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
   const getBackLabel = () => {
     if (currentMode === 'incoming-inspection' || currentMode === 'in-process-inspection') return 'Back to QA Inspection';
     if (currentMode === 'live-inspection') return 'Back to Inspection Modules';
+    if (currentMode === 'admin-specs') return 'Back to QA Admin Dashboard';
     if (currentMode.startsWith('admin-') && currentMode !== 'admin-dashboard') return 'Back to Admin Modules';
     if (currentMode === 'inspection-dashboard' || currentMode === 'admin-dashboard') return 'Back to Workspace Selection';
     return 'Back to Workspace Selection';

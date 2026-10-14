@@ -65,7 +65,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* CARD 2: Specification Controls */}
           <div 
-            className="group relative bg-white/90 hover:bg-white rounded-3xl p-7 flex flex-col items-center text-center portal-glass-card transition-all duration-300 hover:-translate-y-1"
+            onClick={() => onNavigateAdminSub('admin-specs')}
+            className="group relative bg-white/90 hover:bg-white rounded-3xl p-7 flex flex-col items-center text-center portal-glass-card transition-all duration-300 hover:-translate-y-1 cursor-pointer"
             id="admin-specs-card"
           >
             <div className="relative mb-6">
@@ -79,15 +80,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               Specification Controls
             </h2>
             <p className="text-slate-500 text-[13.5px] leading-relaxed mb-7 flex-grow">
-              Configure component tolerances, update inspection standards, and deploy QA criteria benchmarks.
+              Add/Remove inspection parameters, configure component tolerances, and calibrate QA criteria benchmarks.
             </p>
 
             <button
-              onClick={() => onNavigateAdminSub('admin-specs')}
+              onClick={(e) => {
+                e.stopPropagation();
+                onNavigateAdminSub('admin-specs');
+              }}
               className="w-full inline-flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm shadow-md shadow-blue-500/25 transition-all duration-200 transform active:scale-[0.98] cursor-pointer"
               id="btn-admin-manage-specs"
             >
-              <span>Manage Specs</span>
+              <span>Add / Remove Inspection</span>
               <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
             </button>
           </div>

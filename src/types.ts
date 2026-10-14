@@ -4,6 +4,7 @@ export type WorkspaceMode =
   | 'inspection-dashboard'
   | 'incoming-inspection'
   | 'in-process-inspection'
+  | 'module-inspection'
   | 'admin-dashboard'
   | 'live-inspection'
   | 'admin-specs'
@@ -82,6 +83,7 @@ export interface InspectionRecord {
   timestamp: string;
   notes?: string;
   verifiedBy?: string;
+  category?: string;
 }
 
 export interface SpecificationItem {

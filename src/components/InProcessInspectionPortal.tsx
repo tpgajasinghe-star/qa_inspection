@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -20,13 +20,22 @@ import {
   SlidersHorizontal
 } from 'lucide-react';
 import { InProcessCategoryItem, InProcessCategoryType, InspectionRecord } from '../types';
-import { IN_PROCESS_CATEGORIES, SAMPLE_IN_PROCESS_CHECKPOINTS, InProcessSampleCheckpoint } from '../inProcessData';
+import { IN_PROCESS_CATEGORIES, InProcessSampleCheckpoint } from '../inProcessData';
+import { fetchItems, DbItem } from '../backend/itemService';
+import {
+  getChildCards,
+  InspectionHierarchyCard,
+  HIERARCHY_UPDATED_EVENT
+} from '../inspectionHierarchyData';
+import { InspectionCardIconRenderer } from './InspectionCardIconRenderer';
+import { ChildCardOperationsWorkspace } from './ChildCardOperationsWorkspace';
 
 interface InProcessInspectionPortalProps {
   onBack: () => void;
   onOpenLiveInspection: (categoryName?: string) => void;
   onAddInspectionRecord?: (item: InspectionRecord) => void;
   userId: string;
+  inspections?: InspectionRecord[];
 }
 
 export const InProcessInspectionPortal: React.FC<InProcessInspectionPortalProps> = ({
@@ -34,12 +43,22 @@ export const InProcessInspectionPortal: React.FC<InProcessInspectionPortalProps>
   onOpenLiveInspection,
   onAddInspectionRecord,
   userId,
+  inspections = [],
 }) => {
-  // Selected category for active inspection view / modal
+  // Active child card for operations workspace (1. Make New Inspection, 2. View Past Records)
+  const [activeChildCard, setActiveChildCard] = useState<InspectionHierarchyCard | null>(null);
+
+  // Selected category for active inspection view / modal (fallback)
   const [selectedCategory, setSelectedCategory] = useState<InProcessCategoryItem | null>(null);
   
+  // Supabase items state
+  const [items, setItems] = useState<DbItem[]>([]);
+  const [isLoadingItems, setIsLoadingItems] = useState<boolean>(true);
+  const [selectedItemCode, setSelectedItemCode] = useState<string>('');
+  const [newPartNumber, setNewPartNumber] = useState<string>('');
+
   // In-process checkpoints state
-  const [checkpoints, setCheckpoints] = useState<InProcessSampleCheckpoint[]>(SAMPLE_IN_PROCESS_CHECKPOINTS);
+  const [checkpoints, setCheckpoints] = useState<InProcessSampleCheckpoint[]>([]);
   
   // Quick inspection check form inside the modal
   const [showLogForm, setShowLogForm] = useState(false);
@@ -49,6 +68,56 @@ export const InProcessInspectionPortal: React.FC<InProcessInspectionPortalProps>
   const [newMeasuredVal, setNewMeasuredVal] = useState('');
   const [defectSeverity, setDefectSeverity] = useState<'none' | 'minor' | 'major'>('none');
   const [verifiedSuccess, setVerifiedSuccess] = useState(false);
+
+  // Configured child cards from inspection hierarchy
+  const [configuredChildCards, setConfiguredChildCards] = useState<InspectionHierarchyCard[]>(() =>
+    getChildCards('main-inprocess')
+  );
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setConfiguredChildCards(getChildCards('main-inprocess'));
+    };
+    window.addEventListener(HIERARCHY_UPDATED_EVENT, handleUpdate);
+    return () => {
+      window.removeEventListener(HIERARCHY_UPDATED_EVENT, handleUpdate);
+    };
+  }, []);
+
+  // Fetch real items from Supabase on mount
+  useEffect(() => {
+    let isMounted = true;
+    async function loadItems() {
+      setIsLoadingItems(true);
+      const data = await fetchItems();
+      if (isMounted) {
+        setItems(data);
+        setIsLoadingItems(false);
+      }
+    }
+    loadItems();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Filter or prioritize items matching the in-process category
+  const getCategoryItems = (categoryName?: string): DbItem[] => {
+    if (!categoryName) return items;
+    const cat = categoryName.toLowerCase();
+    const matched = items.filter(it => {
+      const s = (it.series || '').toLowerCase();
+      const c = (it.category || '').toLowerCase();
+      const d = (it.description || '').toLowerCase();
+      if (cat.includes('white series')) return s.includes('white series');
+      if (cat.includes('modular') || cat.includes('nature')) return s.includes('modular') || s.includes('nature');
+      if (cat.includes('led')) return s.includes('led') || c.includes('led') || d.includes('led');
+      if (cat.includes('injection')) return s.includes('enclosure') || s.includes('frames') || s.includes('conduit') || c.includes('socket');
+      if (cat.includes('automation')) return s.includes('accessories') || c.includes('gang') || c.includes('controller') || c.includes('bell');
+      return s.includes(cat) || c.includes(cat) || d.includes(cat);
+    });
+    return matched.length > 0 ? matched : items;
+  };
 
   // Category Icon resolver matching the clean visual style
   const getCategoryIcon = (name: InProcessCategoryType) => {
@@ -72,7 +141,16 @@ export const InProcessInspectionPortal: React.FC<InProcessInspectionPortalProps>
     setSelectedCategory(category);
     setNewCheckId(`CHK-${category.code}-${Math.floor(1000 + Math.random() * 9000)}`);
     setSelectedStation(category.lineStations[0] || 'Assembly Station 01');
-    setNewPartName(category.sampleItems[0] || 'Standard Production Unit');
+    const relevant = getCategoryItems(category.name);
+    if (relevant.length > 0) {
+      setSelectedItemCode(relevant[0].item_code);
+      setNewPartName(relevant[0].description);
+      setNewPartNumber(relevant[0].item_code);
+    } else {
+      setSelectedItemCode('');
+      setNewPartName('');
+      setNewPartNumber('');
+    }
     setNewMeasuredVal('Pass (Conforms to Standard)');
     setDefectSeverity('none');
     setShowLogForm(false);
@@ -104,7 +182,7 @@ export const InProcessInspectionPortal: React.FC<InProcessInspectionPortalProps>
         id: `INS-PROC-${Date.now()}`,
         lotNumber: `LOT-INP-${Math.floor(10000 + Math.random() * 90000)}`,
         batchId: `B-PROC-${Math.floor(1000 + Math.random() * 9000)}`,
-        partNumber: `${selectedCategory.code}-${Math.floor(100 + Math.random() * 900)}`,
+        partNumber: newPartNumber || selectedItemCode || `${selectedCategory.code}-${Math.floor(100 + Math.random() * 900)}`,
         partName: newPartName,
         module: 'in-process',
         supplierOrLine: selectedStation,
@@ -119,7 +197,7 @@ export const InProcessInspectionPortal: React.FC<InProcessInspectionPortalProps>
         inspectorId: userId,
         inspectorName: `Inspector ${userId}`,
         timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
-        notes: `Online/In-Process quality check completed for line: ${selectedCategory.name} (${selectedStation}).`,
+        notes: `Online/In-Process quality check completed for ${newPartName} (${newPartNumber || selectedItemCode}) on line: ${selectedCategory.name} (${selectedStation}).`,
         verifiedBy: `Verified By ${userId}`,
       };
       onAddInspectionRecord(record);
@@ -132,29 +210,33 @@ export const InProcessInspectionPortal: React.FC<InProcessInspectionPortalProps>
     }, 1500);
   };
 
+  // If a child card is clicked, open the operations workspace (1. Make New Inspection, 2. View Past Records)
+  if (activeChildCard) {
+    return (
+      <ChildCardOperationsWorkspace
+        mainCard={{
+          id: 'main-inprocess',
+          name: 'Online / In-Process',
+          description: 'Perform live assembly line quality checks, tolerance calibrations, and real-time defect tracking.',
+          iconName: 'ClipboardCheck',
+          location: 'main',
+          order: 2,
+          moduleId: 'in-process',
+        }}
+        childCard={activeChildCard}
+        userId={userId}
+        inspections={inspections}
+        onAddInspectionRecord={onAddInspectionRecord}
+        onBackToChildCards={() => setActiveChildCard(null)}
+      />
+    );
+  }
+
   return (
     <div className="w-full flex-1 flex flex-col items-center justify-between px-4 sm:px-6 py-6 z-10 max-w-7xl mx-auto min-h-[calc(100vh-6rem)]">
       
       {/* Top Section: Corporate Brand & Back Button */}
       <div className="w-full flex flex-col items-center">
-        {/* Prominently Highlighted Company Brand Banner matching before pages */}
-        <div 
-          className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-white/95 border-2 border-blue-500/25 shadow-lg shadow-blue-500/10 backdrop-blur-md mb-6 hover:shadow-xl hover:border-blue-500/40 transition-all duration-300 group"
-          id="company-highlight-badge-inprocess"
-        >
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-sm ring-2 ring-blue-100">
-            <Building2 className="w-4 h-4" />
-          </div>
-          <div className="flex items-center gap-2.5">
-            <span className="text-sm sm:text-base font-extrabold tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
-              ABC Company Private Limited
-            </span>
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 shadow-2xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Verified Enterprise
-            </span>
-          </div>
-        </div>
 
         {/* Main Portal Title & Icon matching exactly the conditions of the before pages */}
         <div className="text-center mb-8 sm:mb-10">
@@ -175,60 +257,70 @@ export const InProcessInspectionPortal: React.FC<InProcessInspectionPortalProps>
       {/* 5 Cards Grid: (Automation, White Series, Modular/Nature, LED, Injection Molding) */}
       <div className="w-full max-w-7xl my-auto mb-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6 sm:gap-7">
-          {IN_PROCESS_CATEGORIES.map((category) => {
+          {configuredChildCards.map((childCard) => {
+            const matchedCategory = IN_PROCESS_CATEGORIES.find(
+              c => c.name.toLowerCase() === childCard.name.toLowerCase() || c.id === childCard.id
+            );
+            const category: InProcessCategoryItem = matchedCategory ? {
+              ...matchedCategory,
+              name: childCard.name as any,
+              description: childCard.description,
+            } : {
+              id: childCard.id,
+              name: childCard.name as any,
+              code: `PROC-${childCard.name.slice(0, 4).toUpperCase().replace(/[\s/]+/g, '')}`,
+              description: childCard.description,
+              activeLines: 3,
+              yieldRate: 99.1,
+              sampleItems: [`${childCard.name} Checkpoint 1`, `${childCard.name} Tolerance Verification`],
+              inspectionStandard: 'ISO 9001:2015 / SLS 734',
+              lineStations: ['Assembly Line 01', 'Automated Checkpoint'],
+              tag: childCard.tag || 'In-Process QA',
+            };
+
             return (
               <div
-                key={category.id}
-                onClick={() => handleStartInspection(category)}
+                key={childCard.id}
+                onClick={() => setActiveChildCard(childCard)}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    handleStartInspection(category);
+                    setActiveChildCard(childCard);
                   }
                 }}
                 className="portal-glass-card rounded-3xl p-7 sm:p-8 flex flex-col items-center text-center justify-between relative group transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl cursor-pointer select-none border border-white/90 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
-                id={`card-${category.name.toLowerCase().replace(/[\s/]+/g, '-')}`}
+                id={`card-${childCard.name.toLowerCase().replace(/[\s/]+/g, '-')}`}
               >
                 {/* Top Module Icon with decorative orbital accent dot */}
                 <div className="flex flex-col items-center w-full">
                   <div className="relative mb-6">
                     <div className="w-20 h-20 rounded-2xl bg-blue-50/90 border border-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-105 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 shadow-sm">
-                      {getCategoryIcon(category.name)}
+                      <InspectionCardIconRenderer iconName={childCard.iconName} className="w-9 h-9 stroke-[1.8]" />
                     </div>
                     {/* Orbit accent dot matching before pages */}
                     <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-blue-600 border-2 border-white rounded-full shadow-xs group-hover:scale-125 transition-transform" />
                   </div>
 
-                  {/* Card Title matching the user request names exactly */}
-                  <h3 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight mb-2 group-hover:text-blue-600 transition-colors">
-                    {category.name}
+                  {/* Card Title matching user request */}
+                  <h3 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight mb-4 group-hover:text-blue-600 transition-colors">
+                    {childCard.name}
                   </h3>
-
-                  {/* Minimal Separator Accent Line */}
-                  <div className="w-10 h-1 bg-slate-100 rounded-full mb-3 flex items-center justify-center">
-                    <span className="w-2.5 h-1 bg-blue-500 rounded-full group-hover:w-6 transition-all duration-300"></span>
-                  </div>
-
-                  {/* Concise Description */}
-                  <p className="text-slate-500 text-xs sm:text-sm leading-relaxed mb-6 font-normal line-clamp-3">
-                    {category.description}
-                  </p>
                 </div>
 
-                {/* Card Action Button matching the before pages */}
+                {/* Card Action Button */}
                 <div className="w-full">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleStartInspection(category);
+                      setActiveChildCard(childCard);
                     }}
                     className="w-full py-3.5 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs sm:text-sm transition-all duration-200 shadow-md shadow-blue-500/25 flex items-center justify-center gap-2 group-hover:shadow-lg group-hover:shadow-blue-500/35 cursor-pointer"
-                    id={`btn-start-${category.name.toLowerCase().replace(/[\s/]+/g, '-')}`}
+                    id={`btn-start-${childCard.name.toLowerCase().replace(/[\s/]+/g, '-')}`}
                   >
-                    <span>Start Inspection</span>
+                    <span>Select Operations</span>
                     <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
                   </button>
                 </div>
@@ -302,19 +394,50 @@ export const InProcessInspectionPortal: React.FC<InProcessInspectionPortalProps>
               </div>
             </div>
 
-            {/* Key In-Process Quality Checkpoints */}
+            {/* Key In-Process Quality Checkpoints / Registered Items */}
             <div className="mb-6">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5">
-                Standard In-Line Checkpoints & Tests
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {selectedCategory.sampleItems.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-700">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <span className="truncate font-medium">{item}</span>
-                  </div>
-                ))}
+              <div className="flex items-center justify-between mb-2.5">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  Registered Production Items (Supabase Database)
+                </h4>
+                <span className="text-xs font-semibold text-blue-600">
+                  {isLoadingItems ? 'Connecting...' : `${getCategoryItems(selectedCategory.name).length} items`}
+                </span>
               </div>
+              {isLoadingItems ? (
+                <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs text-slate-500 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
+                  <span>Loading production parts from Supabase...</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
+                  {getCategoryItems(selectedCategory.name).slice(0, 12).map((item) => (
+                    <div 
+                      key={item.item_code} 
+                      onClick={() => {
+                        setSelectedItemCode(item.item_code);
+                        setNewPartName(item.description);
+                        setNewPartNumber(item.item_code);
+                        setShowLogForm(true);
+                      }}
+                      className={`flex items-center justify-between gap-2 p-2.5 rounded-xl border text-xs cursor-pointer transition ${
+                        selectedItemCode === item.item_code 
+                          ? 'bg-blue-50/80 border-blue-400 text-blue-900 ring-1 ring-blue-300' 
+                          : 'bg-slate-50 border-slate-100 text-slate-700 hover:border-blue-300 hover:bg-white'
+                      }`}
+                      title="Click to select for in-process inspection"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <span className="truncate font-medium">{item.description}</span>
+                      </div>
+                      <span className="font-mono text-[10px] text-slate-400 shrink-0 font-bold">
+                        {item.item_code}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Active Station Feeds */}
@@ -373,15 +496,34 @@ export const InProcessInspectionPortal: React.FC<InProcessInspectionPortalProps>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Inspected Part / Operation</label>
-                  <input
-                    type="text"
-                    value={newPartName}
-                    onChange={(e) => setNewPartName(e.target.value)}
-                    placeholder="Enter component or assembly item name"
-                    className="w-full text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Inspected Part Name / Item Selection
+                  </label>
+                  {isLoadingItems ? (
+                    <div className="text-xs text-slate-500 py-2 animate-pulse">Loading items from Supabase...</div>
+                  ) : (
+                    <select
+                      value={selectedItemCode}
+                      onChange={(e) => {
+                        const code = e.target.value;
+                        setSelectedItemCode(code);
+                        const sel = items.find(it => it.item_code === code);
+                        if (sel) {
+                          setNewPartName(sel.description);
+                          setNewPartNumber(sel.item_code);
+                        }
+                      }}
+                      required
+                      className="w-full text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium truncate"
+                    >
+                      <option value="" disabled>-- Select Part Name / Item Code --</option>
+                      {getCategoryItems(selectedCategory.name).map((item) => (
+                        <option key={item.item_code} value={item.item_code}>
+                          {item.description} ({item.item_code})
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
