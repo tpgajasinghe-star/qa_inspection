@@ -59,9 +59,10 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
         </button>
       ) : (
         <div className="hidden sm:block">
-          {/* Subtle spacer when on root */}
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Plant 04 • Metrology Division
+          {/* Subtle brand motto on root */}
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            <span>Quality Meets Precision</span>
           </span>
         </div>
       )}

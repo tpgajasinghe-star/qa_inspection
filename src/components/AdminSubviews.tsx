@@ -175,7 +175,7 @@ export const AdminSubviews: React.FC<AdminSubviewsProps> = ({
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-100 text-blue-800">
-                ENGINEERING METROLOGY STANDARDS
+                QUALITY MEETS PRECISION • STANDARDS
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">

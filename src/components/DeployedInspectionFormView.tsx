@@ -23,7 +23,7 @@ import { InspectionRecord, QAStatus } from '../types';
 import { InspectionHierarchyCard } from '../inspectionHierarchyData';
 import { TableRowSchema } from './FormEditorStudio';
 import { RoundClockTimePickerModal } from './RoundClockTimePickerModal';
-import { fetchItems, DbItem } from '../backend/itemService';
+import { fetchItems, DbItem, lookupDatabaseItem, SEED_FACTORY_ITEMS } from '../backend/itemService';
 
 interface DeployedInspectionFormViewProps {
   form: DeployedInspectionForm;
@@ -63,8 +63,11 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
   const [itemCode, setItemCode] = useState('');
   const [productDesc, setProductDesc] = useState(form.documentHeader.productType || childCard.name);
 
-  // Database items from Supabase and lookup tracking
-  const [itemsList, setItemsList] = useState<DbItem[]>(dbItems || []);
+  // Database items from Supabase with instant fallback catalog (guarantees 559 -> 3000000559 is ready at all times)
+  const [itemsList, setItemsList] = useState<DbItem[]>(() => {
+    if (dbItems && dbItems.length > 0) return dbItems;
+    return SEED_FACTORY_ITEMS;
+  });
   const [matchedDbItem, setMatchedDbItem] = useState<DbItem | null>(null);
 
   // Load items from Supabase database if not passed via props
@@ -74,6 +77,14 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
       fetchItems().then(data => {
         if (isMounted && data && data.length > 0) {
           setItemsList(data);
+          // If user already typed an item code like "559", re-evaluate lookup with fresh items
+          if (itemCode.trim()) {
+            const match = lookupDatabaseItem(itemCode, data, childCard.name);
+            if (match) {
+              setProductDesc(match.description);
+              setMatchedDbItem(match);
+            }
+          }
         }
       }).catch(err => {
         console.error('Failed to fetch items from Supabase:', err);
@@ -94,42 +105,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
       return;
     }
 
-    // 1. Exact match on item_code (e.g. "3000000559")
-    let match = itemsList.find(it => it.item_code.toLowerCase() === trimmed.toLowerCase());
-
-    // 2. Direct 10-digit pad if numeric short code (e.g. "559" -> "3000000559")
-    if (!match && /^\d+$/.test(trimmed)) {
-      if (trimmed.length <= 4) {
-        const paddedCode = `3000000${trimmed.padStart(3, '0')}`;
-        match = itemsList.find(it => it.item_code === paddedCode);
-      }
-    }
-
-    // 3. Suffix match: ends with input digits (e.g. ends with "559")
-    if (!match) {
-      const suffixCandidates = itemsList.filter(it => it.item_code.endsWith(trimmed));
-      if (suffixCandidates.length > 0) {
-        // Prioritize match for current category / series (White Series, Sockets, etc.)
-        const categoryMatch = suffixCandidates.find(it => {
-          const s = (it.series || '').toLowerCase();
-          const c = (it.category || '').toLowerCase();
-          const card = childCard.name.toLowerCase();
-          return s.includes(card) || c.includes(card) ||
-                 (card.includes('white') && s.includes('white')) ||
-                 (card.includes('modular') && s.includes('modular')) ||
-                 (card.includes('socket') && c.includes('socket'));
-        });
-        match = categoryMatch || suffixCandidates[0];
-      }
-    }
-
-    // 4. Substring contains match
-    if (!match) {
-      const containsCandidates = itemsList.filter(it => it.item_code.includes(trimmed));
-      if (containsCandidates.length > 0) {
-        match = containsCandidates[0];
-      }
-    }
+    const match = lookupDatabaseItem(trimmed, itemsList, childCard.name);
 
     if (match) {
       setProductDesc(match.description);
@@ -409,7 +385,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                 ABC COMPANY PVT LTD
               </div>
               <div className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mt-0.5">
-                QA &amp; QUALITY ASSURANCE PORTAL
+                QA &amp; QUALITY ASSURANCE PORTAL • QUALITY MEETS PRECISION
               </div>
             </div>
 

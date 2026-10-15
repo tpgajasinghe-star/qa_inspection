@@ -1,6 +1,6 @@
 {
   "name": "ABC Company - QA Inspection Portal",
-  "description": "ABC Company Private Limited manufacturing quality assurance portal featuring workspace selection, secure inspector authentication, modular inspection workflows, and QA admin controls.",
+  "description": "ABC Company Private Limited manufacturing quality assurance portal — Quality Meets Precision: modular inspection workflows, deployed form controls, and live lot verification.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

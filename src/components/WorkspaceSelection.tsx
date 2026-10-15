@@ -24,7 +24,7 @@ export const WorkspaceSelection: React.FC<WorkspaceSelectionProps> = ({
           </h1>
         </div>
         <p className="text-slate-500 text-xs sm:text-sm max-w-md mx-auto font-medium">
-          Select your workspace to continue
+          Quality Meets Precision • Select your workspace to continue
         </p>
       </div>
 
