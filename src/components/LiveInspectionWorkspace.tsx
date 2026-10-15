@@ -169,7 +169,7 @@ export const LiveInspectionWorkspace: React.FC<LiveInspectionWorkspaceProps> = (
       status: autoStatus,
       defectType: autoStatus === 'fail' ? 'Dimensional Out-Of-Tolerance' : undefined,
       defectSeverity: autoStatus === 'fail' ? formSeverity === 'none' ? 'major' : formSeverity : 'none',
-      inspectorId: 'QA-8941',
+      inspectorId: 'QA-Inspector',
       inspectorName: 'Marcus Vance',
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
       notes: formNotes,

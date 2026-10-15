@@ -190,7 +190,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
         unit: 'mm',
         status: 'pass',
         defectSeverity: 'none',
-        inspectorId: 'QA-8941',
+        inspectorId: userId || 'QA-Inspector',
         inspectorName: 'Marcus Vance',
         timestamp: '2026-09-11 08:30:15',
         notes: `Conforms strictly to ${childCard.name} quality audit protocol. Dimensions & visual specs verified.`,
@@ -212,7 +212,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
         unit: 'mm',
         status: 'pass',
         defectSeverity: 'none',
-        inspectorId: 'QA-8941',
+        inspectorId: userId || 'QA-Inspector',
         inspectorName: 'Marcus Vance',
         timestamp: '2026-09-12 11:15:42',
         notes: `Calibration check approved. 100% sample pass rate in conformity test.`,
@@ -235,7 +235,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
         status: 'fail',
         defectSeverity: 'minor',
         defectType: 'Minor Tolerance Variance',
-        inspectorId: 'QA-8941',
+        inspectorId: userId || 'QA-Inspector',
         inspectorName: 'Marcus Vance',
         timestamp: '2026-09-13 14:40:08',
         notes: `Minor deviation observed (+0.07mm). Batch flagged for engineering re-calibration.`,
@@ -257,7 +257,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
         unit: 'mm',
         status: 'pass',
         defectSeverity: 'none',
-        inspectorId: 'QA-8941',
+        inspectorId: userId || 'QA-Inspector',
         inspectorName: 'Marcus Vance',
         timestamp: '2026-09-14 09:20:55',
         notes: `AQL 1.0 General Inspection Level II passed without anomalies. Certificate generated.`,
@@ -310,11 +310,11 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
       status: formStatus,
       defectSeverity: formStatus === 'pass' ? 'none' : formDefectSeverity,
       defectType: formStatus === 'pass' ? undefined : (formDefectType || 'Tolerance Deviation'),
-      inspectorId: userId || 'QA-8941',
-      inspectorName: `Inspector ${userId || 'QA-8941'}`,
+      inspectorId: userId || 'QA-Inspector',
+      inspectorName: userId ? `Inspector ${userId}` : 'Quality Inspector',
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
       notes: formNotes || `Inspection completed for ${childCard.name}. Specification standard verified. Status: ${formStatus.toUpperCase()}.`,
-      verifiedBy: `Lead Auditor ${userId || 'QA-8941'}`,
+      verifiedBy: userId ? `Lead Auditor ${userId}` : 'Lead Auditor',
       category: childCard.name,
     };
 
@@ -657,7 +657,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
                   </span>
                 </div>
                 <p className="text-xs sm:text-sm text-blue-100 font-medium mt-1">
-                  Quality Audit Standard: ISO 2859-1 Level II • Verified by Auditor: <span className="font-mono font-bold">{userId || 'QA-8941'}</span>
+                  Quality Audit Standard: ISO 2859-1 Level II • Verified by Auditor: <span className="font-mono font-bold">{userId || 'QA-Inspector'}</span>
                 </p>
               </div>
             </div>
@@ -1043,7 +1043,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
                   </label>
                   <input
                     type="text"
-                    value={userId || 'QA-8941'}
+                    value={userId || 'QA-Inspector'}
                     readOnly
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-mono font-bold text-slate-700 shadow-2xs"
                   />
@@ -1315,7 +1315,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
         </div>
         <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Active Inspector</span>
-          <span className="text-2xl font-extrabold text-blue-600 mt-1 block">{userId || 'QA-8941'}</span>
+          <span className="text-2xl font-extrabold text-blue-600 mt-1 block">{userId || 'QA-Inspector'}</span>
         </div>
       </div>
 

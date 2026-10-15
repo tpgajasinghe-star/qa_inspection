@@ -140,7 +140,7 @@ export default function App() {
       return;
     }
     setUserRole(newRole);
-    setUserId(newRole === 'admin' ? 'AD-1004' : 'QA-8941');
+    setUserId(prev => prev || (newRole === 'admin' ? 'Admin' : 'Inspector'));
     if (newRole === 'inspector') {
       setCurrentMode('inspection-dashboard');
     } else {

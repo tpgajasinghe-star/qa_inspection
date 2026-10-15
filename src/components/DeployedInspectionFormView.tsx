@@ -275,7 +275,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
       status,
       defectSeverity: hasFailures ? 'major' : 'none',
       defectType: hasFailures ? 'Tolerance / Dimensional Deviation' : undefined,
-      inspectorId: onlineEmpNo || userId || 'QA-8941',
+      inspectorId: onlineEmpNo || userId || 'QA Inspector',
       inspectorName: onlineInspectorName || 'Certified QC Inspector',
       timestamp: new Date().toISOString(),
       notes: remarks || `Verified against standard ${form.documentHeader.refStandard || 'SLS 734'} for ${productDesc || form.productType}.`,
