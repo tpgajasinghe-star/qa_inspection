@@ -239,30 +239,30 @@ export const IncomingInspectionPortal: React.FC<IncomingInspectionPortalProps> =
   }
 
   return (
-    <div className="w-full flex-1 flex flex-col items-center justify-between px-4 sm:px-6 py-6 z-10 max-w-7xl mx-auto min-h-[calc(100vh-6rem)]">
+    <div className="w-full flex-1 flex flex-col items-center justify-between px-4 sm:px-6 py-2 z-10 max-w-7xl mx-auto my-auto">
       
       {/* Top Section: Corporate Brand & Back Button */}
       <div className="w-full flex flex-col items-center">
 
-        {/* Main Portal Title & Icon matching exactly the conditions of the before pages */}
-        <div className="text-center mb-8 sm:mb-10">
-          <div className="flex items-center justify-center gap-3.5 mb-3">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-sky-400 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 ring-4 ring-white">
-              <Boxes className="w-7 h-7 sm:w-8 sm:h-8 stroke-[2]" />
+        {/* Main Portal Title & Icon */}
+        <div className="text-center mb-2 sm:mb-3">
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-sky-400 flex items-center justify-center text-white shadow-sm shadow-blue-500/25 ring-2 ring-white">
+              <Boxes className="w-5 h-5 stroke-[2]" />
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
+            <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">
               Incoming Inspection
             </h1>
           </div>
-          <p className="text-slate-500 text-base sm:text-lg max-w-xl mx-auto font-medium">
+          <p className="text-slate-500 text-xs sm:text-sm max-w-xl mx-auto font-medium">
             Select an incoming category to begin quality audits
           </p>
         </div>
       </div>
 
-      {/* 8 Cards Grid: Exactly matching the aesthetic, layout, and conditions of the before pages */}
-      <div className="w-full max-w-7xl my-auto mb-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-7">
+      {/* Cards Grid */}
+      <div className="w-full max-w-7xl my-auto mb-2 sm:mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4.5">
           {configuredChildCards.map((childCard) => {
             const matchedCategory = INCOMING_CATEGORIES.find(
               c => c.name.toLowerCase() === childCard.name.toLowerCase() || c.id === childCard.id
@@ -297,21 +297,21 @@ export const IncomingInspectionPortal: React.FC<IncomingInspectionPortalProps> =
                     setActiveChildCard(childCard);
                   }
                 }}
-                className="portal-glass-card rounded-3xl p-7 sm:p-8 flex flex-col items-center text-center justify-between relative group transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl cursor-pointer select-none border border-white/90 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
+                className="portal-glass-card rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center justify-between relative group transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer select-none border border-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-xs"
                 id={`card-${childCard.name.toLowerCase().replace(/\s+/g, '-')}`}
               >
                 {/* Top Module Icon with decorative orbital accent dot */}
                 <div className="flex flex-col items-center w-full">
-                  <div className="relative mb-6">
-                    <div className="w-20 h-20 rounded-2xl bg-blue-50/90 border border-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-105 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 shadow-sm">
-                      <InspectionCardIconRenderer iconName={childCard.iconName} className="w-9 h-9 stroke-[1.8]" />
+                  <div className="relative mb-2.5 sm:mb-3">
+                    <div className="w-13 h-13 sm:w-15 sm:h-15 rounded-2xl bg-blue-50/90 border border-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-105 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 shadow-2xs">
+                      <InspectionCardIconRenderer iconName={childCard.iconName} className="w-7 h-7 sm:w-8 sm:h-8 stroke-[1.8]" />
                     </div>
                     {/* Orbit accent dot matching before pages */}
-                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-blue-600 border-2 border-white rounded-full shadow-xs group-hover:scale-125 transition-transform" />
+                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-blue-600 border-2 border-white rounded-full shadow-2xs group-hover:scale-110 transition-transform" />
                   </div>
 
-                  {/* Card Title matching user request */}
-                  <h3 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight mb-4 group-hover:text-blue-600 transition-colors">
+                  {/* Card Title */}
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight mb-2.5 group-hover:text-blue-600 transition-colors line-clamp-1">
                     {childCard.name}
                   </h3>
                 </div>
@@ -324,11 +324,11 @@ export const IncomingInspectionPortal: React.FC<IncomingInspectionPortalProps> =
                       e.stopPropagation();
                       setActiveChildCard(childCard);
                     }}
-                    className="w-full py-3.5 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs sm:text-sm transition-all duration-200 shadow-md shadow-blue-500/25 flex items-center justify-center gap-2 group-hover:shadow-lg group-hover:shadow-blue-500/35 cursor-pointer"
+                    className="w-full py-2 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs transition-all duration-200 shadow-2xs shadow-blue-500/25 flex items-center justify-center gap-1.5 group-hover:shadow-xs cursor-pointer"
                     id={`btn-start-${childCard.name.toLowerCase().replace(/\s+/g, '-')}`}
                   >
                     <span>Select Operations</span>
-                    <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
+                    <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
                   </button>
                 </div>
               </div>
@@ -338,13 +338,13 @@ export const IncomingInspectionPortal: React.FC<IncomingInspectionPortalProps> =
       </div>
 
       {/* Return to QA Inspection Button at bottom */}
-      <div className="w-full flex justify-center pt-2">
+      <div className="w-full flex justify-center pt-1">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-blue-700 font-semibold text-xs sm:text-sm shadow-sm border border-slate-200/80 backdrop-blur-md transition-all cursor-pointer group hover:shadow-md"
+          className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-blue-700 font-semibold text-xs shadow-xs border border-slate-200/80 backdrop-blur-md transition-all cursor-pointer group hover:shadow-xs"
           id="btn-return-to-qa-portal"
         >
-          <ArrowLeft className="w-4 h-4 text-slate-500 group-hover:text-blue-600 transition-transform group-hover:-translate-x-0.5" />
+          <ArrowLeft className="w-3.5 h-3.5 text-slate-500 group-hover:text-blue-600 transition-transform group-hover:-translate-x-0.5" />
           <span>Back to QA Inspection Modules</span>
         </button>
       </div>

@@ -43,6 +43,7 @@ import { InspectionSpecItem } from './AddRemoveInspectionPortal';
 import { FormCardsGallery, InspectionFormCardData } from './FormCardsGallery';
 import { getMainCards, getChildCards, InspectionHierarchyCard } from '../inspectionHierarchyData';
 import { deployInspectionForm } from '../deployedFormsData';
+import { RoundClockTimePickerModal } from './RoundClockTimePickerModal';
 
 // Footer Section Block Data Model (matching user's reference image)
 export interface FormFooterAttachment {
@@ -735,6 +736,14 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
   const [deployChildId, setDeployChildId] = useState<string>('child-white-series');
   const [deployProductType, setDeployProductType] = useState<string>('');
   const [deployFormName, setDeployFormName] = useState<string>('');
+
+  // 12-hour round clock time picker modal state for Form Generator
+  const [studioClockPicker, setStudioClockPicker] = useState<{
+    isOpen: boolean;
+    headerTitle: string;
+    initialValue: string;
+    onApply: (newTime: string) => void;
+  } | null>(null);
 
   // Persist forms to localStorage
   useEffect(() => {
@@ -2873,33 +2882,32 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                             <Clock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                             <span>{col.header}</span>
                           </div>
-                          {/* Small textbox to enter the time manually with time picker */}
-                          <div className="flex items-center gap-1 bg-slate-900 border border-slate-600 rounded px-2 py-0.5 shadow-inner focus-within:border-emerald-400 focus-within:ring-1 focus-within:ring-emerald-400">
+                          {/* Small textbox to enter the time manually with 12 hrs round clock picker */}
+                          <div 
+                            onClick={() => {
+                              setStudioClockPicker({
+                                isOpen: true,
+                                headerTitle: col.header,
+                                initialValue: currentTimeVal || '08:30 AM',
+                                onApply: (newTime) => {
+                                  handlePreviewFieldChange(savedSection.id, timeKey, newTime);
+                                },
+                              });
+                            }}
+                            className="flex items-center gap-1.5 bg-slate-900 border border-slate-600 rounded px-2 py-0.5 shadow-inner hover:border-emerald-400 hover:ring-1 hover:ring-emerald-400 cursor-pointer transition select-none group"
+                            title={`Click to open 12 hrs round clock time picker for ${col.header}`}
+                          >
                             <span className="text-[10px] text-slate-300 font-bold font-mono">Time:</span>
-                            <input
-                              type="text"
-                              value={currentTimeVal}
-                              onChange={(e) => handlePreviewFieldChange(savedSection.id, timeKey, e.target.value)}
-                              placeholder="08:30 AM"
-                              className="w-16 text-[11px] font-mono font-medium text-emerald-300 placeholder-slate-500 bg-transparent outline-none text-center"
-                              title={`Enter or pick time for ${col.header}`}
-                            />
-                            <label className="cursor-pointer text-slate-400 hover:text-emerald-400 transition shrink-0 p-0.5" title="Click to pick time">
-                              <Clock className="w-3 h-3" />
-                              <input
-                                type="time"
-                                className="sr-only"
-                                onChange={(e) => {
-                                  if (!e.target.value) return;
-                                  const [hStr, mStr] = e.target.value.split(':');
-                                  let h = parseInt(hStr, 10);
-                                  const ampm = h >= 12 ? 'PM' : 'AM';
-                                  h = h % 12 || 12;
-                                  const formatted = `${String(h).padStart(2, '0')}:${mStr} ${ampm}`;
-                                  handlePreviewFieldChange(savedSection.id, timeKey, formatted);
-                                }}
-                              />
-                            </label>
+                            <span className="w-16 text-[11px] font-mono font-bold text-emerald-300 text-center select-none">
+                              {currentTimeVal || '08:30 AM'}
+                            </span>
+                            <button
+                              type="button"
+                              className="text-slate-400 group-hover:text-emerald-400 group-hover:scale-110 transition shrink-0 p-0.5 cursor-pointer"
+                              title="Open 12 hrs round clock time picker"
+                            >
+                              <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                            </button>
                           </div>
                         </div>
                       ) : isSampleCol ? (
@@ -5756,33 +5764,32 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                                           <Clock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                                           <span>{col.header}</span>
                                         </div>
-                                        {/* Small textbox in header with time picker */}
-                                        <div className="flex items-center gap-1 bg-slate-900 border border-slate-600 rounded px-1.5 py-0.5">
+                                        {/* Small textbox in header with 12 hrs round clock picker */}
+                                        <div 
+                                          onClick={() => {
+                                            setStudioClockPicker({
+                                              isOpen: true,
+                                              headerTitle: col.header,
+                                              initialValue: col.defaultHeaderTime || '08:30 AM',
+                                              onApply: (newTime) => {
+                                                handleUpdateColumnDefaultTime(col.id, newTime);
+                                              },
+                                            });
+                                          }}
+                                          className="flex items-center gap-1.5 bg-slate-900 border border-slate-600 rounded px-2 py-0.5 hover:border-emerald-400 hover:ring-1 hover:ring-emerald-400 cursor-pointer transition select-none group"
+                                          title={`Click to open 12 hrs round clock time picker for ${col.header}`}
+                                        >
                                           <span className="text-[10px] text-slate-300 font-bold font-mono">Time:</span>
-                                          <input
-                                            type="text"
-                                            value={col.defaultHeaderTime || ''}
-                                            onChange={(e) => handleUpdateColumnDefaultTime(col.id, e.target.value)}
-                                            placeholder="08:30 AM"
-                                            className="w-16 text-[11px] font-mono font-medium text-emerald-300 placeholder-slate-500 bg-transparent outline-none text-center"
-                                            title={`Enter or pick time for ${col.header}`}
-                                          />
-                                          <label className="cursor-pointer text-slate-400 hover:text-emerald-400 transition shrink-0 p-0.5" title="Pick time">
-                                            <Clock className="w-3 h-3" />
-                                            <input
-                                              type="time"
-                                              className="sr-only"
-                                              onChange={(e) => {
-                                                if (!e.target.value) return;
-                                                const [hStr, mStr] = e.target.value.split(':');
-                                                let h = parseInt(hStr, 10);
-                                                const ampm = h >= 12 ? 'PM' : 'AM';
-                                                h = h % 12 || 12;
-                                                const formatted = `${String(h).padStart(2, '0')}:${mStr} ${ampm}`;
-                                                handleUpdateColumnDefaultTime(col.id, formatted);
-                                              }}
-                                            />
-                                          </label>
+                                          <span className="w-16 text-[11px] font-mono font-bold text-emerald-300 text-center select-none">
+                                            {col.defaultHeaderTime || '08:30 AM'}
+                                          </span>
+                                          <button
+                                            type="button"
+                                            className="text-slate-400 group-hover:text-emerald-400 group-hover:scale-110 transition shrink-0 p-0.5 cursor-pointer"
+                                            title="Open 12 hrs round clock time picker"
+                                          >
+                                            <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                                          </button>
                                         </div>
                                       </div>
                                     ) : isSampleCol ? (
@@ -6170,6 +6177,20 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {/* 12-Hour Round Clock Time Picker Modal for Studio */}
+      {studioClockPicker && studioClockPicker.isOpen && (
+        <RoundClockTimePickerModal
+          isOpen={studioClockPicker.isOpen}
+          title={`Set Time for ${studioClockPicker.headerTitle || 'Interval'}`}
+          initialValue={studioClockPicker.initialValue || ''}
+          onClose={() => setStudioClockPicker(null)}
+          onSelectTime={(newTime) => {
+            studioClockPicker.onApply(newTime);
+            setStudioClockPicker(null);
+          }}
+        />
       )}
 
     </div>

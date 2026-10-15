@@ -37,6 +37,7 @@ import {
   DEPLOYED_FORMS_UPDATED_EVENT 
 } from '../deployedFormsData';
 import { DeployedInspectionFormView } from './DeployedInspectionFormView';
+import { RoundClockTimePickerModal } from './RoundClockTimePickerModal';
 
 interface ChildCardOperationsWorkspaceProps {
   mainCard: InspectionHierarchyCard;
@@ -78,6 +79,9 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
   );
   const [selectedDeployedForm, setSelectedDeployedForm] = useState<DeployedInspectionForm | null>(null);
   const [showStandardFallbackForm, setShowStandardFallbackForm] = useState<boolean>(false);
+  const [selectedFormStartTime, setSelectedFormStartTime] = useState<string>('');
+  const [formInspectionTime, setFormInspectionTime] = useState<string>('08:30 AM');
+  const [showStandardTimePickerModal, setShowStandardTimePickerModal] = useState<boolean>(false);
 
   // Keep deployed forms synced when updated
   useEffect(() => {
@@ -365,13 +369,13 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
   // =========================================================================
   if (currentView === 'operation-cards') {
     return (
-      <div className="w-full flex-1 flex flex-col items-center justify-between px-4 sm:px-6 py-6 z-10 max-w-7xl mx-auto min-h-[calc(100vh-7rem)] animate-in fade-in duration-300">
+      <div className="w-full flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-2 sm:py-4 z-10 max-w-5xl mx-auto my-auto animate-in fade-in duration-300">
         
         {/* Top Header & Breadcrumbs */}
-        <div className="w-full max-w-5xl flex flex-col items-center text-center mb-8">
+        <div className="w-full max-w-5xl flex flex-col items-center text-center mb-3 sm:mb-4">
           
           {/* Breadcrumb Trail */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100/90 text-slate-600 text-xs font-semibold mb-5 border border-slate-200/80 shadow-2xs">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100/90 text-slate-600 text-xs font-semibold mb-2 sm:mb-3 border border-slate-200/80 shadow-2xs">
             <span 
               onClick={onBackToChildCards} 
               className="hover:text-blue-600 cursor-pointer transition-colors"
@@ -386,12 +390,12 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
           </div>
 
           {/* Child Card Icon & Heading */}
-          <div className="flex items-center justify-center gap-4 mb-2">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 ring-4 ring-white">
-              <InspectionCardIconRenderer iconName={childCard.iconName} className="w-8 h-8 stroke-[1.9]" />
+          <div className="flex items-center justify-center gap-3 mb-1">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/25 ring-3 ring-white">
+              <InspectionCardIconRenderer iconName={childCard.iconName} className="w-6 h-6 stroke-[1.9]" />
             </div>
             <div className="text-left">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">
                 {childCard.name}
               </h1>
             </div>
@@ -403,16 +407,20 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
         {/* 1. Make New Inspection                                            */}
         {/* 2. View Past Inspection Records                                   */}
         {/* ================================================================= */}
-        <div className="w-full max-w-xl mx-auto my-auto grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+        <div className="w-full max-w-xl mx-auto my-auto grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4 mb-4 sm:mb-6">
           
           {/* CARD 1: MAKE TO NEW INSPECTION */}
           <div
-            onClick={() => setCurrentView('new-inspection')}
+            onClick={() => {
+              setSelectedDeployedForm(null);
+              setCurrentView('new-inspection');
+            }}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
+                setSelectedDeployedForm(null);
                 setCurrentView('new-inspection');
               }
             }}
@@ -440,6 +448,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
+                  setSelectedDeployedForm(null);
                   setCurrentView('new-inspection');
                 }}
                 className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs sm:text-sm transition-all duration-200 shadow-sm shadow-blue-500/25 flex items-center justify-center gap-2 group-hover:shadow-md cursor-pointer"
@@ -522,10 +531,15 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
       return (
         <DeployedInspectionFormView
           form={selectedDeployedForm}
+          initialAuditTime={selectedFormStartTime}
           mainCard={mainCard}
           childCard={childCard}
           userId={userId}
-          onBackToList={() => setSelectedDeployedForm(null)}
+          dbItems={dbItems}
+          onBackToList={() => {
+            setSelectedDeployedForm(null);
+            setSelectedFormStartTime('');
+          }}
           onSubmitRecord={(record) => {
             setLocalRecords(prev => [record, ...prev]);
             if (onAddInspectionRecord) onAddInspectionRecord(record);
@@ -798,6 +812,22 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
                     placeholder="e.g. Line 02 / Premier Supply Ltd"
                   />
                 </div>
+
+                {/* Inspection Start Time with 12 hrs Round Clock Picker */}
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                    Inspection Start Time
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowStandardTimePickerModal(true)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white hover:border-blue-500 text-xs font-mono font-bold text-blue-700 flex items-center justify-between shadow-2xs cursor-pointer transition"
+                    title="Click to open 12-hour round clock time picker"
+                  >
+                    <span>{formInspectionTime || '08:30 AM'}</span>
+                    <Clock className="w-4 h-4 text-blue-600" />
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1058,114 +1088,105 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
             </div>
 
           </form>
+
+          {/* 12-Hour Round Clock Time Picker Modal for Standard Form */}
+          {showStandardTimePickerModal && (
+            <RoundClockTimePickerModal
+              isOpen={showStandardTimePickerModal}
+              title="Select Inspection Start Time"
+              initialValue={formInspectionTime}
+              onClose={() => setShowStandardTimePickerModal(false)}
+              onSelectTime={(time) => {
+                setFormInspectionTime(time);
+                setShowStandardTimePickerModal(false);
+              }}
+            />
+          )}
         </div>
       </div>
     );
   }
 
   // 3. DEFAULT FOR "MAKE NEW INSPECTION": DEPLOYED FORMS LIST
-  // User Requirement: "When i clicked make new inspection button redirect new page and need to show deployed Form as list."
-  // "And it save as Product Type in the form header."
-  // 3. DEFAULT FOR "MAKE NEW INSPECTION": DEPLOYED FORMS LIST
-  // Only shows forms deployed to this category, in a clean list with only Product Type name and button
+  // Shows ONLY forms deployed to this category, in a list with Product Description / Type and start button
   const currentListForms = deployedForms;
 
   return (
-    <div className="w-full flex-1 flex flex-col items-center px-4 sm:px-6 py-6 z-10 max-w-5xl mx-auto min-h-[calc(100vh-7rem)] animate-in fade-in duration-300">
+    <div className="w-full flex-1 flex flex-col items-center px-4 sm:px-6 py-4 sm:py-6 z-10 max-w-5xl mx-auto my-auto animate-in fade-in duration-300">
       
-      {/* Top Breadcrumb & Navigation */}
-      <div className="w-full flex items-center justify-between mb-6 pb-4 border-b border-slate-200/70">
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-          <button 
-            onClick={onBackToChildCards}
-            className="hover:text-blue-600 cursor-pointer transition-colors"
-          >
-            {mainCard.name}
-          </button>
-          <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-          <button 
-            onClick={() => setCurrentView('operation-cards')}
-            className="hover:text-blue-600 cursor-pointer transition-colors"
-          >
-            {childCard.name}
-          </button>
-          <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-blue-700 font-bold">
-            Make New Inspection
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => setShowStandardFallbackForm(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition cursor-pointer"
-            title="Launch Standard Quick Inspection Form"
-          >
-            <FileCheck2 className="w-3.5 h-3.5 text-slate-500" />
-            <span>Standard Quick Form</span>
-          </button>
-          <button
-            onClick={() => setCurrentView('past-records')}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition cursor-pointer"
-          >
-            <History className="w-3.5 h-3.5 text-slate-500" />
-            <span>View Past Records ({totalCount})</span>
-          </button>
-          <button
-            onClick={() => setCurrentView('operation-cards')}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition cursor-pointer"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
-            <span>Operations Cards</span>
-          </button>
-        </div>
+      {/* Top Navigation */}
+      <div className="w-full flex items-center justify-between mb-4 sm:mb-6 pb-3 border-b border-slate-200/70">
+        <button 
+          onClick={() => setCurrentView('operation-cards')}
+          className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-blue-600 transition-colors cursor-pointer"
+          id="btn-back-to-operations"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to {childCard.name}</span>
+        </button>
+        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+          Make New Inspection • Select Form
+        </span>
       </div>
 
-      {/* DEPLOYED FORMS LIST (Shows ONLY Product Type name and button) */}
+      {/* DEPLOYED FORMS LIST (Shows Product Description / Type and Start Inspection Button) */}
       <div className="w-full">
         {currentListForms.length === 0 ? (
           <div className="w-full py-12 px-6 text-center bg-white rounded-2xl border border-dashed border-slate-300 flex flex-col items-center justify-center shadow-xs">
-            <h3 className="text-sm sm:text-base font-bold text-slate-800 mb-1">
-              No forms deployed for {childCard.name}
-            </h3>
-            <p className="text-xs text-slate-500 mb-4 max-w-md">
-              Deploy inspection forms from the Form Generator to see them listed here.
+            <p className="text-sm font-semibold text-slate-700 mb-1">
+              No deployed forms found for {childCard.name}
             </p>
-            <button
-              type="button"
-              onClick={() => setShowStandardFallbackForm(true)}
-              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition cursor-pointer"
-            >
-              Use Standard Quick Form
-            </button>
+            <p className="text-xs text-slate-400">
+              Deploy inspection forms from Admin Panel &rarr; Form Editor to see them listed here.
+            </p>
           </div>
         ) : (
-          <div className="w-full bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden divide-y divide-slate-200">
-            {currentListForms.map((form) => {
-              const productTypeName = form.productType || form.documentHeader?.productType || childCard.name;
+          <div className="w-full bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            {/* Table / List Header */}
+            <div className="bg-slate-50/80 px-6 py-3 border-b border-slate-200 flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <span>Product Description / Type</span>
+              <span>Action</span>
+            </div>
 
-              return (
-                <div
-                  key={form.id}
-                  className="px-6 py-4.5 flex items-center justify-between gap-4 hover:bg-slate-50 transition-colors"
-                >
-                  {/* ONLY Product Type Name */}
-                  <span className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
-                    {productTypeName}
-                  </span>
+            {/* List Rows */}
+            <div className="divide-y divide-slate-200">
+              {currentListForms.map((form) => {
+                const productTypeName = form.productType || form.documentHeader?.productType || childCard.name;
 
-                  {/* ONLY Button */}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedDeployedForm(form)}
-                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs sm:text-sm shadow-xs hover:shadow-md transition-all flex items-center gap-2 cursor-pointer shrink-0"
+                return (
+                  <div
+                    key={form.id}
+                    className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-slate-50/70 transition-colors"
                   >
-                    <span>Start Inspection</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-              );
-            })}
+                    {/* Product Description / Type Name */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0" />
+                      <div className="truncate">
+                        <span className="text-sm sm:text-base font-bold text-slate-900 tracking-tight block truncate">
+                          {productTypeName}
+                        </span>
+                        {form.documentHeader?.documentNo && (
+                          <span className="text-[11px] font-mono text-slate-400 block mt-0.5">
+                            Doc: {form.documentHeader.documentNo} • Rev: {form.documentHeader.revisionNo || '01'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* ONLY Start Button */}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDeployedForm(form)}
+                      className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs sm:text-sm shadow-xs hover:shadow-md transition-all flex items-center gap-2 cursor-pointer shrink-0"
+                      id={`btn-start-inspect-${form.id}`}
+                    >
+                      <span>Start Inspection</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

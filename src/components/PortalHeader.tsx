@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Wifi, LogOut, RefreshCw, UserCheck, Shield } from 'lucide-react';
+import { ArrowLeft, Wifi, LogOut, RefreshCw, UserCheck, Shield, Sparkles } from 'lucide-react';
 import { WorkspaceMode } from '../types';
 
 interface PortalHeaderProps {
@@ -9,6 +9,7 @@ interface PortalHeaderProps {
   onNavigate: (mode: WorkspaceMode) => void;
   onLogout: () => void;
   onSwitchRole: (role: 'inspector' | 'admin') => void;
+  onShowSplash?: () => void;
 }
 
 export const PortalHeader: React.FC<PortalHeaderProps> = ({
@@ -18,6 +19,7 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
   onNavigate,
   onLogout,
   onSwitchRole,
+  onShowSplash,
 }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -44,15 +46,15 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
   };
 
   return (
-    <header className="w-full flex items-center justify-between py-4 px-2 sm:px-4 select-none relative z-30">
+    <header className="w-full flex items-center justify-between py-2 sm:py-2.5 px-3 sm:px-5 select-none relative z-30 shrink-0">
       {/* Back Navigation Button */}
       {currentMode !== 'workspace-selection' ? (
         <button
           onClick={handleBackClick}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/85 hover:bg-white text-slate-700 hover:text-slate-950 font-medium text-xs sm:text-sm shadow-sm backdrop-blur-md border border-white/80 transition-all duration-200 hover:shadow-md cursor-pointer group"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/85 hover:bg-white text-slate-700 hover:text-slate-950 font-medium text-xs sm:text-sm shadow-xs backdrop-blur-md border border-white/80 transition-all duration-200 hover:shadow-sm cursor-pointer group"
           id="btn-nav-back"
         >
-          <ArrowLeft className="w-4 h-4 text-slate-500 group-hover:text-blue-600 transition-transform group-hover:-translate-x-0.5" />
+          <ArrowLeft className="w-3.5 h-3.5 text-slate-500 group-hover:text-blue-600 transition-transform group-hover:-translate-x-0.5" />
           <span>{getBackLabel()}</span>
         </button>
       ) : (
@@ -66,15 +68,20 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
 
       {/* Right Indicators & User Pill */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Systems Online Status Pill */}
-        <div className="inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full bg-white/85 backdrop-blur-md border border-white/80 text-emerald-700 text-xs font-semibold shadow-xs">
+        {/* Systems Online Status Pill / Splash Trigger */}
+        <button
+          type="button"
+          onClick={onShowSplash}
+          title="Click to replay QA Portal Splash Screen"
+          className="inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full bg-white/85 hover:bg-white backdrop-blur-md border border-white/80 hover:border-emerald-300 text-emerald-700 text-xs font-semibold shadow-xs cursor-pointer transition-all"
+        >
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
           <span className="hidden xs:inline">Systems Online</span>
           <Wifi className="w-3 h-3 text-emerald-500 xs:hidden" />
-        </div>
+        </button>
 
         {/* User Identity Pill with Dropdown & Direct Sign Out */}
         {userRole && (
@@ -138,6 +145,19 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
                         <Shield className="w-3.5 h-3.5 text-indigo-600" />
                         <span>Workspace Selection</span>
                       </button>
+
+                      {onShowSplash && (
+                        <button
+                          onClick={() => {
+                            setShowUserMenu(false);
+                            onShowSplash();
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-emerald-50 text-emerald-800 transition cursor-pointer text-left font-medium"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Replay Splash Screen</span>
+                        </button>
+                      )}
                     </div>
 
                     <div className="pt-1 border-t border-slate-100">

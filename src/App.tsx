@@ -24,8 +24,12 @@ import { IncomingInspectionPortal } from './components/IncomingInspectionPortal'
 import { InProcessInspectionPortal } from './components/InProcessInspectionPortal';
 import { ModuleInspectionPortal } from './components/ModuleInspectionPortal';
 import { AddRemoveInspectionPortal } from './components/AddRemoveInspectionPortal';
+import { SplashScreen } from './components/SplashScreen';
 
 export default function App() {
+  // Splash Screen State (shows on portal launch, auto-hides after 3 seconds)
+  const [showSplash, setShowSplash] = useState<boolean>(true);
+
   // Navigation & Auth State
   const [currentMode, setCurrentMode] = useState<WorkspaceMode>('workspace-selection');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -155,6 +159,11 @@ export default function App() {
 
   return (
     <div className="min-h-screen text-slate-800 font-sans flex flex-col justify-between selection:bg-blue-500 selection:text-white relative overflow-x-hidden">
+      {/* QA Inspection Portal Splash Screen (Auto-hides after 3 seconds) */}
+      {showSplash && (
+        <SplashScreen onComplete={() => setShowSplash(false)} />
+      )}
+
       {/* Background Graphic & Luminous Mesh Overlay */}
       <BackgroundBackdrop />
 
@@ -166,10 +175,11 @@ export default function App() {
         onNavigate={(mode) => setCurrentMode(mode)}
         onLogout={handleLogout}
         onSwitchRole={handleSwitchRole}
+        onShowSplash={() => setShowSplash(true)}
       />
 
-      {/* Main Dynamic View Content */}
-      <main className="flex-1 flex flex-col items-center justify-center relative z-10 w-full">
+      {/* Main Dynamic View Content - Natural full-page scrolling for detailed forms & records */}
+      <main className="flex-1 w-full flex flex-col items-center relative z-10">
         {currentMode === 'workspace-selection' && (
           <WorkspaceSelection
             onSelectWorkspace={handleSelectWorkspace}
@@ -274,7 +284,7 @@ export default function App() {
       </main>
 
       {/* Persistent Corporate Footer - ABC Company Pvt Ltd */}
-      <footer className="w-full py-3.5 px-6 z-20 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 text-xs text-slate-500 border-t border-slate-200/50 bg-white/70 backdrop-blur-md transition-all select-none">
+      <footer className="w-full shrink-0 py-2 sm:py-2.5 px-6 z-20 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 text-xs text-slate-500 border-t border-slate-200/50 bg-white/70 backdrop-blur-md transition-all select-none">
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-xs">
             <Building2 className="w-3.5 h-3.5" />
