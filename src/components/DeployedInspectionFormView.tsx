@@ -34,6 +34,8 @@ interface DeployedInspectionFormViewProps {
   initialAuditTime?: string;
   dbItems?: DbItem[];
   onBackToList: () => void;
+  onBackToOperations?: () => void;
+  onBackToMainCards?: () => void;
   onSubmitRecord: (record: InspectionRecord) => void;
 }
 
@@ -45,6 +47,8 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
   initialAuditTime,
   dbItems,
   onBackToList,
+  onBackToOperations,
+  onBackToMainCards,
   onSubmitRecord,
 }) => {
   // Traceability & Audit Metadata
@@ -301,16 +305,18 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 flex-wrap">
           <button 
             type="button"
-            onClick={onBackToList}
+            onClick={onBackToMainCards || onBackToOperations || onBackToList}
             className="hover:text-blue-600 cursor-pointer transition-colors"
+            title={`Return to ${mainCard.name} categories`}
           >
             {mainCard.name}
           </button>
           <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
           <button 
             type="button"
-            onClick={onBackToList}
+            onClick={onBackToOperations || onBackToList}
             className="hover:text-blue-600 cursor-pointer transition-colors"
+            title={`Return to ${childCard.name} operations`}
           >
             {childCard.name}
           </button>
@@ -319,6 +325,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
             type="button"
             onClick={onBackToList}
             className="hover:text-blue-600 cursor-pointer transition-colors"
+            title="Return to Make New Inspection form selection"
           >
             Make New Inspection
           </button>

@@ -3,9 +3,34 @@ import { UserProfile, ProfileRole } from '../types';
 
 // Real database-driven profiles storage key
 const PROFILES_STORAGE_KEY = 'qc_supabase_profiles_cache_v2';
+const PASSWORDS_VAULT_KEY = 'qc_user_passwords_vault_v1';
 
 // Zero dummy/mock data - all data must strictly originate from Supabase
 const DEFAULT_CACHED_PROFILES: UserProfile[] = [];
+
+export const storeUserPassword = (identifier: string, pwd: string): void => {
+  if (typeof window === 'undefined' || !window.localStorage || !pwd || !identifier) return;
+  try {
+    const raw = localStorage.getItem(PASSWORDS_VAULT_KEY);
+    const map = raw ? JSON.parse(raw) : {};
+    map[identifier.toLowerCase().trim()] = pwd;
+    localStorage.setItem(PASSWORDS_VAULT_KEY, JSON.stringify(map));
+  } catch (e) {
+    console.warn('[adminUserService] Failed to store password in vault:', e);
+  }
+};
+
+export const getStoredUserPassword = (identifier?: string): string | null => {
+  if (typeof window === 'undefined' || !window.localStorage || !identifier) return null;
+  try {
+    const raw = localStorage.getItem(PASSWORDS_VAULT_KEY);
+    if (!raw) return null;
+    const map = JSON.parse(raw);
+    return map[identifier.toLowerCase().trim()] || null;
+  } catch {
+    return null;
+  }
+};
 
 // Local cache helpers with strict legacy mock data cleanup
 const getCachedProfiles = (): UserProfile[] => {
@@ -251,7 +276,13 @@ export async function fetchProfiles(currentUserRole: ProfileRole): Promise<UserP
       const authUser = authMap.get(row.id);
       const email = authUser?.email || `${(row.employee_id || 'user').toLowerCase()}@abc.com`;
       const normalizedRole: ProfileRole = (row.role || '').toUpperCase() === 'ADMIN' ? 'ADMIN' : 'USER';
-      const storedPassword = authUser?.user_metadata?.initial_password || '••••••••';
+      
+      // Look up real password: metadata first, then password vault, then standard password123
+      const storedPassword = 
+        authUser?.user_metadata?.initial_password ||
+        getStoredUserPassword(row.employee_id) ||
+        getStoredUserPassword(row.id) ||
+        'password123';
 
       return {
         id: row.id,
@@ -384,6 +415,12 @@ export async function createUser(
 
     console.log('[adminUserService:createUser] Step 2 SUCCESS: Profile successfully inserted into profiles table:', dbData);
 
+    // Save in password vault
+    storeUserPassword(cleanEmpId, cleanPassword);
+    if (newUserId) {
+      storeUserPassword(newUserId, cleanPassword);
+    }
+
     // 3. Build UserProfile and update cache
     const createdRecord: UserProfile = {
       id: dbData.id,
@@ -468,6 +505,10 @@ export async function updateProfileUser(
     // 2. Update Auth password if requested
     if (updates.password) {
       console.log('[adminUserService:updateProfileUser] Updating password in Auth for user ID:', id);
+      storeUserPassword(id, updates.password);
+      if (updatedDbData?.employee_id) {
+        storeUserPassword(updatedDbData.employee_id, updates.password);
+      }
       const { error: pwdErr } = await supabaseAdmin.auth.admin.updateUserById(id, {
         password: updates.password,
       });

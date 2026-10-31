@@ -89,12 +89,15 @@ export default function App() {
 
   // Handle Workspace Selection from Home Screen:
   const handleSelectWorkspace = (workspace: 'inspection' | 'admin') => {
-    const targetRole: 'inspector' | 'admin' = workspace === 'admin' ? 'admin' : 'inspector';
-    const destination = workspace === 'admin' ? '/admin' : '/inspection';
+    if (workspace === 'admin') {
+      // Admin Panel requires authentication; show sign-in page
+      navigate('/sign-in', { state: { role: 'admin', from: '/admin' } });
+      return;
+    }
 
-    // If not authenticated in current session, or switching roles:
-    if (!isAuthenticated || userRole !== targetRole) {
-      navigate('/sign-in', { state: { role: targetRole, from: destination } });
+    const destination = '/inspection';
+    if (!isAuthenticated || userRole !== 'inspector') {
+      navigate('/sign-in', { state: { role: 'inspector', from: destination } });
       return;
     }
 
@@ -188,6 +191,9 @@ export default function App() {
     sessionStorage.removeItem('qc_auth_logged_in');
     sessionStorage.removeItem('qc_auth_role');
     sessionStorage.removeItem('qc_auth_user_id');
+    sessionStorage.removeItem('qc_auth_profile_role');
+    sessionStorage.removeItem('qc_auth_full_name');
+    sessionStorage.removeItem('qc_auth_employee_id');
     navigate('/');
   };
 
@@ -412,17 +418,21 @@ export default function App() {
           <Route
             path="/admin"
             element={
-              <AdminDashboard
-                onNavigateAdminSub={(sub) => {
-                  const map: Record<string, string> = {
-                    'admin-specs': '/admin/specs',
-                    'admin-records': '/admin/records',
-                    'admin-analytics': '/admin/analytics',
-                    'admin-users': '/admin/users',
-                  };
-                  navigate(map[sub] || '/admin');
-                }}
-              />
+              !isAuthenticated || userRole !== 'admin' ? (
+                <Navigate to="/sign-in" replace state={{ role: 'admin', from: '/admin' }} />
+              ) : (
+                <AdminDashboard
+                  onNavigateAdminSub={(sub) => {
+                    const map: Record<string, string> = {
+                      'admin-specs': '/admin/specs',
+                      'admin-records': '/admin/records',
+                      'admin-analytics': '/admin/analytics',
+                      'admin-users': '/admin/users',
+                    };
+                    navigate(map[sub] || '/admin');
+                  }}
+                />
+              )
             }
           />
 
@@ -430,10 +440,14 @@ export default function App() {
           <Route
             path="/admin/specs"
             element={
-              <AddRemoveInspectionPortal
-                onBack={() => navigate(-1)}
-                userId={userId}
-              />
+              !isAuthenticated || userRole !== 'admin' ? (
+                <Navigate to="/sign-in" replace state={{ role: 'admin', from: '/admin/specs' }} />
+              ) : (
+                <AddRemoveInspectionPortal
+                  onBack={() => navigate(-1)}
+                  userId={userId}
+                />
+              )
             }
           />
 
@@ -441,40 +455,52 @@ export default function App() {
           <Route
             path="/admin/records"
             element={
-              <AdminSubviews
-                activeView="admin-records"
-                specs={specs}
-                users={adminUsers}
-                inspections={inspections}
-                defectMetrics={defectMetrics}
-                onBackToDashboard={() => navigate(-1)}
-              />
+              !isAuthenticated || userRole !== 'admin' ? (
+                <Navigate to="/sign-in" replace state={{ role: 'admin', from: '/admin/records' }} />
+              ) : (
+                <AdminSubviews
+                  activeView="admin-records"
+                  specs={specs}
+                  users={adminUsers}
+                  inspections={inspections}
+                  defectMetrics={defectMetrics}
+                  onBackToDashboard={() => navigate(-1)}
+                />
+              )
             }
           />
           <Route
             path="/admin/analytics"
             element={
-              <AdminSubviews
-                activeView="admin-analytics"
-                specs={specs}
-                users={adminUsers}
-                inspections={inspections}
-                defectMetrics={defectMetrics}
-                onBackToDashboard={() => navigate(-1)}
-              />
+              !isAuthenticated || userRole !== 'admin' ? (
+                <Navigate to="/sign-in" replace state={{ role: 'admin', from: '/admin/analytics' }} />
+              ) : (
+                <AdminSubviews
+                  activeView="admin-analytics"
+                  specs={specs}
+                  users={adminUsers}
+                  inspections={inspections}
+                  defectMetrics={defectMetrics}
+                  onBackToDashboard={() => navigate(-1)}
+                />
+              )
             }
           />
           <Route
             path="/admin/users"
             element={
-              <AdminSubviews
-                activeView="admin-users"
-                specs={specs}
-                users={adminUsers}
-                inspections={inspections}
-                defectMetrics={defectMetrics}
-                onBackToDashboard={() => navigate(-1)}
-              />
+              !isAuthenticated || userRole !== 'admin' ? (
+                <Navigate to="/sign-in" replace state={{ role: 'admin', from: '/admin/users' }} />
+              ) : (
+                <AdminSubviews
+                  activeView="admin-users"
+                  specs={specs}
+                  users={adminUsers}
+                  inspections={inspections}
+                  defectMetrics={defectMetrics}
+                  onBackToDashboard={() => navigate(-1)}
+                />
+              )
             }
           />
 

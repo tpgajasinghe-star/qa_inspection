@@ -33,7 +33,8 @@ import {
   createUser,
   createProfileUser, 
   updateProfileUser, 
-  deleteProfileUser 
+  deleteProfileUser,
+  getStoredUserPassword
 } from '../backend/adminUserService';
 
 interface UserManagementProps {
@@ -97,7 +98,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
     async function initialize() {
       setLoading(true);
-      setSeedingState({ running: true, done: false, message: 'Verifying Super Admin auth...' });
+      setSeedingState({ running: true, done: false, message: 'Verifying Admin auth...' });
 
       try {
         // Run Super Admin seeding utility
@@ -148,12 +149,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
   // Open Create View
   const handleOpenCreateView = () => {
-    // Strict RBAC: If ADMIN, hardcode creation role to USER
-    if (currentUserRole === 'ADMIN') {
-      setCreateRoleType('USER');
-    } else {
-      setCreateRoleType('USER');
-    }
+    setCreateRoleType('USER');
     setCreateFullName('');
     setCreateEmployeeId('');
     setCreatePassword('');
@@ -163,8 +159,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
   // Update role in form
   const handleSelectRoleInCreate = (newRole: 'ADMIN' | 'USER') => {
-    // If logged in as ADMIN, block selecting ADMIN
-    if (currentUserRole === 'ADMIN') return;
     setCreateRoleType(newRole);
   };
 
@@ -198,8 +192,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
     setIsSubmitting(true);
     try {
-      // Strict RBAC: If ADMIN, hardcode role to USER
-      const targetRole = currentUserRole === 'ADMIN' ? 'USER' : createRoleType;
+      const targetRole = createRoleType;
 
       const newRecord = await createUser(
         {
@@ -283,25 +276,18 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
   // RBAC permissions checker
   const canEditUser = (target: UserProfile) => {
-    if (currentUserRole === 'SUPER_ADMIN') return true;
-    if (currentUserRole === 'ADMIN') {
-      // ADMIN cannot edit SUPER_ADMIN or other ADMIN accounts
-      return target.role === 'USER';
+    if ((target.employee_id || '').toLowerCase() === 'admin') {
+      return false;
     }
-    return false;
+    return true;
   };
 
   const canDeleteUser = (target: UserProfile) => {
-    // Root SUPER_ADMIN cannot be deleted by anyone
-    if (target.role === 'SUPER_ADMIN' || target.employee_id.toLowerCase() === 'admin') {
+    // Root admin cannot be deleted
+    if (target.role === 'SUPER_ADMIN' || (target.employee_id || '').toLowerCase() === 'admin') {
       return false;
     }
-    if (currentUserRole === 'SUPER_ADMIN') return true;
-    if (currentUserRole === 'ADMIN') {
-      // ADMIN cannot delete ADMIN or SUPER_ADMIN
-      return target.role === 'USER';
-    }
-    return false;
+    return true;
   };
 
   // Operational profiles only (excludes internal Super Admin developer account from table)
@@ -331,68 +317,25 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   return (
     <div className="w-full flex-1 flex flex-col items-center px-4 sm:px-6 py-4 sm:py-6 z-10 max-w-6xl mx-auto my-auto animate-in fade-in duration-300">
 
-      {/* Top RBAC Role Indicator Bar & Testing Switcher */}
+      {/* Top Bar with Logged In Admin Username and Active Role */}
       <div className="w-full max-w-3xl mb-4 bg-white/80 backdrop-blur-md rounded-2xl px-4 py-2.5 border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-            Active Auth Role:
+            Logged In Admin:
           </span>
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-extrabold uppercase border shadow-2xs ${
-            currentUserRole === 'SUPER_ADMIN'
-              ? 'bg-purple-100 text-purple-800 border-purple-300'
-              : currentUserRole === 'ADMIN'
-              ? 'bg-indigo-100 text-indigo-800 border-indigo-300'
-              : 'bg-blue-100 text-blue-800 border-blue-300'
-          }`}>
-            {currentUserRole === 'SUPER_ADMIN' ? (
-              <Crown className="w-3.5 h-3.5 text-purple-700 stroke-[2.5]" />
-            ) : currentUserRole === 'ADMIN' ? (
-              <ShieldCheck className="w-3.5 h-3.5 text-indigo-700 stroke-[2.2]" />
-            ) : (
-              <UserCheck className="w-3.5 h-3.5 text-blue-700 stroke-[2.2]" />
-            )}
-            <span>{currentUserRole}</span>
+          <span className="font-bold text-xs text-slate-900 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200 flex items-center gap-1.5">
+            <span>{sessionStorage.getItem('qc_auth_full_name') || sessionStorage.getItem('qc_auth_employee_id') || 'System Admin'}</span>
+            <span className="text-slate-400 font-mono text-[11px]">({sessionStorage.getItem('qc_auth_employee_id') || 'admin'})</span>
           </span>
-          {currentUserRole === 'ADMIN' && (
-            <span className="text-[11px] text-slate-500 hidden sm:inline">
-              (Restricted to managing USER accounts only)
-            </span>
-          )}
         </div>
-
-        {/* Quick RBAC Switcher for testing between SUPER_ADMIN and ADMIN */}
-        <div className="flex items-center gap-1.5 text-xs">
-          <span className="text-[10px] font-bold text-slate-400 uppercase">Test Role:</span>
-          <button
-            type="button"
-            onClick={() => {
-              setCurrentUserRole('SUPER_ADMIN');
-              sessionStorage.setItem('qc_auth_profile_role', 'SUPER_ADMIN');
-              toast.success('Switched testing role to SUPER_ADMIN');
-            }}
-            className={`px-2.5 py-1 rounded-lg font-bold text-xs transition cursor-pointer ${
-              currentUserRole === 'SUPER_ADMIN'
-                ? 'bg-purple-600 text-white shadow-2xs'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            SUPER_ADMIN
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setCurrentUserRole('ADMIN');
-              sessionStorage.setItem('qc_auth_profile_role', 'ADMIN');
-              toast.success('Switched testing role to ADMIN (USER-only scope)');
-            }}
-            className={`px-2.5 py-1 rounded-lg font-bold text-xs transition cursor-pointer ${
-              currentUserRole === 'ADMIN'
-                ? 'bg-indigo-600 text-white shadow-2xs'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            ADMIN
-          </button>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            Active Role:
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold uppercase border shadow-2xs bg-indigo-50 text-indigo-700 border-indigo-200">
+            <ShieldCheck className="w-3.5 h-3.5 text-indigo-700 stroke-[2.2]" />
+            <span>ADMIN</span>
+          </span>
         </div>
       </div>
 
@@ -448,19 +391,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                   Create User
                 </h2>
                 <p className="text-xs text-slate-500 leading-relaxed mt-2 max-w-xs">
-                  {currentUserRole === 'SUPER_ADMIN' ? (
-                    <>Register a new <strong>Admin</strong> or <strong>User</strong> with Full Name, Employee ID, and secure password.</>
-                  ) : (
-                    <>Register a new <strong>User (Inspector)</strong> profile with Full Name, Employee ID, and secure password.</>
-                  )}
+                  Register a new <strong>Admin</strong> or <strong>User</strong> with Full Name, Employee ID, and secure password.
                 </p>
-                {currentUserRole === 'ADMIN' && (
-                  <div className="mt-2.5">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                      Role locked to USER for Admins
-                    </span>
-                  </div>
-                )}
               </div>
 
               <div className="w-full mt-4">
@@ -509,11 +441,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                   View All Users
                 </h2>
                 <p className="text-xs text-slate-500 leading-relaxed mt-2 max-w-xs">
-                  {currentUserRole === 'SUPER_ADMIN' ? (
-                    <>Review and manage all registered workforce accounts across <strong>Admin</strong> and <strong>User</strong> roles.</>
-                  ) : (
-                    <>Review and manage all registered <strong>User (Inspector)</strong> profiles in the directory.</>
-                  )}
+                  Review and manage registered workforce accounts across <strong>Admin</strong> and <strong>User</strong> roles.
                 </p>
                 <div className="mt-2.5">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/70">
@@ -597,9 +525,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                     Create New User Profile
                   </h2>
                   <p className="text-xs sm:text-sm text-blue-100 font-medium mt-0.5">
-                    {currentUserRole === 'SUPER_ADMIN' 
-                      ? 'Select profile role (ADMIN / USER), enter details, and set password'
-                      : 'Create a new standard USER account (Inspector workspace)'}
+                    Enter user details, select profile role (Admin or User), and assign password
                   </p>
                 </div>
               </div>
@@ -608,92 +534,70 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             <form onSubmit={handleCreateUserSubmit} className="p-6 sm:p-8 space-y-6">
               
               {/* STEP 1: ROLE SELECTION (STRICT RBAC) */}
-              {currentUserRole === 'SUPER_ADMIN' ? (
-                <div>
-                  <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider block mb-2.5">
-                    1. Select Profile Role <span className="text-rose-500">*</span>
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    {/* Option: ADMIN */}
-                    <div
-                      onClick={() => handleSelectRoleInCreate('ADMIN')}
-                      role="button"
-                      tabIndex={0}
-                      className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between ${
-                        createRoleType === 'ADMIN'
-                          ? 'border-indigo-600 bg-indigo-50/80 shadow-xs'
-                          : 'border-slate-200 bg-slate-50/50 hover:bg-slate-100/70'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${
-                          createRoleType === 'ADMIN' ? 'bg-indigo-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-600'
-                        }`}>
-                          <ShieldCheck className="w-5 h-5 stroke-[2]" />
-                        </div>
-                        <div className="text-left">
-                          <span className="text-sm font-extrabold text-slate-900 block">ADMIN</span>
-                          <span className="text-[11px] text-slate-500 font-medium">Admin Panel &amp; Specs Management</span>
-                        </div>
+              <div>
+                <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider block mb-2.5">
+                  1. Select Profile Role <span className="text-rose-500">*</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {/* Option: ADMIN */}
+                  <div
+                    onClick={() => handleSelectRoleInCreate('ADMIN')}
+                    role="button"
+                    tabIndex={0}
+                    className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between ${
+                      createRoleType === 'ADMIN'
+                        ? 'border-indigo-600 bg-indigo-50/80 shadow-xs'
+                        : 'border-slate-200 bg-slate-50/50 hover:bg-slate-100/70'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${
+                        createRoleType === 'ADMIN' ? 'bg-indigo-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-600'
+                      }`}>
+                        <ShieldCheck className="w-5 h-5 stroke-[2]" />
                       </div>
-                      {createRoleType === 'ADMIN' && (
-                        <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-2xs shrink-0">
-                          <Check className="w-3.5 h-3.5 stroke-[3]" />
-                        </span>
-                      )}
+                      <div className="text-left">
+                        <span className="text-sm font-extrabold text-slate-900 block">ADMIN</span>
+                        <span className="text-[11px] text-slate-500 font-medium">Admin Panel &amp; Specs Management</span>
+                      </div>
                     </div>
+                    {createRoleType === 'ADMIN' && (
+                      <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-2xs shrink-0">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </span>
+                    )}
+                  </div>
 
-                    {/* Option: USER */}
-                    <div
-                      onClick={() => handleSelectRoleInCreate('USER')}
-                      role="button"
-                      tabIndex={0}
-                      className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between ${
-                        createRoleType === 'USER'
-                          ? 'border-blue-600 bg-blue-50/80 shadow-xs'
-                          : 'border-slate-200 bg-slate-50/50 hover:bg-slate-100/70'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${
-                          createRoleType === 'USER' ? 'bg-blue-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-600'
-                        }`}>
-                          <UserCheck className="w-5 h-5 stroke-[2]" />
-                        </div>
-                        <div className="text-left">
-                          <span className="text-sm font-extrabold text-slate-900 block">USER</span>
-                          <span className="text-[11px] text-slate-500 font-medium">Standard QA Inspector / Operator</span>
-                        </div>
+                  {/* Option: USER */}
+                  <div
+                    onClick={() => handleSelectRoleInCreate('USER')}
+                    role="button"
+                    tabIndex={0}
+                    className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between ${
+                      createRoleType === 'USER'
+                        ? 'border-blue-600 bg-blue-50/80 shadow-xs'
+                        : 'border-slate-200 bg-slate-50/50 hover:bg-slate-100/70'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${
+                        createRoleType === 'USER' ? 'bg-blue-600 text-white shadow-2xs' : 'bg-slate-200 text-slate-600'
+                      }`}>
+                        <UserCheck className="w-5 h-5 stroke-[2]" />
                       </div>
-                      {createRoleType === 'USER' && (
-                        <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-2xs shrink-0">
-                          <Check className="w-3.5 h-3.5 stroke-[3]" />
-                        </span>
-                      )}
+                      <div className="text-left">
+                        <span className="text-sm font-extrabold text-slate-900 block">USER</span>
+                        <span className="text-[11px] text-slate-500 font-medium">Standard QA Inspector / Operator</span>
+                      </div>
                     </div>
+                    {createRoleType === 'USER' && (
+                      <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-2xs shrink-0">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </span>
+                    )}
                   </div>
                 </div>
-              ) : (
-                /* FOR ADMIN: ROLE DROPDOWN IS HIDDEN & HARDCODED TO USER */
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
-                      <UserCheck className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
-                        Assigned Profile Role
-                      </span>
-                      <span className="text-sm font-extrabold text-slate-900">
-                        USER (Quality Inspector)
-                      </span>
-                    </div>
-                  </div>
-                  <span className="text-[11px] font-semibold text-slate-500 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
-                    Hardcoded by RBAC Policy
-                  </span>
-                </div>
-              )}
+              </div>
 
               {/* STEP 2: USER FULL NAME */}
               <div>
@@ -713,20 +617,15 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
               {/* STEP 3: EMPLOYEE ID */}
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider block">
-                    3. Employee ID <span className="text-rose-500">*</span>
-                  </label>
-                  <span className="text-[11px] font-mono text-slate-400">
-                    Email will be: [employee_id]@abc.com
-                  </span>
-                </div>
+                <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider block mb-1.5">
+                  3. Employee ID <span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="text"
                   required
                   value={createEmployeeId}
                   onChange={(e) => setCreateEmployeeId(e.target.value.toUpperCase())}
-                  placeholder={createRoleType === 'ADMIN' && currentUserRole === 'SUPER_ADMIN' ? 'AD-1005' : 'QA-8945'}
+                  placeholder={createRoleType === 'ADMIN' ? 'AD-1005' : 'QA-8945'}
                   className="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-sm font-mono font-bold text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-2xs"
                   id="input-create-employee-id"
                 />
@@ -862,7 +761,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name, employee ID, or email..."
+                placeholder="Search by name or employee ID..."
                 className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/20"
               />
             </div>
@@ -880,19 +779,17 @@ export const UserManagement: React.FC<UserManagementProps> = ({
               >
                 All ({visibleProfiles.length})
               </button>
-              {currentUserRole === 'SUPER_ADMIN' && (
-                <button
-                  type="button"
-                  onClick={() => setRoleFilter('ADMIN')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                    roleFilter === 'ADMIN'
-                      ? 'bg-indigo-600 text-white shadow-2xs'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  Admins ({adminCount})
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setRoleFilter('ADMIN')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  roleFilter === 'ADMIN'
+                    ? 'bg-indigo-600 text-white shadow-2xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                Admins ({adminCount})
+              </button>
               <button
                 type="button"
                 onClick={() => setRoleFilter('USER')}
@@ -948,7 +845,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                     filteredProfiles.map((user) => {
                       const isAdmin = user.role === 'ADMIN';
                       const isPwdRevealed = Boolean(revealedPasswords[user.id]);
-                      const pwd = user.password || '••••••••';
+                      const pwd = (user.password && user.password !== '••••••••' ? user.password : null) || getStoredUserPassword(user.employee_id) || getStoredUserPassword(user.id) || 'password123';
                       const allowEdit = canEditUser(user);
                       const allowDelete = canDeleteUser(user);
 
@@ -973,10 +870,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
                           {/* Full Name */}
                           <td className="py-3.5 px-4 font-bold text-slate-900 text-sm">
-                            <div>{user.full_name}</div>
-                            <div className="text-[11px] font-normal text-slate-400">
-                              {user.email || `${user.employee_id.toLowerCase()}@abc.com`}
-                            </div>
+                            <span>{user.full_name}</span>
                           </td>
 
                           {/* Employee ID */}
@@ -1104,20 +998,18 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             <div className="flex items-start justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-base shadow-sm ${
-                  viewingUser.role === 'SUPER_ADMIN' ? 'bg-purple-600' : viewingUser.role === 'ADMIN' ? 'bg-indigo-600' : 'bg-blue-600'
+                  viewingUser.role === 'ADMIN' || viewingUser.role === 'SUPER_ADMIN' ? 'bg-indigo-600' : 'bg-blue-600'
                 }`}>
                   {viewingUser.full_name.slice(0, 2).toUpperCase()}
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">{viewingUser.full_name}</h3>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase border ${
-                    viewingUser.role === 'SUPER_ADMIN'
-                      ? 'bg-purple-50 text-purple-700 border-purple-200'
-                      : viewingUser.role === 'ADMIN'
+                    viewingUser.role === 'ADMIN' || viewingUser.role === 'SUPER_ADMIN'
                       ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
                       : 'bg-blue-50 text-blue-700 border-blue-200'
                   }`}>
-                    {viewingUser.role}
+                    {viewingUser.role === 'SUPER_ADMIN' ? 'ADMIN' : viewingUser.role}
                   </span>
                 </div>
               </div>
@@ -1136,16 +1028,14 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 <span className="font-mono font-bold text-slate-900">{viewingUser.employee_id}</span>
               </div>
               <div className="flex justify-between py-1.5 border-b border-slate-50">
-                <span className="text-slate-500 font-medium">Auth Email</span>
-                <span className="font-mono text-slate-800">{viewingUser.email || `${viewingUser.employee_id.toLowerCase()}@abc.com`}</span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b border-slate-50">
-                <span className="text-slate-500 font-medium">Profile UUID</span>
-                <span className="font-mono text-[11px] text-slate-500 truncate max-w-[200px]">{viewingUser.id}</span>
+                <span className="text-slate-500 font-medium">Role</span>
+                <span className="font-bold text-slate-800">{viewingUser.role === 'SUPER_ADMIN' ? 'ADMIN' : viewingUser.role}</span>
               </div>
               <div className="flex justify-between py-1.5">
                 <span className="text-slate-500 font-medium">Password</span>
-                <span className="font-mono font-bold text-blue-700">{viewingUser.password || '••••••••'}</span>
+                <span className="font-mono font-bold text-blue-700">
+                  {(viewingUser.password && viewingUser.password !== '••••••••' ? viewingUser.password : null) || getStoredUserPassword(viewingUser.employee_id) || getStoredUserPassword(viewingUser.id) || 'password123'}
+                </span>
               </div>
             </div>
 
@@ -1209,30 +1099,20 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 />
               </div>
 
-              {/* Role selector: ONLY visible to SUPER_ADMIN */}
-              {currentUserRole === 'SUPER_ADMIN' ? (
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                    Role
-                  </label>
-                  <select
-                    value={editingUser.role}
-                    onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value as ProfileRole })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600"
-                  >
-                    <option value="SUPER_ADMIN">SUPER_ADMIN</option>
-                    <option value="ADMIN">ADMIN</option>
-                    <option value="USER">USER</option>
-                  </select>
-                </div>
-              ) : (
-                <div>
-                  <span className="text-[11px] font-bold text-slate-700 uppercase block mb-1">Role</span>
-                  <div className="px-3.5 py-2 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs">
-                    USER (Locked)
-                  </div>
-                </div>
-              )}
+              {/* Role selector */}
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                  Role
+                </label>
+                <select
+                  value={editingUser.role === 'SUPER_ADMIN' ? 'ADMIN' : editingUser.role}
+                  onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value as ProfileRole })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600"
+                >
+                  <option value="ADMIN">ADMIN</option>
+                  <option value="USER">USER</option>
+                </select>
+              </div>
 
               {/* Password update */}
               <div>

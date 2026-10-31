@@ -240,7 +240,7 @@ export const IncomingInspectionPortal: React.FC<IncomingInspectionPortalProps> =
         userId={userId}
         inspections={inspections}
         onAddInspectionRecord={onAddInspectionRecord}
-        onBackToChildCards={() => navigate(-1)}
+        onBackToChildCards={() => navigate('/inspection/incoming')}
       />
     );
   }

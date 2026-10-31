@@ -520,7 +520,8 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
         {/* Bottom Back Button */}
         <div className="w-full flex justify-center pt-2">
           <button
-            onClick={() => navigate(-1)}
+            type="button"
+            onClick={() => onBackToChildCards ? onBackToChildCards() : navigate(-1)}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-blue-700 font-semibold text-xs sm:text-sm shadow-sm border border-slate-200/80 backdrop-blur-md transition-all cursor-pointer group hover:shadow-md"
             id="btn-back-to-child-cards"
           >
@@ -547,7 +548,15 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
           userId={userId}
           dbItems={dbItems}
           onBackToList={() => {
-            navigate(-1);
+            // Explicitly clear form parameter from URL to cleanly return to forms list
+            navigate('?view=new-inspection');
+          }}
+          onBackToOperations={() => {
+            navigate('?view=operation-cards');
+          }}
+          onBackToMainCards={() => {
+            if (onBackToChildCards) onBackToChildCards();
+            else navigate('?view=operation-cards');
           }}
           onSubmitRecord={(record) => {
             setLocalRecords(prev => [record, ...prev]);
@@ -567,21 +576,24 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
           <div className="w-full flex items-center justify-between mb-6 pb-4 border-b border-slate-200/70">
             <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
               <button 
-                onClick={() => navigate(-1)}
+                type="button"
+                onClick={() => onBackToChildCards ? onBackToChildCards() : navigate('?view=operation-cards')}
                 className="hover:text-blue-600 cursor-pointer transition-colors"
               >
                 {mainCard.name}
               </button>
               <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
               <button 
-                onClick={() => navigate(-1)}
+                type="button"
+                onClick={() => navigate('?view=operation-cards')}
                 className="hover:text-blue-600 cursor-pointer transition-colors"
               >
                 {childCard.name}
               </button>
               <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
               <button 
-                onClick={() => navigate(-1)}
+                type="button"
+                onClick={() => navigate('?view=new-inspection')}
                 className="hover:text-blue-600 cursor-pointer transition-colors"
               >
                 Make New Inspection
@@ -595,7 +607,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => navigate(-1)}
+                onClick={() => navigate('?view=new-inspection')}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
@@ -1078,7 +1090,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
             <div className="pt-4 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3">
               <button
                 type="button"
-                onClick={() => navigate(-1)}
+                onClick={() => navigate('?view=operation-cards')}
                 className="w-full sm:w-auto px-5 py-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 text-xs sm:text-sm font-semibold transition cursor-pointer"
               >
                 Cancel & Return to Operations
@@ -1126,12 +1138,13 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
       {/* Top Navigation */}
       <div className="w-full flex items-center justify-between mb-4 sm:mb-6 pb-3 border-b border-slate-200/70">
         <button 
-          onClick={() => navigate(-1)}
+          type="button"
+          onClick={() => navigate('?view=operation-cards')}
           className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-blue-600 transition-colors cursor-pointer"
           id="btn-back-to-operations"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back to {childCard.name}</span>
+          <span>Back to {childCard.name} Operations</span>
         </button>
         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
           Make New Inspection • Select Form
@@ -1214,14 +1227,16 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
       <div className="w-full flex items-center justify-between mb-6 pb-4 border-b border-slate-200/70">
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
           <button 
-            onClick={() => navigate(-1)}
+            type="button"
+            onClick={() => onBackToChildCards ? onBackToChildCards() : navigate('?view=operation-cards')}
             className="hover:text-blue-600 cursor-pointer transition-colors"
           >
             {mainCard.name}
           </button>
           <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
           <button 
-            onClick={() => navigate(-1)}
+            type="button"
+            onClick={() => navigate('?view=operation-cards')}
             className="hover:text-blue-600 cursor-pointer transition-colors"
           >
             {childCard.name}
@@ -1234,6 +1249,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
 
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={() => navigate('?view=new-inspection')}
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-sm cursor-pointer"
             id="btn-records-make-new-inspection"
@@ -1242,7 +1258,8 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
             <span>Make New Inspection</span>
           </button>
           <button
-            onClick={() => navigate(-1)}
+            type="button"
+            onClick={() => navigate('?view=operation-cards')}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
@@ -1517,7 +1534,8 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
       {/* Return Navigation Buttons */}
       <div className="w-full flex items-center justify-center gap-3">
         <button
-          onClick={() => navigate(-1)}
+          type="button"
+          onClick={() => navigate('?view=operation-cards')}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs sm:text-sm shadow-sm border border-slate-200 transition cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4 text-slate-500" />
@@ -1525,7 +1543,8 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
         </button>
 
         <button
-          onClick={() => navigate(-1)}
+          type="button"
+          onClick={() => onBackToChildCards ? onBackToChildCards() : navigate(-1)}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs sm:text-sm transition cursor-pointer"
         >
           <span>Back to {mainCard.name} Categories</span>

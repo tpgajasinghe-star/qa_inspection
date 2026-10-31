@@ -79,7 +79,7 @@ export const ModuleInspectionPortal: React.FC<ModuleInspectionPortalProps> = ({
         userId={userId}
         inspections={inspections}
         onAddInspectionRecord={onAddInspectionRecord}
-        onBackToChildCards={() => navigate(-1)}
+        onBackToChildCards={() => navigate(`/inspection/module/${mainCardId}`)}
       />
     );
   }

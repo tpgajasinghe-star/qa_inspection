@@ -102,10 +102,17 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
                   {userRole === 'admin' ? 'AD' : 'QA'}
                 </div>
                 <span className="hidden sm:inline">
-                  {userRole === 'admin' ? 'Admin ID: ' : 'Inspector ID: '}
-                  <strong className="font-semibold text-slate-900">{userId}</strong>
+                  {userRole === 'admin' ? 'Admin: ' : 'Inspector: '}
+                  <strong className="font-semibold text-slate-900">
+                    {sessionStorage.getItem('qc_auth_full_name') || userId}
+                  </strong>
+                  {userId && (
+                    <span className="text-slate-400 font-mono text-[11px] font-normal ml-1">({userId})</span>
+                  )}
                 </span>
-                <span className="sm:hidden font-semibold text-slate-900">{userId}</span>
+                <span className="sm:hidden font-semibold text-slate-900">
+                  {sessionStorage.getItem('qc_auth_full_name') || userId}
+                </span>
               </button>
 
               {/* Quick switcher dropdown */}
@@ -120,10 +127,13 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
                       <p className="font-bold text-slate-900">
                         {sessionStorage.getItem('qc_auth_full_name') || (userRole === 'admin' ? 'System Admin' : 'Marcus Vance')}
                       </p>
+                      <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                        ID: <strong className="font-mono text-slate-800">{sessionStorage.getItem('qc_auth_employee_id') || userId}</strong>
+                      </p>
                       <p className="text-[11px] text-slate-500 font-semibold flex items-center gap-1.5 mt-0.5">
                         <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                         <span>
-                          {sessionStorage.getItem('qc_auth_profile_role') || (userRole === 'admin' ? 'ADMIN' : 'USER')}
+                          {sessionStorage.getItem('qc_auth_profile_role') === 'SUPER_ADMIN' ? 'ADMIN' : (sessionStorage.getItem('qc_auth_profile_role') || (userRole === 'admin' ? 'ADMIN' : 'USER'))}
                         </span>
                       </p>
                     </div>

@@ -35,6 +35,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           QA Admin Dashboard
         </h1>
 
+        {/* Logged in Admin Identity Banner */}
+        <div className="flex items-center gap-2 mt-1 mb-1.5">
+          <span className="text-xs text-slate-500 font-medium">Logged in as:</span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold shadow-2xs">
+            <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 stroke-[2.2]" />
+            <span>{sessionStorage.getItem('qc_auth_full_name') || sessionStorage.getItem('qc_auth_employee_id') || 'System Admin'}</span>
+            <span className="text-indigo-400 font-mono text-[11px] font-normal">({sessionStorage.getItem('qc_auth_employee_id') || 'admin'})</span>
+          </span>
+        </div>
+
         {/* Subtitle */}
         <p className="text-slate-600 text-xs sm:text-sm font-normal max-w-xl leading-relaxed">
           Manage system access, quality specifications, and audit analytics

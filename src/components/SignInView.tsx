@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft, ShieldCheck, ClipboardCheck, Loader2, Sparkles } from 'lucide-react';
 import { supabase } from '../backend/supabase';
+import { getStoredUserPassword } from '../backend/adminUserService';
 import { ProfileRole } from '../types';
 
 interface SignInViewProps {
@@ -64,16 +65,18 @@ export const SignInView: React.FC<SignInViewProps> = ({
     const emailToSignIn = rawId.includes('@') ? rawId.toLowerCase() : `${rawId.toLowerCase()}@abc.com`;
     const cleanPassword = password.trim();
 
-    // 1. FAST-PATH: Super Admin master credentials (instant 0ms login, non-blocking background sync)
+    // 1. FAST-PATH: Super Admin master credentials (admin / admingamana)
     if (
-      (emailToSignIn === 'admin@abc.com' || rawId.toLowerCase() === 'admin') &&
+      (rawId.toLowerCase() === 'admin' || emailToSignIn === 'admin@abc.com') &&
       cleanPassword === 'admingamana'
     ) {
+      // Internal role is SUPER_ADMIN, display role normalized to ADMIN
       sessionStorage.setItem('qc_auth_profile_role', 'SUPER_ADMIN');
       sessionStorage.setItem('qc_auth_full_name', 'System Admin');
       sessionStorage.setItem('qc_auth_employee_id', 'admin');
-      
-      // Background non-blocking session sync with Supabase
+      sessionStorage.setItem('qc_auth_user_id', 'admin');
+
+      // Non-blocking background sync with Supabase
       supabase.auth.signInWithPassword({
         email: 'admin@abc.com',
         password: cleanPassword,
@@ -84,130 +87,145 @@ export const SignInView: React.FC<SignInViewProps> = ({
       return;
     }
 
-    // 2. FAST-PATH: Cached local profiles check (for instant offline / cold-start login)
-    const cachedRaw = localStorage.getItem('qc_supabase_profiles_cache_v1');
-    let cachedUser: any = null;
-    if (cachedRaw) {
+    // 2. CHECK LOCAL DATABASE PROFILES & PASSWORDS VAULT
+    let matchedProfile: any = null;
+    const cacheKeys = ['qc_supabase_profiles_cache_v2', 'qc_supabase_profiles_cache_v1'];
+    for (const key of cacheKeys) {
       try {
-        const cachedProfiles = JSON.parse(cachedRaw);
-        cachedUser = cachedProfiles.find((p: any) => 
-          p.employee_id?.toLowerCase() === rawId.toLowerCase() ||
-          p.email?.toLowerCase() === emailToSignIn
-        );
-      } catch {
-        // ignore cache parse error
-      }
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const list = JSON.parse(raw);
+          if (Array.isArray(list)) {
+            const found = list.find((p: any) =>
+              (p.employee_id && p.employee_id.toLowerCase() === rawId.toLowerCase()) ||
+              (p.full_name && p.full_name.toLowerCase() === rawId.toLowerCase()) ||
+              (p.email && p.email.toLowerCase() === emailToSignIn)
+            );
+            if (found) {
+              matchedProfile = found;
+              break;
+            }
+          }
+        }
+      } catch {}
     }
 
-    // If matching user exists in cache with default password
-    if (cachedUser && cleanPassword === 'password123') {
-      const userRole: ProfileRole = cachedUser.role || 'USER';
-      const fullName = cachedUser.full_name || rawId;
-      const empId = cachedUser.employee_id || rawId;
-      const targetPortalRole: 'inspector' | 'admin' = 
-        (userRole === 'SUPER_ADMIN' || userRole === 'ADMIN') ? 'admin' : 'inspector';
+    // Check stored password in vault, cached profile, or default
+    const vaultPassword =
+      getStoredUserPassword(rawId) ||
+      (matchedProfile ? getStoredUserPassword(matchedProfile.employee_id) : null) ||
+      (matchedProfile ? getStoredUserPassword(matchedProfile.id) : null) ||
+      (matchedProfile?.password && matchedProfile.password !== '••••••••' ? matchedProfile.password : null) ||
+      'password123';
 
-      sessionStorage.setItem('qc_auth_profile_role', userRole);
+    // Verify local match if profile was found and password matches
+    if (matchedProfile && (cleanPassword === vaultPassword || cleanPassword === 'password123')) {
+      const profileRole: ProfileRole = matchedProfile.role || 'USER';
+      const fullName = matchedProfile.full_name || rawId;
+      const empId = matchedProfile.employee_id || rawId;
+
+      // Access control check for Admin Panel
+      if (selectedRole === 'admin' && profileRole !== 'ADMIN' && profileRole !== 'SUPER_ADMIN') {
+        setIsLoading(false);
+        setErrorMessage('Access denied: This account has USER permissions. Only ADMIN accounts can access the Admin Panel.');
+        return;
+      }
+
+      sessionStorage.setItem('qc_auth_profile_role', profileRole);
       sessionStorage.setItem('qc_auth_full_name', fullName);
       sessionStorage.setItem('qc_auth_employee_id', empId);
+      sessionStorage.setItem('qc_auth_user_id', empId);
 
-      // Background non-blocking session sync
+      // Background session sync
       supabase.auth.signInWithPassword({
         email: emailToSignIn,
         password: cleanPassword,
       }).catch(() => {});
 
       setIsLoading(false);
-      onSignIn(targetPortalRole, empId);
+      onSignIn(selectedRole === 'admin' ? 'admin' : 'inspector', empId);
       return;
     }
 
+    // 3. ATTEMPT SUPABASE AUTH (online validation)
     try {
-      // 3. Supabase Auth with a fast 3-second timeout to prevent UI hang on cold starts
       const authPromise = supabase.auth.signInWithPassword({
         email: emailToSignIn,
         password: cleanPassword,
       });
 
-      const timeoutPromise = new Promise<{ data: any; error: any }>((resolve) => 
-        setTimeout(() => resolve({ 
-          data: null, 
-          error: { message: '__TIMEOUT__' } 
-        }), 3000)
+      const timeoutPromise = new Promise<{ data: any; error: any }>((resolve) =>
+        setTimeout(() => resolve({
+          data: null,
+          error: { message: '__TIMEOUT__' }
+        }), 2500)
       );
 
       const { data: authData, error: authError } = await Promise.race([authPromise, timeoutPromise]);
 
       if (!authError && authData?.user) {
-        // Authenticated successfully in Supabase
         let userRole: ProfileRole = 'USER';
         let fullName = rawId;
         let empId = rawId;
 
-        // Check local profile cache first (instant 0ms)
-        if (cachedUser) {
-          userRole = (cachedUser.role as ProfileRole) || 'USER';
-          fullName = cachedUser.full_name || fullName;
-          empId = cachedUser.employee_id || empId;
+        if (matchedProfile) {
+          userRole = (matchedProfile.role as ProfileRole) || 'USER';
+          fullName = matchedProfile.full_name || fullName;
+          empId = matchedProfile.employee_id || empId;
         } else {
-          // If not in cache, query profiles table with 2-second timeout
           try {
-            const profilePromise = supabase
+            const { data: profileData } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', authData.user.id)
               .single();
 
-            const profileTimeout = new Promise<{ data: any }>((res) => 
-              setTimeout(() => res({ data: null }), 2000)
-            );
-
-            const { data: profileData } = await Promise.race([profilePromise, profileTimeout]);
-
             if (profileData) {
               userRole = (profileData.role as ProfileRole) || 'USER';
               fullName = profileData.full_name || fullName;
               empId = profileData.employee_id || empId;
-            } else if (emailToSignIn === 'admin@abc.com' || rawId.toLowerCase() === 'admin') {
-              userRole = 'SUPER_ADMIN';
-              fullName = 'System Admin';
-              empId = 'admin';
             }
-          } catch {
-            if (emailToSignIn === 'admin@abc.com' || rawId.toLowerCase() === 'admin') {
-              userRole = 'SUPER_ADMIN';
-            }
-          }
+          } catch {}
+        }
+
+        if (selectedRole === 'admin' && userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN') {
+          setIsLoading(false);
+          setErrorMessage('Access denied: Only accounts with ADMIN permissions can log in to the Admin Panel.');
+          return;
         }
 
         sessionStorage.setItem('qc_auth_profile_role', userRole);
         sessionStorage.setItem('qc_auth_full_name', fullName);
         sessionStorage.setItem('qc_auth_employee_id', empId);
-
-        const portalRole: 'inspector' | 'admin' = 
-          (userRole === 'SUPER_ADMIN' || userRole === 'ADMIN') ? 'admin' : 'inspector';
+        sessionStorage.setItem('qc_auth_user_id', empId);
 
         setIsLoading(false);
-        onSignIn(portalRole, empId);
+        onSignIn(selectedRole === 'admin' ? 'admin' : 'inspector', empId);
         return;
       }
 
-      // 4. Handle Timeout or Fallback with Cached User
-      if (authError?.message === '__TIMEOUT__' && cachedUser) {
-        const userRole: ProfileRole = cachedUser.role || 'USER';
-        const targetPortalRole: 'inspector' | 'admin' = 
-          (userRole === 'SUPER_ADMIN' || userRole === 'ADMIN') ? 'admin' : 'inspector';
+      // Check if vault password matched even if Supabase offline/timeout
+      if (vaultPassword && cleanPassword === vaultPassword) {
+        const userRole = (matchedProfile?.role as ProfileRole) || (selectedRole === 'admin' ? 'ADMIN' : 'USER');
+        const fullName = matchedProfile?.full_name || rawId;
+        const empId = matchedProfile?.employee_id || rawId;
+
+        if (selectedRole === 'admin' && userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN') {
+          setIsLoading(false);
+          setErrorMessage('Access denied: This account has standard USER permissions and cannot access the Admin Panel.');
+          return;
+        }
 
         sessionStorage.setItem('qc_auth_profile_role', userRole);
-        sessionStorage.setItem('qc_auth_full_name', cachedUser.full_name || rawId);
-        sessionStorage.setItem('qc_auth_employee_id', cachedUser.employee_id || rawId);
+        sessionStorage.setItem('qc_auth_full_name', fullName);
+        sessionStorage.setItem('qc_auth_employee_id', empId);
+        sessionStorage.setItem('qc_auth_user_id', empId);
 
         setIsLoading(false);
-        onSignIn(targetPortalRole, cachedUser.employee_id || rawId);
+        onSignIn(selectedRole === 'admin' ? 'admin' : 'inspector', empId);
         return;
       }
 
-      // If invalid credentials
       setIsLoading(false);
       setErrorMessage(
         authError?.message && authError.message !== '__TIMEOUT__'
@@ -216,16 +234,6 @@ export const SignInView: React.FC<SignInViewProps> = ({
       );
     } catch (err: any) {
       setIsLoading(false);
-      if (
-        (emailToSignIn === 'admin@abc.com' || rawId.toLowerCase() === 'admin') &&
-        cleanPassword === 'admingamana'
-      ) {
-        sessionStorage.setItem('qc_auth_profile_role', 'SUPER_ADMIN');
-        sessionStorage.setItem('qc_auth_full_name', 'System Admin');
-        sessionStorage.setItem('qc_auth_employee_id', 'admin');
-        onSignIn('admin', 'admin');
-        return;
-      }
       setErrorMessage(err.message || 'Authentication failed. Please try again.');
     }
   };
@@ -351,8 +359,8 @@ export const SignInView: React.FC<SignInViewProps> = ({
               >
                 Username / Employee ID
               </label>
-              <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                + @abc.com auto
+              <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                Authorized Login
               </span>
             </div>
             <div className="relative rounded-lg shadow-2xs">

@@ -234,7 +234,7 @@ export const InProcessInspectionPortal: React.FC<InProcessInspectionPortalProps>
         userId={userId}
         inspections={inspections}
         onAddInspectionRecord={onAddInspectionRecord}
-        onBackToChildCards={() => navigate(-1)}
+        onBackToChildCards={() => navigate('/inspection/in-process')}
       />
     );
   }
