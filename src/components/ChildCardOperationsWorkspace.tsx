@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -56,8 +57,17 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
   onAddInspectionRecord,
   onBackToChildCards,
 }) => {
-  // Current view: 'operation-cards' | 'new-inspection' | 'past-records'
-  const [currentView, setCurrentView] = useState<'operation-cards' | 'new-inspection' | 'past-records'>('operation-cards');
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Current view: 'operation-cards' | 'new-inspection' | 'past-records' synced to URL ?view=
+  const currentView = (searchParams.get('view') as 'operation-cards' | 'new-inspection' | 'past-records') || 'operation-cards';
+
+  // Deployed form ID parameter from URL (?form=...)
+  const formIdParam = searchParams.get('form');
+
+  // Standard single-checkpoint fallback parameter (?standard=true)
+  const showStandardFallbackForm = searchParams.get('standard') === 'true';
 
   // Supabase items
   const [dbItems, setDbItems] = useState<DbItem[]>([]);
@@ -77,8 +87,13 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
   const [deployedForms, setDeployedForms] = useState<DeployedInspectionForm[]>(() => 
     getDeployedFormsForChildCard(childCard.id, mainCard.id)
   );
-  const [selectedDeployedForm, setSelectedDeployedForm] = useState<DeployedInspectionForm | null>(null);
-  const [showStandardFallbackForm, setShowStandardFallbackForm] = useState<boolean>(false);
+
+  // Selected deployed form resolved automatically from URL parameter ?form=...
+  const selectedDeployedForm = useMemo(() => {
+    if (!formIdParam) return null;
+    return deployedForms.find(f => f.id === formIdParam) || null;
+  }, [formIdParam, deployedForms]);
+
   const [selectedFormStartTime, setSelectedFormStartTime] = useState<string>('');
   const [formInspectionTime, setFormInspectionTime] = useState<string>('08:30 AM');
   const [showStandardTimePickerModal, setShowStandardTimePickerModal] = useState<boolean>(false);
@@ -411,17 +426,13 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
           
           {/* CARD 1: MAKE TO NEW INSPECTION */}
           <div
-            onClick={() => {
-              setSelectedDeployedForm(null);
-              setCurrentView('new-inspection');
-            }}
+            onClick={() => navigate('?view=new-inspection')}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                setSelectedDeployedForm(null);
-                setCurrentView('new-inspection');
+                navigate('?view=new-inspection');
               }
             }}
             className="portal-glass-card rounded-2xl p-5 sm:p-6 flex flex-col items-center text-center justify-between relative group transition-all duration-200 hover:-translate-y-1 hover:shadow-xl cursor-pointer select-none border border-slate-200/90 hover:border-blue-400 bg-white/95 focus:outline-none focus:ring-3 focus:ring-blue-500/20"
@@ -448,8 +459,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setSelectedDeployedForm(null);
-                  setCurrentView('new-inspection');
+                  navigate('?view=new-inspection');
                 }}
                 className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs sm:text-sm transition-all duration-200 shadow-sm shadow-blue-500/25 flex items-center justify-center gap-2 group-hover:shadow-md cursor-pointer"
                 id="btn-open-make-new-inspection"
@@ -462,13 +472,13 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
 
           {/* CARD 2: VIEW PAST INSPECTION RECORDS */}
           <div
-            onClick={() => setCurrentView('past-records')}
+            onClick={() => navigate('?view=past-records')}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                setCurrentView('past-records');
+                navigate('?view=past-records');
               }
             }}
             className="portal-glass-card rounded-2xl p-5 sm:p-6 flex flex-col items-center text-center justify-between relative group transition-all duration-200 hover:-translate-y-1 hover:shadow-xl cursor-pointer select-none border border-slate-200/90 hover:border-indigo-400 bg-white/95 focus:outline-none focus:ring-3 focus:ring-indigo-500/20"
@@ -495,7 +505,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setCurrentView('past-records');
+                  navigate('?view=past-records');
                 }}
                 className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold text-xs sm:text-sm transition-all duration-200 shadow-sm shadow-indigo-500/25 flex items-center justify-center gap-2 group-hover:shadow-md cursor-pointer"
                 id="btn-open-view-past-records"
@@ -510,7 +520,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
         {/* Bottom Back Button */}
         <div className="w-full flex justify-center pt-2">
           <button
-            onClick={onBackToChildCards}
+            onClick={() => navigate(-1)}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-blue-700 font-semibold text-xs sm:text-sm shadow-sm border border-slate-200/80 backdrop-blur-md transition-all cursor-pointer group hover:shadow-md"
             id="btn-back-to-child-cards"
           >
@@ -537,8 +547,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
           userId={userId}
           dbItems={dbItems}
           onBackToList={() => {
-            setSelectedDeployedForm(null);
-            setSelectedFormStartTime('');
+            navigate(-1);
           }}
           onSubmitRecord={(record) => {
             setLocalRecords(prev => [record, ...prev]);
@@ -558,21 +567,21 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
           <div className="w-full flex items-center justify-between mb-6 pb-4 border-b border-slate-200/70">
             <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
               <button 
-                onClick={onBackToChildCards}
+                onClick={() => navigate(-1)}
                 className="hover:text-blue-600 cursor-pointer transition-colors"
               >
                 {mainCard.name}
               </button>
               <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
               <button 
-                onClick={() => setCurrentView('operation-cards')}
+                onClick={() => navigate(-1)}
                 className="hover:text-blue-600 cursor-pointer transition-colors"
               >
                 {childCard.name}
               </button>
               <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
               <button 
-                onClick={() => setShowStandardFallbackForm(false)}
+                onClick={() => navigate(-1)}
                 className="hover:text-blue-600 cursor-pointer transition-colors"
               >
                 Make New Inspection
@@ -586,14 +595,14 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setShowStandardFallbackForm(false)}
+                onClick={() => navigate(-1)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
                 <span>Back to Deployed Forms List</span>
               </button>
               <button
-                onClick={() => setCurrentView('past-records')}
+                onClick={() => navigate('?view=past-records')}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition cursor-pointer"
               >
                 <History className="w-3.5 h-3.5 text-slate-500" />
@@ -619,7 +628,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
 
           <button
             type="button"
-            onClick={() => setCurrentView('past-records')}
+            onClick={() => navigate('?view=past-records')}
             className="p-3.5 rounded-2xl border border-slate-200/90 bg-white hover:bg-indigo-50/50 hover:border-indigo-300 shadow-xs flex items-center justify-between transition-all cursor-pointer group text-left"
           >
             <div className="flex items-center gap-3">
@@ -695,7 +704,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
                 </button>
                 <button
                   type="button"
-                  onClick={() => setCurrentView('past-records')}
+                  onClick={() => navigate('?view=past-records')}
                   className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition cursor-pointer shadow-sm"
                 >
                   View in Past Records →
@@ -1069,7 +1078,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
             <div className="pt-4 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3">
               <button
                 type="button"
-                onClick={() => setCurrentView('operation-cards')}
+                onClick={() => navigate(-1)}
                 className="w-full sm:w-auto px-5 py-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 text-xs sm:text-sm font-semibold transition cursor-pointer"
               >
                 Cancel & Return to Operations
@@ -1117,7 +1126,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
       {/* Top Navigation */}
       <div className="w-full flex items-center justify-between mb-4 sm:mb-6 pb-3 border-b border-slate-200/70">
         <button 
-          onClick={() => setCurrentView('operation-cards')}
+          onClick={() => navigate(-1)}
           className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-blue-600 transition-colors cursor-pointer"
           id="btn-back-to-operations"
         >
@@ -1176,7 +1185,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
                     {/* ONLY Start Button */}
                     <button
                       type="button"
-                      onClick={() => setSelectedDeployedForm(form)}
+                      onClick={() => navigate(`?view=new-inspection&form=${form.id}`)}
                       className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs sm:text-sm shadow-xs hover:shadow-md transition-all flex items-center gap-2 cursor-pointer shrink-0"
                       id={`btn-start-inspect-${form.id}`}
                     >
@@ -1205,14 +1214,14 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
       <div className="w-full flex items-center justify-between mb-6 pb-4 border-b border-slate-200/70">
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
           <button 
-            onClick={onBackToChildCards}
+            onClick={() => navigate(-1)}
             className="hover:text-blue-600 cursor-pointer transition-colors"
           >
             {mainCard.name}
           </button>
           <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
           <button 
-            onClick={() => setCurrentView('operation-cards')}
+            onClick={() => navigate(-1)}
             className="hover:text-blue-600 cursor-pointer transition-colors"
           >
             {childCard.name}
@@ -1225,7 +1234,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setCurrentView('new-inspection')}
+            onClick={() => navigate('?view=new-inspection')}
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-sm cursor-pointer"
             id="btn-records-make-new-inspection"
           >
@@ -1233,7 +1242,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
             <span>Make New Inspection</span>
           </button>
           <button
-            onClick={() => setCurrentView('operation-cards')}
+            onClick={() => navigate(-1)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
@@ -1246,7 +1255,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
       <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
         <button
           type="button"
-          onClick={() => setCurrentView('new-inspection')}
+          onClick={() => navigate('?view=new-inspection')}
           className="p-3.5 rounded-2xl border border-slate-200/90 bg-white hover:bg-blue-50/50 hover:border-blue-300 shadow-xs flex items-center justify-between transition-all cursor-pointer group text-left"
         >
           <div className="flex items-center gap-3">
@@ -1384,7 +1393,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
               No matching records for {childCard.name} with current filters. Click "Make New Inspection" to log the first audit!
             </p>
             <button
-              onClick={() => setCurrentView('new-inspection')}
+              onClick={() => navigate('?view=new-inspection')}
               className="mt-4 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer"
             >
               + Make New Inspection Now
@@ -1508,7 +1517,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
       {/* Return Navigation Buttons */}
       <div className="w-full flex items-center justify-center gap-3">
         <button
-          onClick={() => setCurrentView('operation-cards')}
+          onClick={() => navigate(-1)}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs sm:text-sm shadow-sm border border-slate-200 transition cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4 text-slate-500" />
@@ -1516,7 +1525,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
         </button>
 
         <button
-          onClick={onBackToChildCards}
+          onClick={() => navigate(-1)}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs sm:text-sm transition cursor-pointer"
         >
           <span>Back to {mainCard.name} Categories</span>

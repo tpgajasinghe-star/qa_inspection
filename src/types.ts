@@ -104,11 +104,16 @@ export interface AdminUser {
   id: string;
   name: string;
   email: string;
-  role: 'QA Lead' | 'Senior Inspector' | 'Line Auditor' | 'System Admin';
+  role: string;
+  profileType?: 'admin' | 'user';
   badgeId: string;
   department: string;
-  activeShift: 'Shift A (Morning)' | 'Shift B (Evening)' | 'Shift C (Night)';
+  activeShift: string;
   status: 'Online' | 'On Line Audit' | 'Offline';
+  password?: string;
+  phoneNumber?: string;
+  notes?: string;
+  createdAt?: string;
 }
 
 export interface DefectMetric {
@@ -116,4 +121,16 @@ export interface DefectMetric {
   count: number;
   percentage: number;
   severity: DefectSeverity;
+}
+
+export type ProfileRole = 'SUPER_ADMIN' | 'ADMIN' | 'USER';
+
+export interface UserProfile {
+  id: string;
+  employee_id: string;
+  full_name: string;
+  role: ProfileRole;
+  email?: string;
+  password?: string;
+  created_at?: string;
 }

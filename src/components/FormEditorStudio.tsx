@@ -44,6 +44,7 @@ import { FormCardsGallery, InspectionFormCardData } from './FormCardsGallery';
 import { getMainCards, getChildCards, InspectionHierarchyCard } from '../inspectionHierarchyData';
 import { deployInspectionForm } from '../deployedFormsData';
 import { RoundClockTimePickerModal } from './RoundClockTimePickerModal';
+import { ItemCodeSmartInput } from './ItemCodeSmartInput';
 
 // Footer Section Block Data Model (matching user's reference image)
 export interface FormFooterAttachment {
@@ -92,16 +93,16 @@ export interface DocumentHeaderData {
 // (Dummy elements removed: Production Sheet Number, Quantity (Pcs), Date Code Reference, Online Checked by Assembly Line)
 export const REFERENCE_SECTION_1_ELEMENTS: SectionElementSchema[] = [
   { id: 'el-date', name: 'Inspection Date', type: 'date_picker', subItems: [] },
-  { id: 'el-batch', name: 'Batch Number Reference', type: 'data_field', subItems: [] },
-  { id: 'el-desc', name: 'Product Description', type: 'data_field', subItems: [] },
   { id: 'el-item-code', name: 'Item Code Reference', type: 'data_field', subItems: [] },
+  { id: 'el-desc', name: 'Product Description', type: 'data_field', subItems: [] },
+  { id: 'el-batch', name: 'Batch Number Reference', type: 'data_field', subItems: [] },
 ];
 
 export const REFERENCE_SECTION_1_SAVED_DATA: Record<string, string> = {
   'el-date': '',
-  'el-batch': '',
-  'el-desc': '',
   'el-item-code': '',
+  'el-desc': '',
+  'el-batch': '',
 };
 
 // Element types supported: Data field, Date picker, Dropdown list, Radio button, Online Inspection Table Grid, Final Inspection Table Grid
@@ -443,7 +444,7 @@ export const DEFAULT_FORMS_INITIAL: InspectionFormCardData[] = [
       {
         id: 'section-1',
         sectionNumber: 1,
-        title: 'DIGITAL FACTORY INSPECTION LOG',
+        title: 'INSPECTION LOG',
         elements: REFERENCE_SECTION_1_ELEMENTS,
         isSaved: true,
         savedData: REFERENCE_SECTION_1_SAVED_DATA,
@@ -487,7 +488,7 @@ export const DEFAULT_FORMS_INITIAL: InspectionFormCardData[] = [
       {
         id: 'section-1',
         sectionNumber: 1,
-        title: 'DIGITAL FACTORY INSPECTION LOG',
+        title: 'INSPECTION LOG',
         elements: REFERENCE_SECTION_1_ELEMENTS,
         isSaved: true,
         savedData: {
@@ -536,7 +537,7 @@ export const DEFAULT_FORMS_INITIAL: InspectionFormCardData[] = [
       {
         id: 'section-1',
         sectionNumber: 1,
-        title: 'DIGITAL FACTORY INSPECTION LOG',
+        title: 'INSPECTION LOG',
         elements: REFERENCE_SECTION_1_ELEMENTS,
         isSaved: true,
         savedData: {
@@ -870,7 +871,7 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
         {
           id: `section-1-${Date.now()}`,
           sectionNumber: 1,
-          title: 'DIGITAL FACTORY INSPECTION LOG',
+          title: 'INSPECTION LOG',
           elements: REFERENCE_SECTION_1_ELEMENTS,
           isSaved: true,
           savedData: REFERENCE_SECTION_1_SAVED_DATA,
@@ -897,7 +898,7 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
         {
           id: `section-1-${Date.now()}`,
           sectionNumber: 1,
-          title: 'DIGITAL FACTORY INSPECTION LOG',
+          title: 'INSPECTION LOG',
           elements: REFERENCE_SECTION_1_ELEMENTS,
           isSaved: true,
           savedData: REFERENCE_SECTION_1_SAVED_DATA,
@@ -916,7 +917,7 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
         {
           id: `section-1-${Date.now()}`,
           sectionNumber: 1,
-          title: 'DIGITAL FACTORY INSPECTION LOG',
+          title: 'INSPECTION LOG',
           elements: REFERENCE_SECTION_1_ELEMENTS,
           isSaved: true,
           savedData: REFERENCE_SECTION_1_SAVED_DATA,
@@ -1185,7 +1186,7 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
       {
         id: 'section-1',
         sectionNumber: 1,
-        title: 'DIGITAL FACTORY INSPECTION LOG',
+        title: 'INSPECTION LOG',
         elements: REFERENCE_SECTION_1_ELEMENTS,
         isSaved: true,
         savedData: REFERENCE_SECTION_1_SAVED_DATA,
@@ -3176,7 +3177,7 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                       <div className="flex items-center justify-center gap-2.5">
                         <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-xs shrink-0" />
                         <h3 className="text-xs sm:text-sm font-bold tracking-wider uppercase text-slate-800">
-                          {savedSection.title || 'DIGITAL FACTORY INSPECTION LOG'}
+                          {(savedSection.title || 'INSPECTION LOG').replace(/DIGITAL FACTORY\s*/i, '')}
                         </h3>
                       </div>
 
@@ -3219,13 +3220,41 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                                 </label>
 
                                 {element.type === 'data_field' && (
-                                  <input
-                                    type="text"
-                                    value={currVal}
-                                    onChange={(e) => handlePreviewFieldChange(savedSection.id, element.id, e.target.value)}
-                                    placeholder={placeholder}
-                                    className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-300 bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 shadow-2xs transition"
-                                  />
+                                  element.id === 'el-item-code' || /item\s*code/i.test(element.name) ? (
+                                    <ItemCodeSmartInput
+                                      value={currVal}
+                                      placeholder={placeholder}
+                                      onChange={(code, item) => {
+                                        handlePreviewFieldChange(savedSection.id, element.id, code);
+                                        if (item) {
+                                          const descEl = savedSection.elements.find(
+                                            (el) => el.id === 'el-desc' || /product\s*desc|description/i.test(el.name)
+                                          );
+                                          if (descEl) {
+                                            handlePreviewFieldChange(savedSection.id, descEl.id, item.description);
+                                          }
+                                          handleUpdateHeaderField('productType', item.description);
+                                        }
+                                      }}
+                                      onSelectDescription={(desc, item) => {
+                                        const descEl = savedSection.elements.find(
+                                          (el) => el.id === 'el-desc' || /product\s*desc|description/i.test(el.name)
+                                        );
+                                        if (descEl) {
+                                          handlePreviewFieldChange(savedSection.id, descEl.id, desc);
+                                        }
+                                        handleUpdateHeaderField('productType', desc);
+                                      }}
+                                    />
+                                  ) : (
+                                    <input
+                                      type="text"
+                                      value={currVal}
+                                      onChange={(e) => handlePreviewFieldChange(savedSection.id, element.id, e.target.value)}
+                                      placeholder={placeholder}
+                                      className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-300 bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 shadow-2xs transition"
+                                    />
+                                  )
                                 )}
 
                                 {element.type === 'date_picker' && (

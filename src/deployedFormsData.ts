@@ -53,7 +53,7 @@ export const INITIAL_DEFAULT_DEPLOYED_FORMS: DeployedInspectionForm[] = [
       {
         id: 'section-1',
         sectionNumber: 1,
-        title: 'DIGITAL FACTORY INSPECTION LOG',
+        title: 'INSPECTION LOG',
         elements: REFERENCE_SECTION_1_ELEMENTS,
         isSaved: true,
         savedData: REFERENCE_SECTION_1_SAVED_DATA,
@@ -114,9 +114,9 @@ export const INITIAL_DEFAULT_DEPLOYED_FORMS: DeployedInspectionForm[] = [
         isSaved: true,
         savedData: {
           'el-date': '',
-          'el-batch': '',
-          'el-desc': '',
           'el-item-code': '',
+          'el-desc': '',
+          'el-batch': '',
         },
       },
       {
@@ -161,7 +161,18 @@ export function getStoredDeployedForms(): DeployedInspectionForm[] {
     }
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
+      // Desired order for Inspection Log section elements:
+      // 1. Date, 2. Item Code, 3. Product Description, 4. Batch Number Reference
+      const getFieldRank = (id: string, name: string): number => {
+        if (id === 'el-date' || /date/i.test(name)) return 1;
+        if (id === 'el-item-code' || /item\s*code/i.test(name)) return 2;
+        if (id === 'el-desc' || /product\s*desc|description/i.test(name)) return 3;
+        if (id === 'el-batch' || /batch/i.test(name)) return 4;
+        return 99;
+      };
+
       // Ensure inspector name, emp no, item code, batch reference are clean of dummy data
+      // and ensure Section 1 elements follow the requested order: Date -> Item Code -> Product Description -> Batch Number
       parsed.forEach((f: DeployedInspectionForm) => {
         if (f.footer) {
           if (f.footer.onlineInspectorName === 'H. P. Karunaratne' || f.footer.onlineInspectorName?.includes('Karunaratne')) f.footer.onlineInspectorName = '';
@@ -170,6 +181,15 @@ export function getStoredDeployedForms(): DeployedInspectionForm[] {
           if (f.footer.finalEmpNo === 'QC-Lead-09' || f.footer.finalEmpNo?.includes('Lead-09')) f.footer.finalEmpNo = '';
         }
         f.sections?.forEach((sec) => {
+          if (sec.title) {
+            sec.title = sec.title.replace(/DIGITAL FACTORY\s*/i, '');
+          }
+
+          // If this section has standard reference elements (e.g. section-1 or contains date/item-code/batch), sort elements
+          if (Array.isArray(sec.elements) && sec.elements.some(el => el.id === 'el-item-code' || el.id === 'el-batch')) {
+            sec.elements.sort((a, b) => getFieldRank(a.id, a.name) - getFieldRank(b.id, b.name));
+          }
+
           if (sec.savedData) {
             Object.keys(sec.savedData).forEach((k) => {
               const val = sec.savedData?.[k] || '';

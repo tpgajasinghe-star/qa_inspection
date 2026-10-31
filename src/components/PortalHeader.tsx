@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Wifi, LogOut, RefreshCw, UserCheck, Shield, Sparkles } from 'lucide-react';
 import { WorkspaceMode } from '../types';
 
@@ -21,38 +22,38 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
   onSwitchRole,
   onShowSplash,
 }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  // Return label based on current mode
+  const isRoot = location.pathname === '/' || location.pathname === '/workspace-selection';
+
+  // Return contextual label based on current route
   const getBackLabel = () => {
-    if (currentMode === 'incoming-inspection' || currentMode === 'in-process-inspection') return 'Back to QA Inspection';
-    if (currentMode === 'live-inspection') return 'Back to Inspection Modules';
-    if (currentMode === 'admin-specs') return 'Back to QA Admin Dashboard';
-    if (currentMode.startsWith('admin-') && currentMode !== 'admin-dashboard') return 'Back to Admin Modules';
-    if (currentMode === 'inspection-dashboard' || currentMode === 'admin-dashboard') return 'Back to Workspace Selection';
-    return 'Back to Workspace Selection';
+    const p = location.pathname;
+    if (p.startsWith('/inspection/incoming') || p.startsWith('/inspection/in-process') || p.startsWith('/inspection/module')) {
+      return 'Back to QA Inspection';
+    }
+    if (p.startsWith('/inspection/live')) return 'Back to Inspection Modules';
+    if (p.startsWith('/admin/') && p !== '/admin') return 'Back to QA Admin Dashboard';
+    if (p === '/inspection' || p === '/admin') return 'Back to Workspace Selection';
+    if (p === '/sign-in') return 'Back to Workspace Selection';
+    return 'Back';
   };
 
   const handleBackClick = () => {
-    if (currentMode === 'incoming-inspection' || currentMode === 'in-process-inspection') {
-      onNavigate('inspection-dashboard');
-    } else if (currentMode === 'live-inspection') {
-      onNavigate('inspection-dashboard');
-    } else if (currentMode.startsWith('admin-') && currentMode !== 'admin-dashboard') {
-      onNavigate('admin-dashboard');
-    } else {
-      onNavigate('workspace-selection');
-    }
+    navigate(-1);
   };
 
   return (
     <header className="w-full flex items-center justify-between py-2 sm:py-2.5 px-3 sm:px-5 select-none relative z-30 shrink-0">
-      {/* Back Navigation Button */}
-      {currentMode !== 'workspace-selection' ? (
+      {/* Back Navigation Button - Synced with browser history stack via navigate(-1) */}
+      {!isRoot ? (
         <button
           onClick={handleBackClick}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/85 hover:bg-white text-slate-700 hover:text-slate-950 font-medium text-xs sm:text-sm shadow-xs backdrop-blur-md border border-white/80 transition-all duration-200 hover:shadow-sm cursor-pointer group"
           id="btn-nav-back"
+          title="Go back to previous screen (Browser History)"
         >
           <ArrowLeft className="w-3.5 h-3.5 text-slate-500 group-hover:text-blue-600 transition-transform group-hover:-translate-x-0.5" />
           <span>{getBackLabel()}</span>
@@ -117,10 +118,13 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
                   <div className="absolute right-0 mt-2 w-56 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/80 p-2 z-50 text-xs text-slate-700 animate-in fade-in zoom-in-95 duration-150">
                     <div className="px-3 py-2 border-b border-slate-100">
                       <p className="font-bold text-slate-900">
-                        {userRole === 'admin' ? 'David Sterling' : 'Marcus Vance'}
+                        {sessionStorage.getItem('qc_auth_full_name') || (userRole === 'admin' ? 'System Admin' : 'Marcus Vance')}
                       </p>
-                      <p className="text-[11px] text-slate-500">
-                        {userRole === 'admin' ? 'System Administrator' : 'Senior QA Inspector'}
+                      <p className="text-[11px] text-slate-500 font-semibold flex items-center gap-1.5 mt-0.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        <span>
+                          {sessionStorage.getItem('qc_auth_profile_role') || (userRole === 'admin' ? 'ADMIN' : 'USER')}
+                        </span>
                       </p>
                     </div>
 

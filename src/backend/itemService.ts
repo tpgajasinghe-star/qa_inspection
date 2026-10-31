@@ -39,7 +39,7 @@ export const SEED_FACTORY_ITEMS: DbItem[] = [
   { item_code: '3000018402', description: 'Kevilton 9W High-Lumen LED Bulb', series: 'LED', category: 'Kevilton LED' },
 ];
 
-const LOCAL_STORAGE_DB_ITEMS_KEY = 'qc_supabase_cached_items_v2';
+const LOCAL_STORAGE_DB_ITEMS_KEY = 'qc_supabase_cached_items_v3';
 
 export async function fetchItems(): Promise<DbItem[]> {
   try {
@@ -57,33 +57,258 @@ export async function fetchItems(): Promise<DbItem[]> {
       }
     }
 
-    // Query Supabase items table in real-time
+    // Query all records from Supabase items table (all 779+ items) using range to ensure no cutoff
     const { data, error } = await supabase
       .from('items')
       .select('item_code, description, series, category')
-      .order('item_code', { ascending: true });
+      .order('item_code', { ascending: true })
+      .range(0, 4999);
 
     if (error) {
-      console.warn('Supabase fetch error, using fallback catalog:', error);
+      console.warn('[itemService] Supabase items fetch error, using cached/fallback catalog:', error);
       return initialList;
     }
 
     if (data && data.length > 0) {
       const mergedMap = new Map<string, DbItem>();
-      // First put seeds
+      // First seed fast catalog
       SEED_FACTORY_ITEMS.forEach(it => mergedMap.set(it.item_code, it));
-      // Overwrite with live Supabase data
+      // Overwrite and populate with all live Supabase records
       (data as DbItem[]).forEach(it => mergedMap.set(it.item_code, it));
       const finalList = Array.from(mergedMap.values());
-      localStorage.setItem(LOCAL_STORAGE_DB_ITEMS_KEY, JSON.stringify(finalList));
+      console.log(`[itemService] Successfully fetched ${finalList.length} items from Supabase database.`);
+      try {
+        localStorage.setItem(LOCAL_STORAGE_DB_ITEMS_KEY, JSON.stringify(finalList));
+      } catch (e) {
+        console.warn('[itemService] Cache write quota:', e);
+      }
       return finalList;
     }
 
     return initialList;
   } catch (err) {
-    console.warn('Unexpected error in fetchItems, using fallback catalog:', err);
+    console.warn('[itemService] Unexpected error in fetchItems, using fallback catalog:', err);
     return SEED_FACTORY_ITEMS;
   }
+}
+
+export interface ItemCodeParts {
+  fullCode: string;
+  head: string;      // e.g. '3' or '4'
+  zeros: string;     // e.g. '000000'
+  tail: string;      // e.g. '559', '4559', '6471'
+  tailLength: number;
+}
+
+/**
+ * Extracts head series, middle zeros, and non-zero tail number from an item code:
+ * - "3000000559" -> head: "3", zeros: "000000", tail: "559" (3 digits)
+ * - "4000004559" -> head: "4", zeros: "00000", tail: "4559" (4 digits)
+ * - "3000006471" -> head: "3", zeros: "00000", tail: "6471" (4 digits)
+ * - "4000006471" -> head: "4", zeros: "00000", tail: "6471" (4 digits)
+ */
+export function parseItemCode(rawCode: string): ItemCodeParts {
+  const code = (rawCode || '').trim();
+  const match = code.match(/^([1-9])(0+)([1-9][0-9]*)$/);
+  if (match) {
+    return {
+      fullCode: code,
+      head: match[1],
+      zeros: match[2],
+      tail: match[3],
+      tailLength: match[3].length,
+    };
+  }
+  return {
+    fullCode: code,
+    head: code.charAt(0) || '',
+    zeros: '',
+    tail: code,
+    tailLength: code.length,
+  };
+}
+
+export interface ItemCandidateSearchResult {
+  exactMatch: DbItem | null;
+  exactTailMatches: DbItem[];
+  suffixMatches: DbItem[];
+  containsMatches: DbItem[];
+  allCandidates: DbItem[];
+  hasDifferentHeadsConflict: boolean;
+}
+
+/**
+ * Searches for item code candidates matching a given input:
+ * - If input is "559" (3 digits): exactly matches "3000000559" (tail 559, 3 digits).
+ *   "4000004559" (tail 4559, 4 digits) is NOT an exact tail match.
+ * - If input is "4559" (4 digits): exactly matches "4000004559".
+ * - If input is "6471": matches both "3000006471" and "4000006471" (different heads 3 vs 4).
+ */
+export function findMatchingItemCandidates(
+  rawInput: string,
+  itemsList: DbItem[]
+): ItemCandidateSearchResult {
+  const trimmed = rawInput.trim();
+  if (!trimmed) {
+    return {
+      exactMatch: null,
+      exactTailMatches: [],
+      suffixMatches: [],
+      containsMatches: [],
+      allCandidates: [],
+      hasDifferentHeadsConflict: false,
+    };
+  }
+
+  const catalog = itemsList && itemsList.length > 0 ? itemsList : SEED_FACTORY_ITEMS;
+
+  // 1. Exact match on full item_code
+  const exactMatch = catalog.find(
+    it => it.item_code.toLowerCase() === trimmed.toLowerCase()
+  ) || null;
+
+  // 2. Exact tail match (where non-zero tail length & value equals input, e.g. "559" === "559")
+  const exactTailMatches = catalog.filter(it => {
+    const parts = parseItemCode(it.item_code);
+    return parts.tail.toLowerCase() === trimmed.toLowerCase();
+  });
+
+  // Check if different 1st head digits exist among exact tail matches
+  const uniqueHeads = new Set(exactTailMatches.map(it => parseItemCode(it.item_code).head));
+  const hasDifferentHeadsConflict = exactTailMatches.length > 1 && uniqueHeads.size > 1;
+
+  // 3. General suffix matches that are not in exactTailMatches
+  const suffixMatches = catalog.filter(it => {
+    if (exactTailMatches.some(e => e.item_code === it.item_code)) return false;
+    return it.item_code.endsWith(trimmed);
+  });
+
+  // 4. Substring / Description contains match
+  const containsMatches = catalog.filter(it => {
+    if (it.item_code === exactMatch?.item_code) return false;
+    if (exactTailMatches.some(s => s.item_code === it.item_code)) return false;
+    if (suffixMatches.some(s => s.item_code === it.item_code)) return false;
+    return (
+      it.item_code.includes(trimmed) ||
+      (it.description || '').toLowerCase().includes(trimmed.toLowerCase())
+    );
+  });
+
+  // Combine unique candidates in order of relevance: exact -> exact tail -> suffix -> contains
+  const seen = new Set<string>();
+  const allCandidates: DbItem[] = [];
+
+  if (exactMatch) {
+    allCandidates.push(exactMatch);
+    seen.add(exactMatch.item_code);
+  }
+
+  exactTailMatches.forEach(it => {
+    if (!seen.has(it.item_code)) {
+      allCandidates.push(it);
+      seen.add(it.item_code);
+    }
+  });
+
+  suffixMatches.forEach(it => {
+    if (!seen.has(it.item_code)) {
+      allCandidates.push(it);
+      seen.add(it.item_code);
+    }
+  });
+
+  containsMatches.forEach(it => {
+    if (!seen.has(it.item_code)) {
+      allCandidates.push(it);
+      seen.add(it.item_code);
+    }
+  });
+
+  return {
+    exactMatch,
+    exactTailMatches,
+    suffixMatches,
+    containsMatches,
+    allCandidates,
+    hasDifferentHeadsConflict,
+  };
+}
+
+export type ItemResolutionResult = 
+  | { type: 'none' }
+  | { type: 'single'; item: DbItem }
+  | { type: 'multiple'; candidates: DbItem[]; isDifferentHeads: boolean };
+
+/**
+ * Resolves an item code when the user presses Enter or triggers lookup:
+ * 1. If exact full code matches: returns 'single' directly.
+ * 2. If exact tail matches (e.g. "559" -> 3000000559):
+ *    - If exactly 1 match: returns 'single' directly (no popup/selection!).
+ *    - If multiple matches with different heads (e.g. 3000006471 and 4000006471):
+ *      returns 'multiple' with candidates and isDifferentHeads=true to trigger popup modal!
+ * 3. Fallback to suffix / contains matches.
+ */
+export function resolveItemCodeOnEnter(
+  rawInput: string,
+  itemsList: DbItem[]
+): ItemResolutionResult {
+  const trimmed = rawInput.trim();
+  if (!trimmed) return { type: 'none' };
+
+  const { 
+    exactMatch, 
+    exactTailMatches, 
+    suffixMatches, 
+    containsMatches,
+    hasDifferentHeadsConflict 
+  } = findMatchingItemCandidates(trimmed, itemsList);
+
+  // 1. Exact full 10-digit match
+  if (exactMatch && exactMatch.item_code.toLowerCase() === trimmed.toLowerCase()) {
+    return { type: 'single', item: exactMatch };
+  }
+
+  // 2. Exact tail match (e.g. "559" matches 3000000559, NOT 4000004559)
+  if (exactTailMatches.length === 1) {
+    return { type: 'single', item: exactTailMatches[0] };
+  }
+
+  if (exactTailMatches.length > 1) {
+    return { 
+      type: 'multiple', 
+      candidates: exactTailMatches, 
+      isDifferentHeads: hasDifferentHeadsConflict 
+    };
+  }
+
+  // 3. Fallback suffix match (e.g. partial tail)
+  if (suffixMatches.length === 1) {
+    return { type: 'single', item: suffixMatches[0] };
+  }
+
+  if (suffixMatches.length > 1) {
+    const uniqueHeads = new Set(suffixMatches.map(it => parseItemCode(it.item_code).head));
+    return { 
+      type: 'multiple', 
+      candidates: suffixMatches, 
+      isDifferentHeads: uniqueHeads.size > 1 
+    };
+  }
+
+  // 4. Fallback contains match
+  if (containsMatches.length === 1) {
+    return { type: 'single', item: containsMatches[0] };
+  }
+
+  if (containsMatches.length > 1) {
+    return { 
+      type: 'multiple', 
+      candidates: containsMatches.slice(0, 10), 
+      isDifferentHeads: false 
+    };
+  }
+
+  return { type: 'none' };
 }
 
 /**

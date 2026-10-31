@@ -24,6 +24,7 @@ import { InspectionHierarchyCard } from '../inspectionHierarchyData';
 import { TableRowSchema } from './FormEditorStudio';
 import { RoundClockTimePickerModal } from './RoundClockTimePickerModal';
 import { fetchItems, DbItem, lookupDatabaseItem, SEED_FACTORY_ITEMS } from '../backend/itemService';
+import { ItemCodeSmartInput } from './ItemCodeSmartInput';
 
 interface DeployedInspectionFormViewProps {
   form: DeployedInspectionForm;
@@ -259,12 +260,16 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
     const status: QAStatus = hasFailures ? 'fail' : 'pass';
     const recId = `REC-${categoryPrefix}-${Date.now().toString().slice(-6)}`;
 
+    const finalBatch = fieldValues['el-batch'] || batchId || `BATCH-${Date.now().toString().slice(-4)}`;
+    const finalItemCode = fieldValues['el-item-code'] || itemCode || (matchedDbItem?.item_code) || `ITEM-${categoryPrefix}-01`;
+    const finalProductDesc = fieldValues['el-desc'] || productDesc || form.productType || form.documentHeader.productType || childCard.name;
+
     const newRecord: InspectionRecord = {
       id: recId,
       lotNumber,
-      batchId: batchId || `BATCH-${Date.now().toString().slice(-4)}`,
-      partNumber: itemCode || (matchedDbItem?.item_code) || `ITEM-${categoryPrefix}-01`,
-      partName: productDesc || form.productType || form.documentHeader.productType || childCard.name,
+      batchId: finalBatch,
+      partNumber: finalItemCode,
+      partName: finalProductDesc,
       module: (mainCard.moduleId as any) || 'in-process',
       supplierOrLine: `${childCard.name} Station`,
       nominalValue: 100,
@@ -278,7 +283,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
       inspectorId: onlineEmpNo || userId || 'QA Inspector',
       inspectorName: onlineInspectorName || 'Certified QC Inspector',
       timestamp: new Date().toISOString(),
-      notes: remarks || `Verified against standard ${form.documentHeader.refStandard || 'SLS 734'} for ${productDesc || form.productType}.`,
+      notes: remarks || `Verified against standard ${form.documentHeader.refStandard || 'SLS 734'} for ${finalProductDesc}.`,
       verifiedBy: finalInspectorName ? `Final Lead: ${finalInspectorName}` : 'QA Lead Signoff',
       category: childCard.name,
     };
@@ -374,7 +379,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
       )}
 
       {/* Full Live Inspection Form Container */}
-      <form onSubmit={handleSubmitInspection} className="w-full bg-white rounded-3xl shadow-xl border border-slate-200/90 overflow-hidden mb-10">
+      <form onSubmit={handleSubmitInspection} className="w-full bg-white rounded-3xl shadow-xl border border-slate-200/90 mb-10 overflow-visible relative">
         
         {/* Form Header Banner - Centered topics layout as previously styled */}
         <div className="p-6 sm:p-8 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white border-b border-slate-800 text-center relative overflow-hidden">
@@ -497,149 +502,6 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
 
         <div className="p-6 sm:p-8 space-y-8">
           
-          {/* SECTION 1: Item Identification & Batch Tracking */}
-          <div className="bg-slate-50/70 rounded-2xl p-5 border border-slate-200">
-            <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-200">
-              <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-                <span>Section 1: Traceability & Production Batch Identification</span>
-              </h3>
-              <span className="text-[11px] font-semibold text-slate-500">
-                Standard Factory Traceability
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[11px] font-bold text-slate-600 block">
-                    Product Description / Type
-                  </label>
-                  {matchedDbItem && (
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                      Auto-filled
-                    </span>
-                  )}
-                </div>
-                <input
-                  type="text"
-                  value={productDesc}
-                  onChange={(e) => setProductDesc(e.target.value)}
-                  className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                  placeholder="Product Type"
-                />
-                {matchedDbItem ? (
-                  <span className="text-[10px] text-emerald-700 font-semibold mt-1 flex items-center gap-1 truncate" title={`${matchedDbItem.series || ''} • ${matchedDbItem.category || ''}`}>
-                    <Database className="w-3 h-3 text-emerald-600 shrink-0" />
-                    <span className="truncate">Database item ({matchedDbItem.series || childCard.name})</span>
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-slate-400 block mt-1">
-                    Auto-fills when entering item code (e.g. 559)
-                  </span>
-                )}
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[11px] font-bold text-slate-600 block">
-                    Item Code Reference
-                  </label>
-                  <span className="text-[9px] font-mono text-blue-600">
-                    Live Lookup
-                  </span>
-                </div>
-                <div className="relative">
-                  <input
-                    type="text"
-                    list="db-item-codes-datalist"
-                    value={itemCode}
-                    onChange={(e) => handleItemCodeChange(e.target.value)}
-                    className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                    placeholder="Enter item code (e.g. 559)"
-                  />
-                  <datalist id="db-item-codes-datalist">
-                    {itemsList.slice(0, 50).map(it => (
-                      <option key={it.item_code} value={it.item_code}>
-                        {it.description}
-                      </option>
-                    ))}
-                  </datalist>
-                </div>
-                {matchedDbItem ? (
-                  <div className="mt-1 flex items-center justify-between gap-1 text-[10px] text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 animate-in fade-in">
-                    <span className="truncate flex items-center gap-1 font-mono">
-                      <Check className="w-3 h-3 text-emerald-600 shrink-0" />
-                      <span>{matchedDbItem.item_code}</span>
-                    </span>
-                    {itemCode.trim() !== matchedDbItem.item_code && (
-                      <button
-                        type="button"
-                        onClick={() => setItemCode(matchedDbItem.item_code)}
-                        className="text-emerald-700 hover:text-emerald-950 font-bold underline shrink-0 cursor-pointer text-[9px]"
-                        title="Set full 10-digit code"
-                      >
-                        Set full ({matchedDbItem.item_code})
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <span className="text-[10px] text-slate-400 block mt-1">
-                    Type <strong>559</strong> &rarr; matches 3000000559
-                  </span>
-                )}
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Batch Number Reference
-                </label>
-                <input
-                  type="text"
-                  value={batchId}
-                  onChange={(e) => setBatchId(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                  placeholder="Enter Batch Number Reference"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Inspection Time
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveClockPicker({
-                      isOpen: true,
-                      timeKey: 'meta-audit-time',
-                      headerTitle: 'Inspection Time',
-                      currentValue: auditTime,
-                    });
-                  }}
-                  className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 hover:border-blue-500 text-xs font-mono font-bold text-blue-700 flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-blue-500/30 cursor-pointer shadow-2xs transition"
-                  title="Click to enter inspection time (12 hrs round clock)"
-                >
-                  <span>{auditTime || 'Click to select time'}</span>
-                  <Clock className="w-4 h-4 text-blue-600" />
-                </button>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                  Inspection Standard Reference
-                </label>
-                <input
-                  type="text"
-                  defaultValue={form.documentHeader.refStandard || 'SLS 734'}
-                  readOnly
-                  className="w-full px-3 py-2 bg-slate-100 rounded-xl border border-slate-200 text-xs font-mono font-semibold text-slate-600 cursor-not-allowed"
-                />
-              </div>
-            </div>
-          </div>
-
           {/* DYNAMIC SECTIONS & TABLE GRIDS */}
           {form.sections.map((section, sIdx) => {
             // Find table element in section if any
@@ -649,7 +511,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
             return (
               <div 
                 key={section.id || sIdx}
-                className="rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-2xs"
+                className="rounded-2xl border border-slate-200 bg-white shadow-2xs relative z-20 overflow-visible"
               >
                 {/* Section Title Header */}
                 <div className="bg-slate-100/90 px-5 py-3 border-b border-slate-200 flex items-center justify-between">
@@ -657,7 +519,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                     <span className="w-6 h-6 rounded-lg bg-blue-600 text-white text-[11px] flex items-center justify-center font-bold">
                       {section.sectionNumber || sIdx + 1}
                     </span>
-                    <span>{section.title}</span>
+                    <span>{section.title.replace(/DIGITAL FACTORY\s*/i, '')}</span>
                   </h4>
                   <span className="text-[11px] font-semibold text-slate-500">
                     {section.elements.length} Form Elements
@@ -666,18 +528,30 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
 
                 {/* Non-table elements if present */}
                 {nonTableEls.length > 0 && (
-                  <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 border-b border-slate-100 bg-slate-50/50">
+                  <div className={`p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 ${nonTableEls.length >= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4 border-b border-slate-100 bg-slate-50/50`}>
                     {nonTableEls.map(el => (
                       <div key={el.id}>
-                        <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                          {el.name}
-                        </label>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[11px] font-bold text-slate-600 block">
+                            {el.name}
+                          </label>
+                          {(el.id === 'el-desc' || /product\s*desc/i.test(el.name)) && matchedDbItem && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                              Auto-filled
+                            </span>
+                          )}
+                        </div>
+
                         {el.type === 'date_picker' ? (
                           <input
                             type="date"
                             value={fieldValues[el.id] || inspectionDate}
-                            onChange={(e) => setFieldValues({ ...fieldValues, [el.id]: e.target.value })}
-                            className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-medium text-slate-800"
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setFieldValues(prev => ({ ...prev, [el.id]: val }));
+                              setInspectionDate(val);
+                            }}
+                            className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                           />
                         ) : el.type === 'time_picker' || /time|hour|clock/i.test(el.name) ? (
                           <div
@@ -695,13 +569,75 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                             <span className="font-mono">{fieldValues[el.id] || auditTime || 'Select Time'}</span>
                             <Clock className="w-3.5 h-3.5 text-blue-600" />
                           </div>
+                        ) : el.id === 'el-item-code' || /item\s*code/i.test(el.name) ? (
+                          <div>
+                            <ItemCodeSmartInput
+                              value={fieldValues[el.id] || itemCode || ''}
+                              itemsList={itemsList}
+                              contextHint={childCard.name}
+                              placeholder="Item Code"
+                              onChange={(code, item) => {
+                                setItemCode(code);
+                                const updated: Record<string, string> = {
+                                  ...fieldValues,
+                                  [el.id]: code,
+                                };
+                                if (item) {
+                                  setProductDesc(item.description);
+                                  setMatchedDbItem(item);
+                                  section.elements.forEach(subEl => {
+                                    if (subEl.id === 'el-desc' || /product\s*desc|description/i.test(subEl.name)) {
+                                      updated[subEl.id] = item.description;
+                                    }
+                                  });
+                                }
+                                setFieldValues(updated);
+                              }}
+                              onSelectDescription={(desc, item) => {
+                                setProductDesc(desc);
+                                setMatchedDbItem(item);
+                                setFieldValues(prev => {
+                                  const next = { ...prev, [el.id]: item.item_code };
+                                  section.elements.forEach(subEl => {
+                                    if (subEl.id === 'el-desc' || /product\s*desc|description/i.test(subEl.name)) {
+                                      next[subEl.id] = desc;
+                                    }
+                                  });
+                                  return next;
+                                });
+                              }}
+                            />
+                            {matchedDbItem && (
+                              <span className="text-[10px] text-emerald-700 font-semibold mt-1 flex items-center gap-1 truncate" title={`${matchedDbItem.series || ''} • ${matchedDbItem.category || ''}`}>
+                                <Database className="w-3 h-3 text-emerald-600 shrink-0" />
+                                <span className="truncate">Database item ({matchedDbItem.series || childCard.name})</span>
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <input
                             type="text"
-                            value={fieldValues[el.id] || ''}
-                            onChange={(e) => setFieldValues({ ...fieldValues, [el.id]: e.target.value })}
+                            value={
+                              fieldValues[el.id] !== undefined
+                                ? fieldValues[el.id]
+                                : el.id === 'el-batch' || /batch/i.test(el.name)
+                                ? batchId
+                                : el.id === 'el-desc' || /product\s*desc/i.test(el.name)
+                                ? productDesc
+                                : ''
+                            }
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setFieldValues(prev => ({ ...prev, [el.id]: val }));
+                              if (el.id === 'el-batch' || /batch/i.test(el.name)) {
+                                setBatchId(val);
+                              }
+                              if (el.id === 'el-desc' || /product\s*desc/i.test(el.name)) {
+                                setProductDesc(val);
+                              }
+                            }}
                             placeholder={el.name}
-                            className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-medium text-slate-800"
+                            className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                           />
                         )}
                       </div>

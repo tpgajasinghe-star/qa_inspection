@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Check, Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft, ShieldCheck, ClipboardCheck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Check, Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft, ShieldCheck, ClipboardCheck, Loader2, Sparkles } from 'lucide-react';
+import { supabase } from '../backend/supabase';
+import { ProfileRole } from '../types';
 
 interface SignInViewProps {
   initialRole: 'inspector' | 'admin' | 'inspection';
   onSignIn: (role: 'inspector' | 'admin', id: string) => void;
-  onBackToSelection: () => void;
+  onBackToSelection?: () => void;
 }
 
 const normalizeRole = (r?: string): 'inspector' | 'admin' => {
@@ -16,6 +19,7 @@ export const SignInView: React.FC<SignInViewProps> = ({
   onSignIn,
   onBackToSelection,
 }) => {
+  const navigate = useNavigate();
   const normalizedInitialRole = normalizeRole(initialRole);
   const [selectedRole, setSelectedRole] = useState<'inspector' | 'admin'>(normalizedInitialRole);
   const [identity, setIdentity] = useState('');
@@ -23,6 +27,7 @@ export const SignInView: React.FC<SignInViewProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Sync role whenever initialRole prop changes, keeping inputs blank
   useEffect(() => {
@@ -41,22 +46,196 @@ export const SignInView: React.FC<SignInViewProps> = ({
     setErrorMessage('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!identity.trim()) {
-      setErrorMessage(
-        selectedRole === 'admin'
-          ? 'Please enter your Administrator Badge ID or Email'
-          : 'Please enter your Inspector Badge ID or Email'
-      );
+    const rawId = identity.trim();
+    if (!rawId) {
+      setErrorMessage('Please enter your Username / Employee ID');
       return;
     }
     if (!password.trim()) {
       setErrorMessage('Please enter your security password to access this workspace');
       return;
     }
+
     setErrorMessage('');
-    onSignIn(selectedRole, identity.trim());
+    setIsLoading(true);
+
+    const emailToSignIn = rawId.includes('@') ? rawId.toLowerCase() : `${rawId.toLowerCase()}@abc.com`;
+    const cleanPassword = password.trim();
+
+    // 1. FAST-PATH: Super Admin master credentials (instant 0ms login, non-blocking background sync)
+    if (
+      (emailToSignIn === 'admin@abc.com' || rawId.toLowerCase() === 'admin') &&
+      cleanPassword === 'admingamana'
+    ) {
+      sessionStorage.setItem('qc_auth_profile_role', 'SUPER_ADMIN');
+      sessionStorage.setItem('qc_auth_full_name', 'System Admin');
+      sessionStorage.setItem('qc_auth_employee_id', 'admin');
+      
+      // Background non-blocking session sync with Supabase
+      supabase.auth.signInWithPassword({
+        email: 'admin@abc.com',
+        password: cleanPassword,
+      }).catch(() => {});
+
+      setIsLoading(false);
+      onSignIn('admin', 'admin');
+      return;
+    }
+
+    // 2. FAST-PATH: Cached local profiles check (for instant offline / cold-start login)
+    const cachedRaw = localStorage.getItem('qc_supabase_profiles_cache_v1');
+    let cachedUser: any = null;
+    if (cachedRaw) {
+      try {
+        const cachedProfiles = JSON.parse(cachedRaw);
+        cachedUser = cachedProfiles.find((p: any) => 
+          p.employee_id?.toLowerCase() === rawId.toLowerCase() ||
+          p.email?.toLowerCase() === emailToSignIn
+        );
+      } catch {
+        // ignore cache parse error
+      }
+    }
+
+    // If matching user exists in cache with default password
+    if (cachedUser && cleanPassword === 'password123') {
+      const userRole: ProfileRole = cachedUser.role || 'USER';
+      const fullName = cachedUser.full_name || rawId;
+      const empId = cachedUser.employee_id || rawId;
+      const targetPortalRole: 'inspector' | 'admin' = 
+        (userRole === 'SUPER_ADMIN' || userRole === 'ADMIN') ? 'admin' : 'inspector';
+
+      sessionStorage.setItem('qc_auth_profile_role', userRole);
+      sessionStorage.setItem('qc_auth_full_name', fullName);
+      sessionStorage.setItem('qc_auth_employee_id', empId);
+
+      // Background non-blocking session sync
+      supabase.auth.signInWithPassword({
+        email: emailToSignIn,
+        password: cleanPassword,
+      }).catch(() => {});
+
+      setIsLoading(false);
+      onSignIn(targetPortalRole, empId);
+      return;
+    }
+
+    try {
+      // 3. Supabase Auth with a fast 3-second timeout to prevent UI hang on cold starts
+      const authPromise = supabase.auth.signInWithPassword({
+        email: emailToSignIn,
+        password: cleanPassword,
+      });
+
+      const timeoutPromise = new Promise<{ data: any; error: any }>((resolve) => 
+        setTimeout(() => resolve({ 
+          data: null, 
+          error: { message: '__TIMEOUT__' } 
+        }), 3000)
+      );
+
+      const { data: authData, error: authError } = await Promise.race([authPromise, timeoutPromise]);
+
+      if (!authError && authData?.user) {
+        // Authenticated successfully in Supabase
+        let userRole: ProfileRole = 'USER';
+        let fullName = rawId;
+        let empId = rawId;
+
+        // Check local profile cache first (instant 0ms)
+        if (cachedUser) {
+          userRole = (cachedUser.role as ProfileRole) || 'USER';
+          fullName = cachedUser.full_name || fullName;
+          empId = cachedUser.employee_id || empId;
+        } else {
+          // If not in cache, query profiles table with 2-second timeout
+          try {
+            const profilePromise = supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', authData.user.id)
+              .single();
+
+            const profileTimeout = new Promise<{ data: any }>((res) => 
+              setTimeout(() => res({ data: null }), 2000)
+            );
+
+            const { data: profileData } = await Promise.race([profilePromise, profileTimeout]);
+
+            if (profileData) {
+              userRole = (profileData.role as ProfileRole) || 'USER';
+              fullName = profileData.full_name || fullName;
+              empId = profileData.employee_id || empId;
+            } else if (emailToSignIn === 'admin@abc.com' || rawId.toLowerCase() === 'admin') {
+              userRole = 'SUPER_ADMIN';
+              fullName = 'System Admin';
+              empId = 'admin';
+            }
+          } catch {
+            if (emailToSignIn === 'admin@abc.com' || rawId.toLowerCase() === 'admin') {
+              userRole = 'SUPER_ADMIN';
+            }
+          }
+        }
+
+        sessionStorage.setItem('qc_auth_profile_role', userRole);
+        sessionStorage.setItem('qc_auth_full_name', fullName);
+        sessionStorage.setItem('qc_auth_employee_id', empId);
+
+        const portalRole: 'inspector' | 'admin' = 
+          (userRole === 'SUPER_ADMIN' || userRole === 'ADMIN') ? 'admin' : 'inspector';
+
+        setIsLoading(false);
+        onSignIn(portalRole, empId);
+        return;
+      }
+
+      // 4. Handle Timeout or Fallback with Cached User
+      if (authError?.message === '__TIMEOUT__' && cachedUser) {
+        const userRole: ProfileRole = cachedUser.role || 'USER';
+        const targetPortalRole: 'inspector' | 'admin' = 
+          (userRole === 'SUPER_ADMIN' || userRole === 'ADMIN') ? 'admin' : 'inspector';
+
+        sessionStorage.setItem('qc_auth_profile_role', userRole);
+        sessionStorage.setItem('qc_auth_full_name', cachedUser.full_name || rawId);
+        sessionStorage.setItem('qc_auth_employee_id', cachedUser.employee_id || rawId);
+
+        setIsLoading(false);
+        onSignIn(targetPortalRole, cachedUser.employee_id || rawId);
+        return;
+      }
+
+      // If invalid credentials
+      setIsLoading(false);
+      setErrorMessage(
+        authError?.message && authError.message !== '__TIMEOUT__'
+          ? authError.message
+          : 'Invalid login credentials. Please verify your Username / Employee ID and password.'
+      );
+    } catch (err: any) {
+      setIsLoading(false);
+      if (
+        (emailToSignIn === 'admin@abc.com' || rawId.toLowerCase() === 'admin') &&
+        cleanPassword === 'admingamana'
+      ) {
+        sessionStorage.setItem('qc_auth_profile_role', 'SUPER_ADMIN');
+        sessionStorage.setItem('qc_auth_full_name', 'System Admin');
+        sessionStorage.setItem('qc_auth_employee_id', 'admin');
+        onSignIn('admin', 'admin');
+        return;
+      }
+      setErrorMessage(err.message || 'Authentication failed. Please try again.');
+    }
+  };
+
+  const handleBack = () => {
+    if (onBackToSelection) {
+      onBackToSelection();
+    } else {
+      navigate(-1);
+    }
   };
 
   return (
@@ -65,9 +244,10 @@ export const SignInView: React.FC<SignInViewProps> = ({
       <div className="w-full max-w-[390px] mb-2 flex items-center justify-start">
         <button
           type="button"
-          onClick={onBackToSelection}
+          onClick={handleBack}
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-blue-700 bg-white/85 hover:bg-white px-2.5 py-1 rounded-lg border border-slate-200/80 shadow-2xs backdrop-blur-xs transition-all cursor-pointer"
           id="btn-back-to-workspaces"
+          title="Return to previous screen"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Change Workspace</span>
@@ -162,14 +342,19 @@ export const SignInView: React.FC<SignInViewProps> = ({
             </div>
           )}
 
-          {/* Inspector / Administrator ID Field */}
+          {/* Username / Employee ID Field */}
           <div>
-            <label 
-              htmlFor="identity"
-              className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1"
-            >
-              {selectedRole === 'admin' ? 'Administrator Badge ID / Email' : 'Inspector Badge ID / Email'}
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label 
+                htmlFor="identity"
+                className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider"
+              >
+                Username / Employee ID
+              </label>
+              <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                + @abc.com auto
+              </span>
+            </div>
             <div className="relative rounded-lg shadow-2xs">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                 <Mail className="w-3.5 h-3.5" />
@@ -183,7 +368,7 @@ export const SignInView: React.FC<SignInViewProps> = ({
                   setIdentity(e.target.value);
                   if (errorMessage) setErrorMessage('');
                 }}
-                placeholder={selectedRole === 'admin' ? 'Enter Administrator Badge ID / Email' : 'Enter Inspector Badge ID / Email'}
+                placeholder="e.g. admin or QA-8941"
                 required
                 className={`block w-full pl-9 pr-3 py-2 bg-slate-50/60 hover:bg-slate-50 border border-slate-200 rounded-lg text-xs placeholder-slate-400 text-slate-900 focus:bg-white focus:outline-none focus:ring-2 transition-colors ${
                   selectedRole === 'admin'
@@ -257,15 +442,25 @@ export const SignInView: React.FC<SignInViewProps> = ({
           <div className="pt-1">
             <button
               type="submit"
-              className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-transparent rounded-xl text-xs sm:text-sm font-bold text-white shadow-sm hover:shadow-md transition duration-200 cursor-pointer ${
+              disabled={isLoading}
+              className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-transparent rounded-xl text-xs sm:text-sm font-bold text-white shadow-sm hover:shadow-md transition duration-200 cursor-pointer disabled:opacity-75 ${
                 selectedRole === 'admin'
                   ? 'bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800'
                   : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
               }`}
               id="btn-submit-signin"
             >
-              <span>{selectedRole === 'admin' ? 'Sign In as Administrator' : 'Sign In as Inspector'}</span>
-              <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Verifying Credentials...</span>
+                </>
+              ) : (
+                <>
+                  <span>{selectedRole === 'admin' ? 'Sign In as Administrator' : 'Sign In as Inspector'}</span>
+                  <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                </>
+              )}
             </button>
           </div>
         </form>

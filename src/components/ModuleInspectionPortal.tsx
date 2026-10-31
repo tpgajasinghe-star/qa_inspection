@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, ArrowRight, Layers } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { InspectionRecord } from '../types';
 import {
   getChildCards,
@@ -25,7 +26,8 @@ export const ModuleInspectionPortal: React.FC<ModuleInspectionPortalProps> = ({
   inspections = [],
   onAddInspectionRecord,
 }) => {
-  const [activeChildCard, setActiveChildCard] = useState<InspectionHierarchyCard | null>(null);
+  const navigate = useNavigate();
+  const { childCardId } = useParams<{ moduleId?: string; childCardId?: string }>();
 
   // Load configured main card data
   const [mainCard, setMainCard] = useState<InspectionHierarchyCard | undefined>(() =>
@@ -54,8 +56,8 @@ export const ModuleInspectionPortal: React.FC<ModuleInspectionPortalProps> = ({
         <h2 className="text-xl font-bold text-slate-800 mb-2">Module Not Found</h2>
         <p className="text-xs text-slate-500 mb-4">The selected inspection module could not be loaded.</p>
         <button
-          onClick={onBack}
-          className="px-4 py-2 rounded-xl bg-blue-600 text-white font-semibold text-xs"
+          onClick={() => navigate(-1)}
+          className="px-4 py-2 rounded-xl bg-blue-600 text-white font-semibold text-xs cursor-pointer"
         >
           Return to Dashboard
         </button>
@@ -63,7 +65,12 @@ export const ModuleInspectionPortal: React.FC<ModuleInspectionPortalProps> = ({
     );
   }
 
-  // If a child card is clicked, open the operations workspace (1. Make New Inspection, 2. View Past Records)
+  // Resolve active child card from URL route parameter :childCardId
+  const activeChildCard = childCardId
+    ? childCards.find(c => c.id === childCardId) || null
+    : null;
+
+  // If a child card is in the URL route, open the operations workspace (1. Make New Inspection, 2. View Past Records)
   if (activeChildCard) {
     return (
       <ChildCardOperationsWorkspace
@@ -72,7 +79,7 @@ export const ModuleInspectionPortal: React.FC<ModuleInspectionPortalProps> = ({
         userId={userId}
         inspections={inspections}
         onAddInspectionRecord={onAddInspectionRecord}
-        onBackToChildCards={() => setActiveChildCard(null)}
+        onBackToChildCards={() => navigate(-1)}
       />
     );
   }
@@ -112,13 +119,13 @@ export const ModuleInspectionPortal: React.FC<ModuleInspectionPortalProps> = ({
             {childCards.map((childCard) => (
               <div
                 key={childCard.id}
-                onClick={() => setActiveChildCard(childCard)}
+                onClick={() => navigate(`/inspection/module/${mainCardId}/${childCard.id}`)}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    setActiveChildCard(childCard);
+                    navigate(`/inspection/module/${mainCardId}/${childCard.id}`);
                   }
                 }}
                 className="portal-glass-card rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center justify-between relative group transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer select-none border border-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white/95 shadow-xs"
@@ -145,7 +152,7 @@ export const ModuleInspectionPortal: React.FC<ModuleInspectionPortalProps> = ({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setActiveChildCard(childCard);
+                      navigate(`/inspection/module/${mainCardId}/${childCard.id}`);
                     }}
                     className="w-full py-2 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs transition-all duration-200 shadow-2xs shadow-blue-500/25 flex items-center justify-center gap-1.5 group-hover:shadow-xs cursor-pointer"
                     id={`btn-open-${childCard.id}`}
@@ -163,7 +170,7 @@ export const ModuleInspectionPortal: React.FC<ModuleInspectionPortalProps> = ({
       {/* Return to QA Inspection Button at bottom */}
       <div className="w-full flex justify-center pt-1">
         <button
-          onClick={onBack}
+          onClick={() => navigate(-1)}
           className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-blue-700 font-semibold text-xs shadow-xs border border-slate-200/80 backdrop-blur-md transition-all cursor-pointer group hover:shadow-xs"
           id="btn-return-to-qa-portal-module"
         >

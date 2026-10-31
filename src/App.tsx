@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Building2 } from 'lucide-react';
 import { WorkspaceMode, InspectionModule, QAStatus, InspectionRecord } from './types';
 import { 
@@ -25,19 +26,42 @@ import { InProcessInspectionPortal } from './components/InProcessInspectionPorta
 import { ModuleInspectionPortal } from './components/ModuleInspectionPortal';
 import { AddRemoveInspectionPortal } from './components/AddRemoveInspectionPortal';
 import { SplashScreen } from './components/SplashScreen';
+import { Toaster } from 'react-hot-toast';
+
+// Wrapper to extract moduleId and childCardId from URL route parameters
+function ModuleInspectionPortalWrapper(props: {
+  onBack: () => void;
+  userId: string;
+  inspections: InspectionRecord[];
+  onAddInspectionRecord: (item: InspectionRecord) => void;
+}) {
+  const { moduleId } = useParams<{ moduleId?: string }>();
+  return (
+    <ModuleInspectionPortal
+      mainCardId={moduleId || 'main-subcontracting'}
+      {...props}
+    />
+  );
+}
 
 export default function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   // Splash Screen State (shows on portal launch, auto-hides after 3 seconds)
   const [showSplash, setShowSplash] = useState<boolean>(true);
 
-  // Navigation & Auth State
-  const [currentMode, setCurrentMode] = useState<WorkspaceMode>('workspace-selection');
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [userRole, setUserRole] = useState<'inspector' | 'admin' | null>(null);
-  const [userId, setUserId] = useState<string>('');
-  const [pendingRole, setPendingRole] = useState<'inspector' | 'admin'>('inspector');
+  // Authentication State persisted in sessionStorage for seamless browser back/forward navigation
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return sessionStorage.getItem('qc_auth_logged_in') === 'true';
+  });
+  const [userRole, setUserRole] = useState<'inspector' | 'admin' | null>(() => {
+    return (sessionStorage.getItem('qc_auth_role') as 'inspector' | 'admin' | null) || null;
+  });
+  const [userId, setUserId] = useState<string>(() => {
+    return sessionStorage.getItem('qc_auth_user_id') || '';
+  });
   const [selectedModule, setSelectedModule] = useState<InspectionModule>('in-process');
-  const [selectedMainCardId, setSelectedMainCardId] = useState<string>('main-incoming');
 
   // Application Data States
   const [inspections, setInspections] = useState<InspectionRecord[]>(INITIAL_INSPECTIONS);
@@ -45,53 +69,59 @@ export default function App() {
   const [adminUsers] = useState(INITIAL_ADMIN_USERS);
   const [defectMetrics] = useState(INITIAL_DEFECT_METRICS);
 
-  // Protected Route Check:
-  // If unauthenticated and on a protected section, redirect to sign-in so password must be entered
-  useEffect(() => {
-    const isPublicMode = currentMode === 'workspace-selection' || currentMode === 'sign-in';
-    if (!isPublicMode && !isAuthenticated) {
-      setCurrentMode('sign-in');
-    }
-  }, [currentMode, isAuthenticated]);
+  // Derive current WorkspaceMode synchronously from current URL pathname
+  const currentMode: WorkspaceMode = (() => {
+    const path = location.pathname;
+    if (path === '/' || path === '/workspace-selection') return 'workspace-selection';
+    if (path === '/sign-in') return 'sign-in';
+    if (path === '/inspection') return 'inspection-dashboard';
+    if (path.startsWith('/inspection/incoming')) return 'incoming-inspection';
+    if (path.startsWith('/inspection/in-process')) return 'in-process-inspection';
+    if (path.startsWith('/inspection/module')) return 'module-inspection';
+    if (path.startsWith('/inspection/live')) return 'live-inspection';
+    if (path === '/admin') return 'admin-dashboard';
+    if (path === '/admin/specs') return 'admin-specs';
+    if (path === '/admin/records') return 'admin-records';
+    if (path === '/admin/analytics') return 'admin-analytics';
+    if (path === '/admin/users') return 'admin-users';
+    return 'workspace-selection';
+  })();
 
   // Handle Workspace Selection from Home Screen:
-  // After logout or when unauthenticated, always opens Sign-In so password must be entered!
   const handleSelectWorkspace = (workspace: 'inspection' | 'admin') => {
     const targetRole: 'inspector' | 'admin' = workspace === 'admin' ? 'admin' : 'inspector';
-    setPendingRole(targetRole);
-    setUserRole(targetRole);
+    const destination = workspace === 'admin' ? '/admin' : '/inspection';
 
     // If not authenticated in current session, or switching roles:
     if (!isAuthenticated || userRole !== targetRole) {
-      setCurrentMode('sign-in');
+      navigate('/sign-in', { state: { role: targetRole, from: destination } });
       return;
     }
 
-    // If already authenticated for this workspace in current active session:
-    if (workspace === 'inspection') {
-      setCurrentMode('inspection-dashboard');
-    } else {
-      setCurrentMode('admin-dashboard');
-    }
+    navigate(destination);
   };
 
   // Open dedicated Sign-in Screen
   const handleOpenSignIn = (workspace: 'inspection' | 'admin') => {
     const role: 'inspector' | 'admin' = workspace === 'admin' ? 'admin' : 'inspector';
-    setPendingRole(role);
-    setUserRole(role);
-    setCurrentMode('sign-in');
+    navigate('/sign-in', { state: { role, from: role === 'admin' ? '/admin' : '/inspection' } });
   };
 
-  // Handle Successful Sign-In with password
-  const handleSignIn = (role: 'inspector' | 'admin', id: string) => {
+  // Handle Successful Sign-In
+  const handleSignIn = (role: 'inspector' | 'admin', id: string, redirectTo?: string) => {
     setIsAuthenticated(true);
     setUserRole(role);
     setUserId(id);
-    if (role === 'inspector') {
-      setCurrentMode('inspection-dashboard');
+    sessionStorage.setItem('qc_auth_logged_in', 'true');
+    sessionStorage.setItem('qc_auth_role', role);
+    sessionStorage.setItem('qc_auth_user_id', id);
+
+    if (redirectTo) {
+      navigate(redirectTo);
+    } else if (role === 'inspector') {
+      navigate('/inspection');
     } else {
-      setCurrentMode('admin-dashboard');
+      navigate('/admin');
     }
   };
 
@@ -99,13 +129,13 @@ export default function App() {
   const handleStartInspectionModule = (mod: InspectionModule, cardId?: string) => {
     setSelectedModule(mod);
     const resolvedCardId = cardId || (mod === 'incoming' ? 'main-incoming' : mod === 'in-process' ? 'main-inprocess' : 'main-subcontracting');
-    setSelectedMainCardId(resolvedCardId);
+
     if (resolvedCardId === 'main-incoming' || mod === 'incoming') {
-      setCurrentMode('incoming-inspection');
+      navigate('/inspection/incoming');
     } else if (resolvedCardId === 'main-inprocess' || mod === 'in-process') {
-      setCurrentMode('in-process-inspection');
+      navigate('/inspection/in-process');
     } else {
-      setCurrentMode('module-inspection');
+      navigate(`/inspection/module/${resolvedCardId}`);
     }
   };
 
@@ -134,31 +164,65 @@ export default function App() {
   // Role quick-switcher
   const handleSwitchRole = (newRole: 'inspector' | 'admin') => {
     if (newRole === 'admin' && userRole !== 'admin') {
-      setPendingRole('admin');
-      setUserRole('admin');
-      setCurrentMode('sign-in');
+      navigate('/sign-in', { state: { role: 'admin', from: '/admin' } });
       return;
     }
     setUserRole(newRole);
-    setUserId(prev => prev || (newRole === 'admin' ? 'Admin' : 'Inspector'));
+    const updatedId = userId || (newRole === 'admin' ? 'Admin' : 'Inspector');
+    setUserId(updatedId);
+    sessionStorage.setItem('qc_auth_role', newRole);
+    sessionStorage.setItem('qc_auth_user_id', updatedId);
+
     if (newRole === 'inspector') {
-      setCurrentMode('inspection-dashboard');
+      navigate('/inspection');
     } else {
-      setCurrentMode('admin-dashboard');
+      navigate('/admin');
     }
   };
 
-  // Logout - destroys session, returns to home page (workspace-selection),
-  // ensuring password must be entered again upon accessing either inspection or admin sections.
+  // Logout - destroys session, returns to home page ('/')
   const handleLogout = () => {
     setIsAuthenticated(false);
     setUserRole(null);
     setUserId('');
-    setCurrentMode('workspace-selection');
+    sessionStorage.removeItem('qc_auth_logged_in');
+    sessionStorage.removeItem('qc_auth_role');
+    sessionStorage.removeItem('qc_auth_user_id');
+    navigate('/');
   };
 
   return (
     <div className="min-h-screen text-slate-800 font-sans flex flex-col justify-between selection:bg-blue-500 selection:text-white relative overflow-x-hidden">
+      {/* Global Toast Notifications Provider */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#ffffff',
+            color: '#0f172a',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+            borderRadius: '1rem',
+            padding: '12px 16px',
+            fontSize: '0.875rem',
+            fontWeight: '600',
+            border: '1px solid #e2e8f0',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#ffffff',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#ffffff',
+            },
+          },
+        }}
+      />
+
       {/* QA Inspection Portal Splash Screen (Auto-hides after 3 seconds) */}
       {showSplash && (
         <SplashScreen onComplete={() => setShowSplash(false)} />
@@ -172,115 +236,251 @@ export default function App() {
         currentMode={currentMode}
         userRole={userRole}
         userId={userId}
-        onNavigate={(mode) => setCurrentMode(mode)}
+        onNavigate={(mode) => {
+          const map: Record<WorkspaceMode, string> = {
+            'workspace-selection': '/',
+            'sign-in': '/sign-in',
+            'inspection-dashboard': '/inspection',
+            'incoming-inspection': '/inspection/incoming',
+            'in-process-inspection': '/inspection/in-process',
+            'module-inspection': '/inspection/module/main-subcontracting',
+            'live-inspection': '/inspection/live',
+            'admin-dashboard': '/admin',
+            'admin-specs': '/admin/specs',
+            'admin-records': '/admin/records',
+            'admin-analytics': '/admin/analytics',
+            'admin-users': '/admin/users',
+          };
+          navigate(map[mode] || '/');
+        }}
         onLogout={handleLogout}
         onSwitchRole={handleSwitchRole}
         onShowSplash={() => setShowSplash(true)}
       />
 
-      {/* Main Dynamic View Content - Natural full-page scrolling for detailed forms & records */}
+      {/* Main Dynamic View Content - Standard URL-based routing with <Routes> & <Route> */}
       <main className="flex-1 w-full flex flex-col items-center relative z-10">
-        {currentMode === 'workspace-selection' && (
-          <WorkspaceSelection
-            onSelectWorkspace={handleSelectWorkspace}
-            onOpenSignIn={handleOpenSignIn}
+        <Routes>
+          {/* 1. Workspace Selection (Root) */}
+          <Route
+            path="/"
+            element={
+              <WorkspaceSelection
+                onSelectWorkspace={handleSelectWorkspace}
+                onOpenSignIn={handleOpenSignIn}
+              />
+            }
           />
-        )}
+          <Route path="/workspace-selection" element={<Navigate to="/" replace />} />
 
-        {currentMode === 'sign-in' && (
-          <SignInView
-            initialRole={pendingRole || userRole || 'inspector'}
-            onSignIn={handleSignIn}
-            onBackToSelection={() => setCurrentMode('workspace-selection')}
+          {/* 2. Authentication Screen */}
+          <Route
+            path="/sign-in"
+            element={
+              <SignInView
+                initialRole={(location.state as any)?.role || userRole || 'inspector'}
+                onSignIn={(role, id) =>
+                  handleSignIn(role, id, (location.state as any)?.from)
+                }
+                onBackToSelection={() => navigate(-1)}
+              />
+            }
           />
-        )}
 
-        {currentMode === 'inspection-dashboard' && (
-          <InspectionDashboard
-            onSelectModule={handleStartInspectionModule}
+          {/* 3. Inspection Dashboard */}
+          <Route
+            path="/inspection"
+            element={
+              <InspectionDashboard
+                onSelectModule={handleStartInspectionModule}
+              />
+            }
           />
-        )}
 
-        {currentMode === 'incoming-inspection' && (
-          <IncomingInspectionPortal
-            onBack={() => setCurrentMode('inspection-dashboard')}
-            onOpenLiveInspection={(categoryName) => {
-              setSelectedModule('incoming');
-              setCurrentMode('live-inspection');
-            }}
-            onAddInspectionRecord={handleAddInspection}
-            userId={userId}
-            inspections={inspections}
+          {/* 4. Incoming Inspection Portal (Categories & Child Card View) */}
+          <Route
+            path="/inspection/incoming"
+            element={
+              <IncomingInspectionPortal
+                onBack={() => navigate(-1)}
+                onOpenLiveInspection={() => {
+                  setSelectedModule('incoming');
+                  navigate('/inspection/live');
+                }}
+                onAddInspectionRecord={handleAddInspection}
+                userId={userId}
+                inspections={inspections}
+              />
+            }
           />
-        )}
+          <Route
+            path="/inspection/incoming/:childCardId"
+            element={
+              <IncomingInspectionPortal
+                onBack={() => navigate(-1)}
+                onOpenLiveInspection={() => {
+                  setSelectedModule('incoming');
+                  navigate('/inspection/live');
+                }}
+                onAddInspectionRecord={handleAddInspection}
+                userId={userId}
+                inspections={inspections}
+              />
+            }
+          />
 
-        {currentMode === 'in-process-inspection' && (
-          <InProcessInspectionPortal
-            onBack={() => setCurrentMode('inspection-dashboard')}
-            onOpenLiveInspection={(categoryName) => {
-              setSelectedModule('in-process');
-              setCurrentMode('live-inspection');
-            }}
-            onAddInspectionRecord={handleAddInspection}
-            userId={userId}
-            inspections={inspections}
+          {/* 5. In-Process Inspection Portal (Categories & Child Card View) */}
+          <Route
+            path="/inspection/in-process"
+            element={
+              <InProcessInspectionPortal
+                onBack={() => navigate(-1)}
+                onOpenLiveInspection={() => {
+                  setSelectedModule('in-process');
+                  navigate('/inspection/live');
+                }}
+                onAddInspectionRecord={handleAddInspection}
+                userId={userId}
+                inspections={inspections}
+              />
+            }
           />
-        )}
+          <Route
+            path="/inspection/in-process/:childCardId"
+            element={
+              <InProcessInspectionPortal
+                onBack={() => navigate(-1)}
+                onOpenLiveInspection={() => {
+                  setSelectedModule('in-process');
+                  navigate('/inspection/live');
+                }}
+                onAddInspectionRecord={handleAddInspection}
+                userId={userId}
+                inspections={inspections}
+              />
+            }
+          />
 
-        {currentMode === 'module-inspection' && (
-          <ModuleInspectionPortal
-            mainCardId={selectedMainCardId || 'main-subcontracting'}
-            onBack={() => setCurrentMode('inspection-dashboard')}
-            userId={userId}
-            inspections={inspections}
-            onAddInspectionRecord={handleAddInspection}
+          {/* 6. Dynamic Module Inspection Portal (Subcontracting, etc.) */}
+          <Route
+            path="/inspection/module/:moduleId"
+            element={
+              <ModuleInspectionPortalWrapper
+                onBack={() => navigate(-1)}
+                userId={userId}
+                inspections={inspections}
+                onAddInspectionRecord={handleAddInspection}
+              />
+            }
           />
-        )}
+          <Route
+            path="/inspection/module/:moduleId/:childCardId"
+            element={
+              <ModuleInspectionPortalWrapper
+                onBack={() => navigate(-1)}
+                userId={userId}
+                inspections={inspections}
+                onAddInspectionRecord={handleAddInspection}
+              />
+            }
+          />
 
-        {currentMode === 'admin-dashboard' && (
-          <AdminDashboard
-            onNavigateAdminSub={(sub) => setCurrentMode(sub)}
+          {/* 7. Live Inspection Workspace */}
+          <Route
+            path="/inspection/live"
+            element={
+              <LiveInspectionWorkspace
+                currentModule={selectedModule}
+                onSelectModule={(mod) => {
+                  setSelectedModule(mod);
+                  if (mod === 'incoming') {
+                    navigate('/inspection/incoming');
+                  } else if (mod === 'in-process') {
+                    navigate('/inspection/in-process');
+                  }
+                }}
+                onOpenIncomingPortal={() => navigate('/inspection/incoming')}
+                onOpenInProcessPortal={() => navigate('/inspection/in-process')}
+                inspections={inspections}
+                onAddInspection={handleAddInspection}
+                onUpdateStatus={handleUpdateStatus}
+              />
+            }
           />
-        )}
 
-        {currentMode === 'live-inspection' && (
-          <LiveInspectionWorkspace
-            currentModule={selectedModule}
-            onSelectModule={(mod) => {
-              setSelectedModule(mod);
-              if (mod === 'incoming') {
-                setCurrentMode('incoming-inspection');
-              } else if (mod === 'in-process') {
-                setCurrentMode('in-process-inspection');
-              }
-            }}
-            onOpenIncomingPortal={() => setCurrentMode('incoming-inspection')}
-            onOpenInProcessPortal={() => setCurrentMode('in-process-inspection')}
-            inspections={inspections}
-            onAddInspection={handleAddInspection}
-            onUpdateStatus={handleUpdateStatus}
+          {/* 8. Admin Dashboard */}
+          <Route
+            path="/admin"
+            element={
+              <AdminDashboard
+                onNavigateAdminSub={(sub) => {
+                  const map: Record<string, string> = {
+                    'admin-specs': '/admin/specs',
+                    'admin-records': '/admin/records',
+                    'admin-analytics': '/admin/analytics',
+                    'admin-users': '/admin/users',
+                  };
+                  navigate(map[sub] || '/admin');
+                }}
+              />
+            }
           />
-        )}
 
-        {currentMode === 'admin-specs' && (
-          <AddRemoveInspectionPortal
-            onBack={() => setCurrentMode('admin-dashboard')}
-            userId={userId}
+          {/* 9. Admin Specification & Tolerance Controls */}
+          <Route
+            path="/admin/specs"
+            element={
+              <AddRemoveInspectionPortal
+                onBack={() => navigate(-1)}
+                userId={userId}
+              />
+            }
           />
-        )}
 
-        {(currentMode === 'admin-records' || 
-          currentMode === 'admin-analytics' || 
-          currentMode === 'admin-users') && (
-          <AdminSubviews
-            activeView={currentMode}
-            specs={specs}
-            users={adminUsers}
-            inspections={inspections}
-            defectMetrics={defectMetrics}
-            onBackToDashboard={() => setCurrentMode('admin-dashboard')}
+          {/* 10. Admin Records, Analytics, and Users Subviews */}
+          <Route
+            path="/admin/records"
+            element={
+              <AdminSubviews
+                activeView="admin-records"
+                specs={specs}
+                users={adminUsers}
+                inspections={inspections}
+                defectMetrics={defectMetrics}
+                onBackToDashboard={() => navigate(-1)}
+              />
+            }
           />
-        )}
+          <Route
+            path="/admin/analytics"
+            element={
+              <AdminSubviews
+                activeView="admin-analytics"
+                specs={specs}
+                users={adminUsers}
+                inspections={inspections}
+                defectMetrics={defectMetrics}
+                onBackToDashboard={() => navigate(-1)}
+              />
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <AdminSubviews
+                activeView="admin-users"
+                specs={specs}
+                users={adminUsers}
+                inspections={inspections}
+                defectMetrics={defectMetrics}
+                onBackToDashboard={() => navigate(-1)}
+              />
+            }
+          />
+
+          {/* Catch-all Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </main>
 
       {/* Persistent Corporate Footer - ABC Company Pvt Ltd */}

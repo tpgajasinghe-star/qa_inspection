@@ -19,9 +19,11 @@ import {
   Gauge,
   SlidersHorizontal
 } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { InProcessCategoryItem, InProcessCategoryType, InspectionRecord } from '../types';
 import { IN_PROCESS_CATEGORIES, InProcessSampleCheckpoint } from '../inProcessData';
 import { fetchItems, DbItem } from '../backend/itemService';
+import { ItemCodeSmartInput } from './ItemCodeSmartInput';
 import {
   getChildCards,
   InspectionHierarchyCard,
@@ -45,8 +47,8 @@ export const InProcessInspectionPortal: React.FC<InProcessInspectionPortalProps>
   userId,
   inspections = [],
 }) => {
-  // Active child card for operations workspace (1. Make New Inspection, 2. View Past Records)
-  const [activeChildCard, setActiveChildCard] = useState<InspectionHierarchyCard | null>(null);
+  const navigate = useNavigate();
+  const { childCardId } = useParams<{ childCardId?: string }>();
 
   // Selected category for active inspection view / modal (fallback)
   const [selectedCategory, setSelectedCategory] = useState<InProcessCategoryItem | null>(null);
@@ -210,7 +212,12 @@ export const InProcessInspectionPortal: React.FC<InProcessInspectionPortalProps>
     }, 1500);
   };
 
-  // If a child card is clicked, open the operations workspace (1. Make New Inspection, 2. View Past Records)
+  // Resolve active child card from URL route parameter :childCardId
+  const activeChildCard = childCardId
+    ? configuredChildCards.find(c => c.id === childCardId) || null
+    : null;
+
+  // If a child card is selected in the URL route, open the operations workspace (1. Make New Inspection, 2. View Past Records)
   if (activeChildCard) {
     return (
       <ChildCardOperationsWorkspace
@@ -227,7 +234,7 @@ export const InProcessInspectionPortal: React.FC<InProcessInspectionPortalProps>
         userId={userId}
         inspections={inspections}
         onAddInspectionRecord={onAddInspectionRecord}
-        onBackToChildCards={() => setActiveChildCard(null)}
+        onBackToChildCards={() => navigate(-1)}
       />
     );
   }
@@ -281,13 +288,13 @@ export const InProcessInspectionPortal: React.FC<InProcessInspectionPortalProps>
             return (
               <div
                 key={childCard.id}
-                onClick={() => setActiveChildCard(childCard)}
+                onClick={() => navigate(`/inspection/in-process/${childCard.id}`)}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    setActiveChildCard(childCard);
+                    navigate(`/inspection/in-process/${childCard.id}`);
                   }
                 }}
                 className="portal-glass-card rounded-2xl p-3.5 sm:p-4 flex flex-col items-center text-center justify-between relative group transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer select-none border border-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-xs"
@@ -315,7 +322,7 @@ export const InProcessInspectionPortal: React.FC<InProcessInspectionPortalProps>
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setActiveChildCard(childCard);
+                      navigate(`/inspection/in-process/${childCard.id}`);
                     }}
                     className="w-full py-2 px-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs transition-all duration-200 shadow-2xs shadow-blue-500/25 flex items-center justify-center gap-1 group-hover:shadow-xs cursor-pointer"
                     id={`btn-start-${childCard.name.toLowerCase().replace(/[\s/]+/g, '-')}`}
@@ -333,7 +340,7 @@ export const InProcessInspectionPortal: React.FC<InProcessInspectionPortalProps>
       {/* Return to QA Inspection Button at bottom */}
       <div className="w-full flex justify-center pt-1">
         <button
-          onClick={onBack}
+          onClick={() => navigate(-1)}
           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-blue-700 font-semibold text-xs shadow-2xs border border-slate-200/80 backdrop-blur-md transition-all cursor-pointer group hover:shadow-xs"
           id="btn-return-to-qa-portal-inprocess"
         >
@@ -496,34 +503,59 @@ export const InProcessInspectionPortal: React.FC<InProcessInspectionPortalProps>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">
-                    Inspected Part Name / Item Selection
-                  </label>
-                  {isLoadingItems ? (
-                    <div className="text-xs text-slate-500 py-2 animate-pulse">Loading items from Supabase...</div>
-                  ) : (
-                    <select
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-slate-600">
+                      Inspected Part Name / Item Selection
+                    </label>
+                    <span className="text-[10px] text-blue-600 font-mono font-bold">
+                      779 DB Items
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <ItemCodeSmartInput
                       value={selectedItemCode}
-                      onChange={(e) => {
-                        const code = e.target.value;
+                      itemsList={items}
+                      contextHint={selectedCategory.name}
+                      placeholder="Item Code"
+                      onChange={(code, item) => {
                         setSelectedItemCode(code);
-                        const sel = items.find(it => it.item_code === code);
-                        if (sel) {
-                          setNewPartName(sel.description);
-                          setNewPartNumber(sel.item_code);
+                        if (item) {
+                          setNewPartName(item.description);
+                          setNewPartNumber(item.item_code);
                         }
                       }}
-                      required
-                      className="w-full text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium truncate"
-                    >
-                      <option value="" disabled>-- Select Part Name / Item Code --</option>
-                      {getCategoryItems(selectedCategory.name).map((item) => (
-                        <option key={item.item_code} value={item.item_code}>
-                          {item.description} ({item.item_code})
-                        </option>
-                      ))}
-                    </select>
-                  )}
+                      onSelectDescription={(desc, item) => {
+                        setNewPartName(desc);
+                        setNewPartNumber(item.item_code);
+                      }}
+                    />
+
+                    {isLoadingItems ? (
+                      <div className="text-xs text-slate-500 py-1 animate-pulse">Loading items from Supabase...</div>
+                    ) : (
+                      <select
+                        value={selectedItemCode}
+                        onChange={(e) => {
+                          const code = e.target.value;
+                          setSelectedItemCode(code);
+                          const sel = items.find(it => it.item_code === code);
+                          if (sel) {
+                            setNewPartName(sel.description);
+                            setNewPartNumber(sel.item_code);
+                          }
+                        }}
+                        className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium truncate"
+                      >
+                        <option value="" disabled>-- Or Browse Category Items --</option>
+                        {getCategoryItems(selectedCategory.name).map((item) => (
+                          <option key={item.item_code} value={item.item_code}>
+                            {item.description} ({item.item_code})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

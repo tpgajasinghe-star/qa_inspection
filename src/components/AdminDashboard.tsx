@@ -1,14 +1,24 @@
 import React from 'react';
-import { ShieldCheck, Users, Sliders, FileSpreadsheet, BarChart3, ArrowRight } from 'lucide-react';
+import { ShieldCheck, Users, Sliders, FileSpreadsheet, BarChart3, ArrowRight, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { WorkspaceMode } from '../types';
 
 interface AdminDashboardProps {
-  onNavigateAdminSub: (mode: WorkspaceMode) => void;
+  onNavigateAdminSub?: (mode: WorkspaceMode) => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onNavigateAdminSub,
 }) => {
+  const navigate = useNavigate();
+
+  const handleNavigate = (path: string, mode: WorkspaceMode) => {
+    navigate(path);
+    if (onNavigateAdminSub) {
+      onNavigateAdminSub(mode);
+    }
+  };
+
   return (
     <div className="w-full flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 py-2 z-10 max-w-7xl mx-auto my-auto">
       {/* Central Header Section - Compact to fit 100% in viewport */}
@@ -36,7 +46,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4.5 w-full">
           {/* CARD 1: User Management */}
           <div 
-            className="group relative bg-white/95 hover:bg-white rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center portal-glass-card transition-all duration-300 hover:-translate-y-1 shadow-xs hover:shadow-md border border-white/95"
+            onClick={() => handleNavigate('/admin/users', 'admin-users')}
+            className="group relative bg-white/95 hover:bg-white rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center portal-glass-card transition-all duration-300 hover:-translate-y-1 shadow-xs hover:shadow-md border border-white/95 cursor-pointer"
             id="admin-user-mgmt-card"
           >
             <div className="relative mb-2.5 sm:mb-3">
@@ -54,7 +65,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </p>
 
             <button
-              onClick={() => onNavigateAdminSub('admin-users')}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleNavigate('/admin/users', 'admin-users');
+              }}
               className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm shadow-xs shadow-blue-500/25 transition-all duration-200 cursor-pointer"
               id="btn-admin-manage-users"
             >
@@ -65,7 +80,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* CARD 2: Specification Controls */}
           <div 
-            onClick={() => onNavigateAdminSub('admin-specs')}
+            onClick={() => handleNavigate('/admin/specs', 'admin-specs')}
             className="group relative bg-white/95 hover:bg-white rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center portal-glass-card transition-all duration-300 hover:-translate-y-1 cursor-pointer shadow-xs hover:shadow-md border border-white/95"
             id="admin-specs-card"
           >
@@ -84,9 +99,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </p>
 
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onNavigateAdminSub('admin-specs');
+                handleNavigate('/admin/specs', 'admin-specs');
               }}
               className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm shadow-xs shadow-blue-500/25 transition-all duration-200 cursor-pointer"
               id="btn-admin-manage-specs"
@@ -98,7 +114,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* CARD 3: Inspection Records */}
           <div 
-            onClick={() => onNavigateAdminSub('admin-records')}
+            onClick={() => handleNavigate('/admin/records', 'admin-records')}
             className="group relative bg-white/95 hover:bg-white rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center portal-glass-card transition-all duration-300 hover:-translate-y-1 cursor-pointer shadow-xs hover:shadow-md border border-white/95"
             id="admin-records-card"
           >
@@ -117,9 +133,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </p>
 
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onNavigateAdminSub('admin-records');
+                handleNavigate('/admin/records', 'admin-records');
               }}
               className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm shadow-xs shadow-blue-500/25 transition-all duration-200 cursor-pointer"
               id="btn-admin-view-records"
@@ -131,7 +148,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* CARD 4: Defect Analytics */}
           <div 
-            onClick={() => onNavigateAdminSub('admin-analytics')}
+            onClick={() => handleNavigate('/admin/analytics', 'admin-analytics')}
             className="group relative bg-white/95 hover:bg-white rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center portal-glass-card transition-all duration-300 hover:-translate-y-1 cursor-pointer shadow-xs hover:shadow-md border border-white/95"
             id="admin-analytics-card"
           >
@@ -150,9 +167,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </p>
 
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onNavigateAdminSub('admin-analytics');
+                handleNavigate('/admin/analytics', 'admin-analytics');
               }}
               className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm shadow-xs shadow-blue-500/25 transition-all duration-200 cursor-pointer"
               id="btn-admin-view-analytics"
@@ -162,6 +180,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Return to Workspace Selection Button */}
+      <div className="w-full flex justify-center pt-3">
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-blue-700 font-semibold text-xs shadow-2xs border border-slate-200/80 backdrop-blur-md transition-all cursor-pointer group hover:shadow-xs"
+          id="btn-return-from-admin"
+          title="Back to Previous Screen"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 text-slate-500 group-hover:text-blue-600 transition-transform group-hover:-translate-x-0.5" />
+          <span>Back to Workspaces</span>
+        </button>
       </div>
     </div>
   );
