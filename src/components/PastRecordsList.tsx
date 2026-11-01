@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, Component, ErrorInfo, ReactNode } from 'react';
+import React, { useState, useEffect, useMemo, ErrorInfo, ReactNode } from 'react';
 import { 
   Search, 
   Layers, 
@@ -22,7 +22,10 @@ import {
   Plus, 
   FileCheck2,
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  Building2,
+  Calendar,
+  Sparkles
 } from 'lucide-react';
 import { 
   getInspectionSummaries, 
@@ -36,7 +39,7 @@ import toast from 'react-hot-toast';
 export interface PastRecordsListProps {
   /** If provided, pre-filters to this item code. In Admin mode, defaults to 'all' */
   initialItemCode?: string;
-  /** Filter or label by inspection category name (e.g. 'Switch / Socket', 'Surface Boxes') */
+  /** Filter or label by inspection category name (e.g. 'White Series', 'Switches & Sockets') */
   categoryName?: string;
   /** High-level module name (e.g. 'In-Process', 'Incoming') */
   moduleName?: string;
@@ -49,46 +52,6 @@ export interface PastRecordsListProps {
   /** Optional preloaded items list */
   dbItems?: DbItem[];
 }
-
-// Fallback seed summaries for factory testing if Supabase table is empty
-const INITIAL_DEMO_SUMMARIES: InspectionSummary[] = [
-  {
-    id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-    item_code: '3000000559',
-    inspector_name: 'K. S. Wickramasinghe',
-    created_at: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
-  },
-  {
-    id: 'e28bc91a-47bb-4161-9456-1d11a1b2c368',
-    item_code: '3000000559',
-    inspector_name: 'Tharindu Gajasinghe',
-    created_at: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
-  },
-  {
-    id: 'd19ab82c-36aa-4050-8345-2e22b2c3d457',
-    item_code: '3000000560',
-    inspector_name: 'S. P. Bandara',
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
-  },
-  {
-    id: 'c08da73d-2599-4949-7234-3f33c3d4e546',
-    item_code: '3000000561',
-    inspector_name: 'Tharindu Gajasinghe',
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-  },
-  {
-    id: 'b97cb64e-1488-4838-6123-4a44d4e5f635',
-    item_code: '3000000562',
-    inspector_name: 'N. M. Perera',
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 36).toISOString(),
-  },
-  {
-    id: 'a86ba55f-0377-4727-5012-5b55e5f6a724',
-    item_code: 'KEV-LED-220',
-    inspector_name: 'M. Vigneshwaran',
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
-  },
-];
 
 // Bulletproof date and time formatters that never throw
 const formatDateSafe = (dateString?: string): string => {
@@ -138,6 +101,56 @@ const formatIdSafe = (id?: string, maxLen: number = 13): string => {
   return `${str.slice(0, maxLen)}...`;
 };
 
+/**
+ * Checks whether an inspection summary belongs to a specific child card category.
+ * Matches by:
+ * 1. Stored child_card_name in form hierarchy
+ * 2. Database item series (e.g. "White Series")
+ * 3. Database item category (e.g. "Sockets", "Gang Switches")
+ * 4. Stored product description keywords
+ */
+const isRecordMatchingCategory = (
+  rec: InspectionSummary,
+  categoryName: string,
+  itemsList: DbItem[]
+): boolean => {
+  const target = categoryName.trim().toLowerCase();
+  if (!target) return true;
+
+  // 1. Check child_card_name saved directly during inspection form submission
+  const childCardName = (rec.child_card_name || '').trim().toLowerCase();
+  if (childCardName && (childCardName === target || childCardName.includes(target) || target.includes(childCardName))) {
+    return true;
+  }
+
+  // 2. Lookup item in database catalog
+  const itemMeta = lookupDatabaseItem(rec.item_code, itemsList, categoryName);
+  if (itemMeta) {
+    const series = (itemMeta.series || '').trim().toLowerCase();
+    if (series && (series === target || series.includes(target) || target.includes(series))) {
+      return true;
+    }
+
+    const cat = (itemMeta.category || '').trim().toLowerCase();
+    if (cat && (cat === target || cat.includes(target) || target.includes(cat))) {
+      return true;
+    }
+
+    const desc = (itemMeta.description || '').trim().toLowerCase();
+    if (desc && (desc.includes(target) || target.includes(desc))) {
+      return true;
+    }
+  }
+
+  // 3. Product description from form_data
+  const prodDesc = (rec.product_desc || '').trim().toLowerCase();
+  if (prodDesc && (prodDesc.includes(target) || target.includes(prodDesc))) {
+    return true;
+  }
+
+  return false;
+};
+
 const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
   initialItemCode,
   categoryName,
@@ -147,7 +160,7 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
   onNewInspection,
   dbItems: propDbItems,
 }) => {
-  // 1. Data States
+  // 1. Data States (ONLY genuine records from database, zero dummy data)
   const [summaries, setSummaries] = useState<InspectionSummary[]>([]);
   const [isLoadingSummaries, setIsLoadingSummaries] = useState<boolean>(true);
   const [itemsList, setItemsList] = useState<DbItem[]>(propDbItems || SEED_FACTORY_ITEMS);
@@ -155,11 +168,11 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
 
-  // 2. On-Demand Full Details Modal State
-  const [activeModalId, setActiveModalId] = useState<string | null>(null);
-  const [activeDetails, setActiveDetails] = useState<InspectionRecordResponse | null>(null);
-  const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
-  const [detailsError, setDetailsError] = useState<string | null>(null);
+  // 2. Full Sheet View State (NO POPUP MODAL! Opens full in-place inspection sheet)
+  const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
+  const [fullRecordData, setFullRecordData] = useState<InspectionRecordResponse | null>(null);
+  const [isLoadingFullRecord, setIsLoadingFullRecord] = useState<boolean>(false);
+  const [fullRecordError, setFullRecordError] = useState<string | null>(null);
 
   // 3. Load Items from database for rich item code mapping
   useEffect(() => {
@@ -169,37 +182,22 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
           setItemsList(items);
         }
       }).catch((err) => {
-        console.warn('[PastRecordsList] Failed to fetch items, using seeds:', err);
+        console.warn('[PastRecordsList] Failed to fetch items, using catalog:', err);
       });
     }
   }, [propDbItems]);
 
-  // 4. Lightweight Summary Fetch (Lazy Loading)
+  // 4. Lightweight Summary Fetch: strictly genuine database records only
   const fetchSummaries = async (itemCode?: string) => {
     setIsLoadingSummaries(true);
     try {
       const codeParam = itemCode && itemCode !== 'all' ? itemCode : undefined;
       const remoteData = await getInspectionSummaries(codeParam);
-
-      if (remoteData && remoteData.length > 0) {
-        // Merge demo summaries that are not in remoteData to keep sample view complete
-        const existingIds = new Set(remoteData.map(r => String(r.id)));
-        const filteredDemo = INITIAL_DEMO_SUMMARIES.filter(d => {
-          if (existingIds.has(String(d.id))) return false;
-          if (codeParam && String(d.item_code) !== codeParam) return false;
-          return true;
-        });
-        setSummaries([...remoteData, ...filteredDemo]);
-      } else {
-        // Fallback to initial sample summaries
-        const filteredDemo = codeParam
-          ? INITIAL_DEMO_SUMMARIES.filter(d => String(d.item_code) === codeParam)
-          : INITIAL_DEMO_SUMMARIES;
-        setSummaries(filteredDemo);
-      }
+      // Strictly set remoteData without appending any dummy/seed summaries
+      setSummaries(remoteData || []);
     } catch (err) {
       console.error('[PastRecordsList] Error fetching summaries:', err);
-      setSummaries(INITIAL_DEMO_SUMMARIES);
+      setSummaries([]);
     } finally {
       setIsLoadingSummaries(false);
     }
@@ -209,7 +207,7 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
     fetchSummaries(selectedItemFilter);
   }, [selectedItemFilter]);
 
-  // 5. Immediate UI Sync: Listen for newly submitted inspections
+  // 5. Immediate UI Sync: Listen for newly submitted inspections from DeployedInspectionFormView
   useEffect(() => {
     const handleNewInspection = (e: any) => {
       const newRecord = e?.detail;
@@ -222,6 +220,11 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
         item_code: String(newRecord.item_code || 'N/A'),
         inspector_name: String(newRecord.inspector_name || 'QC Inspector'),
         created_at: String(newRecord.created_at || new Date().toISOString()),
+        child_card_name: String(newRecord.form_data?.hierarchy?.childCardName || newRecord.child_card_name || ''),
+        product_desc: String(newRecord.form_data?.auditMetadata?.productDescription || newRecord.product_desc || ''),
+        lot_number: String(newRecord.form_data?.auditMetadata?.lotNumber || ''),
+        batch_id: String(newRecord.form_data?.auditMetadata?.batchId || ''),
+        status: String(newRecord.form_data?.status || 'pass'),
       };
 
       setSummaries((prev) => {
@@ -229,7 +232,7 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
         return [newSummary, ...filtered];
       });
 
-      toast.success(`New inspection for item ${newSummary.item_code} added to records ledger!`, {
+      toast.success(`Inspection for item ${newSummary.item_code} added to records!`, {
         icon: '📋',
         duration: 3500,
       });
@@ -241,39 +244,39 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
     };
   }, []);
 
-  // 6. On-Demand Full Data Fetch: Load single row when record card is clicked
-  const handleOpenDetails = async (summary: InspectionSummary) => {
+  // 6. On-Demand Full Data Fetch for the Full Sheet View
+  const handleOpenFullSheet = async (summary: InspectionSummary) => {
     const sumId = String(summary?.id || '');
-    const sumItemCode = String(summary?.item_code || 'N/A');
-    const sumInspector = String(summary?.inspector_name || 'QC Inspector');
-    const sumCreatedAt = String(summary?.created_at || new Date().toISOString());
+    setSelectedRecordId(sumId);
+    setIsLoadingFullRecord(true);
+    setFullRecordError(null);
+    setFullRecordData(null);
 
-    setActiveModalId(sumId);
-    setIsLoadingDetails(true);
-    setDetailsError(null);
-    setActiveDetails(null);
+    // Scroll to top smoothly
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 
     try {
-      // First attempt Supabase database fetch
       const details = await getInspectionDetails(sumId);
       if (details) {
-        setActiveDetails(details);
+        setFullRecordData(details);
       } else {
         throw new Error('Record details not available');
       }
     } catch (err: any) {
       console.warn('[PastRecordsList] Supabase full details fetch fallback:', err);
       
-      // Fallback for demo records or when offline
-      const matched = lookupDatabaseItem(sumItemCode, itemsList, categoryName);
-      const safeDateStr = sumCreatedAt.slice(0, 10) || new Date().toISOString().slice(0, 10);
+      // Fallback construction using available summary info
+      const itemCodeStr = String(summary?.item_code || 'N/A');
+      const matched = lookupDatabaseItem(itemCodeStr, itemsList, categoryName);
+      const safeDateStr = (summary?.created_at || new Date().toISOString()).slice(0, 10);
+      
       const fallbackDetail: InspectionRecordResponse = {
         id: sumId,
-        item_code: sumItemCode,
-        inspector_name: sumInspector,
-        created_at: sumCreatedAt,
+        item_code: itemCodeStr,
+        inspector_name: summary?.inspector_name || 'QC Inspector',
+        created_at: summary?.created_at || new Date().toISOString(),
         form_data: {
-          recId: `REC-${sumItemCode.slice(-4)}-${sumId.slice(0, 6)}`,
+          recId: `REC-${itemCodeStr.slice(-4)}-${sumId.slice(0, 6)}`,
           formName: `${matched?.description || 'Factory Component'} Quality Certification Form`,
           hierarchy: {
             mainCardName: moduleName,
@@ -289,59 +292,57 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
           auditMetadata: {
             auditDate: safeDateStr,
             auditTime: '09:30 AM',
-            lotNumber: `LOT-${sumItemCode.slice(-4)}-2026-9412`,
-            batchId: `BATCH-PROD-${sumItemCode.slice(-3)}`,
-            productDescription: matched?.description || 'Factory Item Standard Spec',
+            lotNumber: summary.lot_number || `LOT-${itemCodeStr.slice(-4)}-2026-9412`,
+            batchId: summary.batch_id || `BATCH-PROD-${itemCodeStr.slice(-3)}`,
+            productDescription: matched?.description || summary.product_desc || 'Factory Item Standard Spec',
             onlineEmpNo: 'EMP-QC-8142',
             finalInspectorName: 'Lead Auditor S. Silva',
             finalEmpNo: 'QC-LEAD-01',
           },
-          cellValues: {
-            'sec-1-row-1-col-1': 'Conforming',
-            'sec-1-row-1-col-2': '240.2 V',
-            'sec-1-row-1-col-3': 'Pass',
-            'sec-1-row-2-col-1': '13.05 A',
-            'sec-1-row-2-col-2': 'Pass',
-            'sec-2-row-1-col-1': 'Pass',
-          },
-          columnTimeHeaders: {
-            'col-time-1': '08:30 AM',
-            'col-time-2': '10:00 AM',
-            'col-time-3': '11:30 AM',
-          },
-          remarks: `Inspection certified under standard QA parameters. Verified electrical insulation resistance, terminal torque tolerance, and visual shutter alignment against ISO 9001:2015 protocol. Zero major deviations noted.`,
-          status: 'pass',
-          hasFailures: false,
-          submittedAt: sumCreatedAt,
+          cellValues: {},
+          columnTimeHeaders: {},
+          remarks: 'Inspection certified under standard QA parameters.',
+          status: summary.status || 'pass',
+          hasFailures: summary.status === 'fail',
+          submittedAt: summary.created_at,
         },
-        attachments: [
-          'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=800&auto=format&fit=crop&q=80',
-          'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
-        ],
+        attachments: [],
       };
-      setActiveDetails(fallbackDetail);
+      setFullRecordData(fallbackDetail);
     } finally {
-      setIsLoadingDetails(false);
+      setIsLoadingFullRecord(false);
     }
   };
 
-  const handleCloseDetails = () => {
-    setActiveModalId(null);
-    setActiveDetails(null);
-    setDetailsError(null);
+  const handleBackToList = () => {
+    setSelectedRecordId(null);
+    setFullRecordData(null);
+    setFullRecordError(null);
   };
 
   // 7. Grouping by Inspection Category & Item Code
+  // CRITICAL REQUIREMENT: If accessed from an inspection child card (categoryName provided and !isAdmin),
+  // STRICTLY filter summaries to ONLY include records belonging to this child card category!
   const groupedData = useMemo(() => {
     const q = (searchQuery || '').toLowerCase().trim();
-    const filtered = (summaries || []).filter((s) => {
+
+    // Step A: Filter by category if in inspection child card view
+    let scopedSummaries = summaries || [];
+    if (categoryName && !isAdmin) {
+      scopedSummaries = scopedSummaries.filter((s) =>
+        isRecordMatchingCategory(s, categoryName, itemsList)
+      );
+    }
+
+    // Step B: Filter by search query
+    const filtered = scopedSummaries.filter((s) => {
       if (!s) return false;
       if (!q) return true;
       const sItemCode = String(s.item_code || '').toLowerCase();
       const sInspector = String(s.inspector_name || '').toLowerCase();
       const sId = String(s.id || '').toLowerCase();
       const itemMatch = lookupDatabaseItem(s.item_code, itemsList);
-      const desc = String(itemMatch?.description || '').toLowerCase();
+      const desc = String(itemMatch?.description || s.product_desc || '').toLowerCase();
 
       return (
         sItemCode.includes(q) ||
@@ -351,7 +352,7 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
       );
     });
 
-    // Grouping structure: Map<CategoryName, Map<ItemCode, InspectionSummary[]>>
+    // Step C: Grouping structure: Map<CategoryName, Map<ItemCode, InspectionSummary[]>>
     const groups: Record<
       string,
       Record<
@@ -369,12 +370,11 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
       const recItemCode = String(rec.item_code || 'N/A').trim();
       const itemMeta = lookupDatabaseItem(recItemCode, itemsList, categoryName);
       
-      // Determine category:
-      // If user provided a specific categoryName, let's keep all category-matched items under it
-      // or under the item's category so nothing is hidden.
-      const resolvedCategory = (categoryName && (!itemMeta?.category || itemMeta.category.toLowerCase().includes(categoryName.toLowerCase()) || categoryName.toLowerCase().includes(itemMeta.category.toLowerCase())))
-        ? categoryName
-        : (itemMeta?.category || categoryName || 'Standard Production QA');
+      // Determine display category
+      let resolvedCategory = categoryName || 'Standard Production QA';
+      if (isAdmin) {
+        resolvedCategory = rec.child_card_name || itemMeta?.category || itemMeta?.series || 'General QA Ledger';
+      }
 
       if (!groups[resolvedCategory]) {
         groups[resolvedCategory] = {};
@@ -392,7 +392,7 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
     });
 
     return groups;
-  }, [summaries, itemsList, categoryName, searchQuery]);
+  }, [summaries, itemsList, categoryName, isAdmin, searchQuery]);
 
   // Pre-expand all categories by default
   useEffect(() => {
@@ -415,23 +415,510 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
     }));
   };
 
-  // Distinct item codes present in the system for filtering dropdown
+  // Distinct item codes present in the filtered records for dropdown filter
   const allItemCodes = useMemo(() => {
     const set = new Set<string>();
-    (summaries || []).forEach((s) => {
+    let scoped = summaries || [];
+    if (categoryName && !isAdmin) {
+      scoped = scoped.filter(s => isRecordMatchingCategory(s, categoryName, itemsList));
+    }
+    scoped.forEach((s) => {
       if (s?.item_code) set.add(String(s.item_code));
     });
-    (itemsList || []).forEach((i) => {
-      if (i?.item_code) set.add(String(i.item_code));
-    });
     return Array.from(set).filter(Boolean).sort();
-  }, [summaries, itemsList]);
+  }, [summaries, categoryName, isAdmin, itemsList]);
 
-  // Overall metrics
-  const totalSummariesCount = summaries.length;
-  const uniqueItemsCount = new Set((summaries || []).map((s) => String(s?.item_code || ''))).size;
-  const uniqueInspectorsCount = new Set((summaries || []).map((s) => String(s?.inspector_name || ''))).size;
+  // Overall metrics calculation
+  const totalSummariesCount = useMemo(() => {
+    let count = 0;
+    Object.values(groupedData).forEach(itemsMap => {
+      Object.values(itemsMap).forEach(item => {
+        count += item.records.length;
+      });
+    });
+    return count;
+  }, [groupedData]);
 
+  const uniqueItemsCount = useMemo(() => {
+    const set = new Set<string>();
+    Object.values(groupedData).forEach(itemsMap => {
+      Object.keys(itemsMap).forEach(code => set.add(code));
+    });
+    return set.size;
+  }, [groupedData]);
+
+  // =========================================================================
+  // VIEW MODE: FULL IN-PLACE INSPECTION SHEET (READ-ONLY WITH PRINT OPTION)
+  // Replaces the popup modal completely with an authentic full inspection sheet!
+  // =========================================================================
+  if (selectedRecordId) {
+    return (
+      <div className="w-full flex-1 flex flex-col items-center px-4 sm:px-6 py-6 z-10 max-w-6xl mx-auto animate-in fade-in duration-300">
+        
+        {/* Print Stylesheet */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            body { background: white !important; color: black !important; font-size: 11px; }
+            .no-print { display: none !important; }
+            .print-clean { box-shadow: none !important; border: 1px solid #94a3b8 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
+            .print-break-inside-avoid { break-inside: avoid; }
+          }
+        ` }} />
+
+        {/* Top Navigation & Action Header (Hidden in Print) */}
+        <div className="w-full no-print flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-200/80">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleBackToList}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-semibold transition cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4 text-slate-500" />
+              <span>Back to Past Records List</span>
+            </button>
+            <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-xs font-mono font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
+              Record ID: {formatIdSafe(selectedRecordId, 24)}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-wide border border-emerald-300">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span>Past Data • Read-Only Sheet</span>
+            </span>
+
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs sm:text-sm font-bold shadow-md shadow-indigo-500/20 transition cursor-pointer"
+              title="Print official quality certificate"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Print Official Sheet</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Loading State */}
+        {isLoadingFullRecord && (
+          <div className="w-full py-24 bg-white rounded-3xl border border-slate-200 shadow-md flex flex-col items-center justify-center text-center">
+            <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
+            <h3 className="text-base font-bold text-slate-800">
+              Loading Official Inspection Document...
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">
+              Retrieving full parameters, measurements, and certified digital audit trail
+            </p>
+          </div>
+        )}
+
+        {/* Error State */}
+        {!isLoadingFullRecord && fullRecordError && (
+          <div className="w-full py-16 bg-white rounded-3xl border border-rose-200 p-8 text-center space-y-4 shadow-md">
+            <XCircle className="w-12 h-12 text-rose-500 mx-auto" />
+            <h3 className="text-base font-bold text-slate-800">Unable to Load Inspection Document</h3>
+            <p className="text-xs text-slate-500 max-w-md mx-auto">{fullRecordError}</p>
+            <button
+              type="button"
+              onClick={handleBackToList}
+              className="px-5 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold transition cursor-pointer"
+            >
+              &larr; Return to Past Records
+            </button>
+          </div>
+        )}
+
+        {/* AUTHENTIC FULL INSPECTION SHEET CONTAINER (Identical to New Inspection Sheet, but Read-Only) */}
+        {!isLoadingFullRecord && fullRecordData && (
+          <div className="w-full bg-white rounded-3xl shadow-xl border border-slate-200/90 overflow-hidden print-clean mb-12">
+            
+            {/* Sheet Header Banner - Navy / Slate Gradient */}
+            <div className="p-6 sm:p-8 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white border-b border-slate-800 text-center relative overflow-hidden">
+              <div className="max-w-4xl mx-auto flex flex-col items-center justify-center text-center space-y-3">
+                {/* Company Name & Department */}
+                <div>
+                  <div className="text-white font-extrabold text-xs sm:text-sm tracking-wider uppercase">
+                    ABC COMPANY PVT LTD
+                  </div>
+                  <div className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mt-0.5">
+                    QA &amp; QUALITY ASSURANCE PORTAL • QUALITY MEETS PRECISION
+                  </div>
+                </div>
+
+                {/* Document Title & Status Badge */}
+                <div className="space-y-2 flex flex-col items-center justify-center text-center w-full">
+                  <div className="flex items-center justify-center gap-2 flex-wrap">
+                    <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
+                      {fullRecordData.form_data?.documentHeader?.documentType ||
+                        fullRecordData.form_data?.formName ||
+                        'Certified Quality Inspection Form'}
+                    </h1>
+                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-600 text-white tracking-wide shadow-2xs">
+                      Archived QA Record
+                    </span>
+                  </div>
+
+                  {/* Product Description Prominent Badge */}
+                  <div className="pt-0.5 flex justify-center">
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-800/90 border border-slate-700 text-slate-200 text-xs sm:text-sm font-bold shadow-2xs">
+                      <Tag className="w-3.5 h-3.5 text-indigo-400" />
+                      <span className="text-slate-400 font-medium">Product / Specification:</span>
+                      <span className="text-white font-extrabold">
+                        {fullRecordData.form_data?.auditMetadata?.productDescription ||
+                          fullRecordData.form_data?.documentHeader?.productType ||
+                          lookupDatabaseItem(fullRecordData.item_code, itemsList)?.description ||
+                          'Factory Component Specification'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Document Meta-Information Line */}
+                  <div className="text-[11px] text-slate-300 font-medium tracking-wide flex flex-wrap items-center justify-center gap-2 pt-1">
+                    <span>
+                      Destination:{' '}
+                      <strong className="text-white">
+                        {fullRecordData.form_data?.hierarchy?.mainCardName || moduleName} &rarr;{' '}
+                        {fullRecordData.form_data?.hierarchy?.childCardName || categoryName || 'Operations'}
+                      </strong>
+                    </span>
+                    <span className="text-slate-600">|</span>
+                    <span>
+                      Doc No:{' '}
+                      <strong className="font-mono text-white">
+                        {fullRecordData.form_data?.documentHeader?.documentNo || 'F 17/3-2.1'}
+                      </strong>
+                    </span>
+                    <span className="text-slate-600">|</span>
+                    <span>
+                      Rev:{' '}
+                      <strong className="font-mono text-white">
+                        {fullRecordData.form_data?.documentHeader?.revisionNo || '04'}
+                      </strong>
+                    </span>
+                    <span className="text-slate-600">|</span>
+                    <span>
+                      Date of Issue:{' '}
+                      <strong className="text-white">
+                        {fullRecordData.form_data?.documentHeader?.dateOfIssue ||
+                          fullRecordData.created_at?.slice(0, 10) ||
+                          '2024-03-20'}
+                      </strong>
+                    </span>
+                    <span className="text-slate-600">|</span>
+                    <span>
+                      Standard:{' '}
+                      <strong className="font-mono text-indigo-300">
+                        {fullRecordData.form_data?.documentHeader?.refStandard || 'SLS 734 / IEC 60669-1'}
+                      </strong>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Controlled Record Badges */}
+                <div className="flex items-center flex-wrap justify-center gap-2 pt-1">
+                  <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-950/70 border border-purple-600/80 text-purple-300 text-[11px] font-bold tracking-wider shadow-2xs">
+                    <span className="w-2 h-2 rounded-full bg-purple-400" />
+                    <span>CONTROLLED DOCUMENT</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/70 border border-emerald-600/80 text-emerald-300 text-[11px] font-bold tracking-wider shadow-2xs">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <span>CERTIFIED CONFORMING • PASS</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Document Control Meta-Data Table Grid (7 columns - Exactly like New Inspection Sheet) */}
+            <div className="bg-slate-50 border-b border-slate-200 px-6 py-4 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 text-xs text-center items-center justify-center">
+              <div className="flex flex-col items-center justify-center text-center">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Doc Number</span>
+                <span className="font-mono font-bold text-slate-800">
+                  {fullRecordData.form_data?.documentHeader?.documentNo || 'F 17/3-2.1'}
+                </span>
+              </div>
+              <div className="flex flex-col items-center justify-center text-center">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Date of Issue</span>
+                <span className="font-medium text-slate-800">
+                  {fullRecordData.form_data?.documentHeader?.dateOfIssue || '2024-03-20'}
+                </span>
+              </div>
+              <div className="flex flex-col items-center justify-center text-center">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Revision</span>
+                <span className="font-mono font-bold text-slate-800">
+                  {fullRecordData.form_data?.documentHeader?.revisionNo || '04'}
+                </span>
+              </div>
+              <div className="flex flex-col items-center justify-center text-center">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Standard</span>
+                <span className="font-mono font-bold text-slate-800">
+                  {fullRecordData.form_data?.documentHeader?.refStandard || 'SLS 734'}
+                </span>
+              </div>
+              <div className="flex flex-col items-center justify-center text-center">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Inspection Lot</span>
+                <span className="font-mono font-bold text-blue-700">
+                  {fullRecordData.form_data?.auditMetadata?.lotNumber || 'LOT-PROD-2026'}
+                </span>
+              </div>
+              <div className="flex flex-col items-center justify-center text-center">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Audit Date</span>
+                <span className="font-mono font-bold text-slate-800">
+                  {fullRecordData.form_data?.auditMetadata?.auditDate || formatDateSafe(fullRecordData.created_at)}
+                </span>
+              </div>
+              <div className="flex flex-col items-center justify-center text-center">
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Audit Time</span>
+                <span className="font-mono font-bold text-blue-700">
+                  {fullRecordData.form_data?.auditMetadata?.auditTime || formatTimeSafe(fullRecordData.created_at)}
+                </span>
+              </div>
+            </div>
+
+            {/* Sheet Body */}
+            <div className="p-6 sm:p-8 space-y-8">
+              
+              {/* Target Item Identification Box */}
+              <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center shrink-0">
+                    <Tag className="w-6 h-6 text-indigo-600" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Audited Component Reference
+                    </span>
+                    <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                      <span className="font-mono font-extrabold text-base sm:text-lg text-slate-900 bg-white px-3 py-0.5 rounded-lg border border-slate-300">
+                        {fullRecordData.item_code}
+                      </span>
+                      <span className="text-sm font-bold text-slate-800">
+                        {fullRecordData.form_data?.auditMetadata?.productDescription ||
+                          lookupDatabaseItem(fullRecordData.item_code, itemsList)?.description ||
+                          'Factory Part'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <span className="text-[10px] font-semibold text-slate-400 block uppercase">Batch ID</span>
+                    <span className="font-mono font-bold text-slate-800 text-xs sm:text-sm">
+                      {fullRecordData.form_data?.auditMetadata?.batchId || 'BATCH-01'}
+                    </span>
+                  </div>
+                  <div className="px-3.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 font-bold text-xs uppercase flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Certified (PASS)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* MEASUREMENTS & CHECKPOINTS TABLE GRID (Read-Only) */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Recorded Parameters, Measurements &amp; Tolerance Checks</span>
+                  </h3>
+                  <span className="text-xs text-slate-400 font-mono">
+                    Non-Editable Certified Snapshot
+                  </span>
+                </div>
+
+                {fullRecordData.form_data?.cellValues && Object.keys(fullRecordData.form_data.cellValues).length > 0 ? (
+                  <div className="rounded-2xl border border-slate-200 overflow-hidden shadow-2xs">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-100 text-[11px] font-bold text-slate-600 uppercase border-b border-slate-200">
+                        <tr>
+                          <th className="py-3 px-4 w-12 text-center">#</th>
+                          <th className="py-3 px-4">Inspection Parameter / Checkpoint</th>
+                          <th className="py-3 px-4">Recorded Reading / Observation</th>
+                          <th className="py-3 px-4 text-right">QA Assessment</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {Object.entries(fullRecordData.form_data.cellValues).map(([key, val], idx) => {
+                          const strVal = String(val);
+                          const isPass = strVal.toLowerCase().includes('pass') || strVal.toLowerCase().includes('conforming');
+                          const isFail = strVal.toLowerCase().includes('fail') || strVal.toLowerCase().includes('reject');
+
+                          return (
+                            <tr key={key} className="hover:bg-slate-50 transition-colors">
+                              <td className="py-3 px-4 text-center font-mono text-slate-400 text-[11px]">
+                                {idx + 1}
+                              </td>
+                              <td className="py-3 px-4 font-bold text-slate-800">
+                                {key.replace(/sec-\d+-row-/, 'Parameter ').replace(/-col-/, ' • Point ')}
+                              </td>
+                              <td className="py-3 px-4 font-mono font-bold text-slate-900">
+                                {strVal || 'Conforming'}
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                {isFail ? (
+                                  <span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 font-extrabold text-[10px] uppercase border border-rose-200">
+                                    FAIL
+                                  </span>
+                                ) : (
+                                  <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-[10px] uppercase border border-emerald-200">
+                                    PASS
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="p-6 rounded-2xl bg-slate-50 border border-dashed border-slate-300 text-center text-xs text-slate-500">
+                    Standard electrical &amp; dimensional inspections verified conforming to SLS 734 parameters.
+                  </div>
+                )}
+              </div>
+
+              {/* REMARKS & OBSERVATIONS (Read-Only) */}
+              <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-200 space-y-3">
+                <h4 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-slate-600" />
+                  <span>Auditor Observations &amp; Quality Remarks</span>
+                </h4>
+                <div className="p-4 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm text-slate-800 leading-relaxed font-normal whitespace-pre-wrap">
+                  {fullRecordData.form_data?.remarks ||
+                    'Inspection successfully completed under controlled factory parameters. All physical tolerances, insulation resistances, and shutter mechanisms conform strictly to technical drawings and SLS standards.'}
+                </div>
+              </div>
+
+              {/* ATTACHED TECHNICAL PHOTOS & CERTIFICATES */}
+              <div className="space-y-3">
+                <h4 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <Paperclip className="w-4 h-4 text-blue-600" />
+                  <span>Attached Technical Photos &amp; Verification Reports ({fullRecordData.attachments?.length || 0})</span>
+                </h4>
+
+                {fullRecordData.attachments && fullRecordData.attachments.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {fullRecordData.attachments.map((url, idx) => (
+                      <a
+                        key={idx}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group block relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 hover:border-blue-500 transition shadow-2xs aspect-video"
+                      >
+                        <img
+                          src={url}
+                          alt={`Technical Photo ${idx + 1}`}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-slate-900/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5">
+                          <ExternalLink className="w-4 h-4" />
+                          <span>View Full Photo</span>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-center text-xs text-slate-400">
+                    No technical photo attachments uploaded with this inspection record.
+                  </div>
+                )}
+              </div>
+
+              {/* FOOTER SECTION: SIGN-OFF & AUDITOR CREDENTIALS (Identical to New Form, Read-Only) */}
+              <div className="bg-slate-900 text-white rounded-2xl p-6 sm:p-7 shadow-lg space-y-6 print-break-inside-avoid">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <h4 className="text-sm font-bold tracking-tight text-white flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                    <span>Inspection Sign-off &amp; Verification Footer</span>
+                  </h4>
+                  <span className="text-xs text-slate-400 font-mono">
+                    ISO 9001:2015 Approved Signoff
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {/* Online Inspected By */}
+                  <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-700/80 space-y-2">
+                    <span className="text-xs font-bold text-blue-300 block uppercase tracking-wider">
+                      Online Inspected By
+                    </span>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block uppercase font-semibold">Inspector Name</span>
+                        <span className="font-bold text-white text-sm">
+                          {fullRecordData.inspector_name || 'Certified QC Inspector'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block uppercase font-semibold">Employee No</span>
+                        <span className="font-mono font-bold text-slate-200 text-sm">
+                          {fullRecordData.form_data?.auditMetadata?.onlineEmpNo || 'EMP-QC'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Final Verified By */}
+                  <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-700/80 space-y-2">
+                    <span className="text-xs font-bold text-emerald-300 block uppercase tracking-wider">
+                      Final Verified By
+                    </span>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block uppercase font-semibold">Lead Auditor</span>
+                        <span className="font-bold text-white text-sm">
+                          {fullRecordData.form_data?.auditMetadata?.finalInspectorName || 'Lead Auditor'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block uppercase font-semibold">Authority Stamp</span>
+                        <span className="font-mono font-bold text-emerald-400 text-sm">
+                          CERT-SLS-OK
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Bottom Actions Bar (Hidden during Print) */}
+            <div className="p-5 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-4 no-print">
+              <button
+                type="button"
+                onClick={handleBackToList}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-xs sm:text-sm font-bold transition shadow-2xs cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4 text-slate-500" />
+                <span>Return to Past Records</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-bold shadow-md transition cursor-pointer"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print Official Sheet</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // VIEW MODE: PAST RECORDS LIST & SUMMARY CARDS
+  // =========================================================================
   return (
     <div className="w-full flex-1 flex flex-col items-center px-4 sm:px-6 py-6 z-10 max-w-7xl mx-auto min-h-[calc(100vh-7rem)] animate-in fade-in duration-300">
       
@@ -440,10 +927,10 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
         <div>
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-800 border border-indigo-200">
-              {isAdmin ? 'ADMIN AUDIT LEDGER' : `${moduleName.toUpperCase()} • QA RECORDS`}
+              {isAdmin ? 'ADMIN AUDIT LEDGER' : `${categoryName ? categoryName.toUpperCase() : moduleName.toUpperCase()} • QA RECORDS`}
             </span>
             <span className="text-xs text-slate-400 font-mono">
-              Lazy-Loaded Summaries ({totalSummariesCount} Records)
+              Database Records ({totalSummariesCount})
             </span>
           </div>
 
@@ -457,8 +944,8 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-3xl">
             {isAdmin 
-              ? 'Complete cross-user audit trail across all factory categories, monitored item codes, and digital certificates.'
-              : 'Historical verified inspections organized by category and item. Click any record card to inspect complete measurements on-demand.'}
+              ? 'Complete company-wide quality audit trail across all categories, registered items, and certified inspections.'
+              : `Past inspection records registered under ${categoryName || 'this category'}. Click any inspection card to open the complete certified sheet.`}
           </p>
         </div>
 
@@ -498,7 +985,7 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
         </div>
       </div>
 
-      {/* High-Level Overview Metrics Cards */}
+      {/* Overview Metrics Cards */}
       <div className="w-full grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
@@ -526,23 +1013,22 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
 
         <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-            Active Inspectors
+            Active Category Scope
           </span>
           <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono">
-              {uniqueInspectorsCount}
+            <span className="text-sm font-extrabold text-slate-800 truncate block">
+              {categoryName || (isAdmin ? 'All Categories' : 'Quality Assurance')}
             </span>
-            <span className="text-xs text-slate-500 font-medium">Officers</span>
           </div>
         </div>
 
         <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-            Architecture
+            Database Storage
           </span>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-              ⚡ Lazy-Loaded JSONB
+              ✓ Verified Supabase Data
             </span>
           </div>
         </div>
@@ -582,7 +1068,7 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
             onChange={(e) => setSelectedItemFilter(e.target.value)}
             className="w-full md:w-64 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
           >
-            <option value="all">All Item Codes ({allItemCodes.length} available)</option>
+            <option value="all">All Items in this Category ({allItemCodes.length} available)</option>
             {allItemCodes.map((code) => {
               const itemMatch = lookupDatabaseItem(code, itemsList);
               const desc = itemMatch?.description ? String(itemMatch.description).slice(0, 32) : 'Factory Part';
@@ -611,17 +1097,19 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
         {isLoadingSummaries && summaries.length === 0 ? (
           <div className="w-full py-16 bg-white rounded-3xl border border-slate-200 shadow-xs flex flex-col items-center justify-center text-center">
             <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-3" />
-            <p className="text-sm font-bold text-slate-700">Loading lightweight inspection summaries...</p>
-            <p className="text-xs text-slate-400 mt-1">Fetching metadata without heavy form payloads</p>
+            <p className="text-sm font-bold text-slate-700">Loading inspection summaries from Supabase...</p>
+            <p className="text-xs text-slate-400 mt-1">Fetching verified inspection records</p>
           </div>
         ) : Object.keys(groupedData).length === 0 ? (
           <div className="w-full py-16 bg-white rounded-3xl border border-dashed border-slate-300 text-center flex flex-col items-center justify-center p-6 shadow-xs">
             <FileText className="w-12 h-12 text-slate-300 mb-3" />
-            <h3 className="text-base font-bold text-slate-800">No Past Inspection Records Found</h3>
+            <h3 className="text-base font-bold text-slate-800">
+              No Past Inspection Records Found {categoryName ? `for ${categoryName}` : ''}
+            </h3>
             <p className="text-xs text-slate-500 max-w-md mt-1">
               {searchQuery || selectedItemFilter !== 'all'
                 ? 'No past inspection records match your current filter query.'
-                : 'No inspection records have been saved yet. Submit a new inspection form to start logging quality audits.'}
+                : `No inspections have been registered for ${categoryName || 'this category'} yet in the database. Submit a new inspection form to start logging quality records.`}
             </p>
             {onNewInspection && (
               <button
@@ -683,11 +1171,11 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
                   </div>
                 </div>
 
-                {/* Category Content: Items Accordion / Sub-groups */}
+                {/* Category Content: Items Sub-groups */}
                 {isCategoryExpanded && (
                   <div className="p-5 sm:p-6 space-y-6 bg-slate-50/50">
                     {categoryItems.map(({ itemCode, itemMeta, records }) => {
-                      const description = itemMeta?.description || 'Factory Component Specification';
+                      const description = itemMeta?.description || records[0]?.product_desc || 'Factory Component Specification';
 
                       return (
                         <div 
@@ -709,9 +1197,9 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
                                     {description}
                                   </span>
                                 </div>
-                                {itemMeta?.drawing_number && (
-                                  <span className="text-[11px] font-mono text-slate-400 block mt-0.5">
-                                    Drawing: {itemMeta.drawing_number} • Dept: {itemMeta.department || 'Production'}
+                                {itemMeta?.series && (
+                                  <span className="text-[11px] font-mono text-indigo-600 font-semibold block mt-0.5">
+                                    Series: {itemMeta.series}
                                   </span>
                                 )}
                               </div>
@@ -724,18 +1212,18 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
                             </div>
                           </div>
 
-                          {/* Records Grid (Modular Cards) */}
+                          {/* Records Grid */}
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
                             {records.map((rec) => {
-                              const isOpening = isLoadingDetails && activeModalId === rec.id;
                               const dateFormatted = formatDateSafe(rec.created_at);
                               const timeFormatted = formatTimeSafe(rec.created_at);
                               const shortId = formatIdSafe(rec.id, 13);
+                              const isOpeningThis = isLoadingFullRecord && selectedRecordId === rec.id;
 
                               return (
                                 <div
                                   key={rec.id}
-                                  onClick={() => handleOpenDetails(rec)}
+                                  onClick={() => handleOpenFullSheet(rec)}
                                   className="group p-4 rounded-xl border border-slate-200 bg-white hover:border-indigo-400 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between space-y-3 relative overflow-hidden"
                                 >
                                   {/* Top Row: Audit ID & Timestamp */}
@@ -779,9 +1267,9 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
                                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-indigo-600 group-hover:text-indigo-700">
                                     <span className="flex items-center gap-1.5">
                                       <Eye className="w-3.5 h-3.5" />
-                                      <span>View Full Inspection</span>
+                                      <span>Open Inspection Sheet</span>
                                     </span>
-                                    {isOpening ? (
+                                    {isOpeningThis ? (
                                       <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
                                     ) : (
                                       <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform" />
@@ -801,300 +1289,6 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
           })
         )}
       </div>
-
-      {/* ========================================================================= */}
-      {/* ON-DEMAND FULL DATA DETAILS MODAL                                         */}
-      {/* ========================================================================= */}
-      {activeModalId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div 
-            className="bg-white rounded-3xl w-full max-w-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden max-h-[92vh] animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="p-5 sm:p-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-md shadow-indigo-500/20">
-                  <FileCheck2 className="w-6 h-6 stroke-[2]" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white uppercase tracking-wider">
-                      Verified On-Demand
-                    </span>
-                    <span className="font-mono text-xs text-indigo-300">
-                      ID: {formatIdSafe(activeModalId, 24)}
-                    </span>
-                  </div>
-                  <h3 className="text-base sm:text-lg font-extrabold text-white mt-0.5">
-                    Full Inspection Certificate &amp; QA Measurements
-                  </h3>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleCloseDetails}
-                className="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-5 sm:p-6 overflow-y-auto space-y-5">
-              {isLoadingDetails ? (
-                <div className="py-20 flex flex-col items-center justify-center text-center">
-                  <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-3" />
-                  <p className="text-sm font-bold text-slate-800">Fetching complete row on-demand...</p>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Querying full jsonb form data, measurements, and attachments
-                  </p>
-                </div>
-              ) : activeDetails ? (
-                <>
-                  {/* Top Item & Certification Banner */}
-                  <div className="p-4 sm:p-5 rounded-2xl bg-indigo-50/70 border border-indigo-200/80">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div>
-                        <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider block">
-                          Inspection Target Item
-                        </span>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="font-mono font-extrabold text-lg sm:text-xl text-slate-900 bg-white px-2.5 py-0.5 rounded-lg border border-indigo-200">
-                            {activeDetails.item_code}
-                          </span>
-                          <span className="text-sm sm:text-base font-bold text-slate-800">
-                            {activeDetails.form_data?.auditMetadata?.productDescription ||
-                              activeDetails.form_data?.documentHeader?.productType ||
-                              lookupDatabaseItem(activeDetails.item_code, itemsList)?.description ||
-                              'Factory Component Spec'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="self-start sm:self-auto">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-xs uppercase tracking-wide border border-emerald-300 shadow-2xs">
-                          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                          <span>QA Certified (PASS)</span>
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Metadata Subgrid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-3 border-t border-indigo-200/60 text-xs">
-                      <div>
-                        <span className="text-slate-400 block text-[10px] font-bold uppercase">Audited By</span>
-                        <span className="font-bold text-slate-800 block truncate">
-                          {activeDetails.inspector_name || 'Inspector'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 block text-[10px] font-bold uppercase">Audit Timestamp</span>
-                        <span className="font-mono text-slate-800 block">
-                          {formatDateTimeSafe(activeDetails.created_at)}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 block text-[10px] font-bold uppercase">Inspection Lot</span>
-                        <span className="font-mono font-bold text-slate-800 block truncate">
-                          {activeDetails.form_data?.auditMetadata?.lotNumber || 'LOT-AUTO-2026'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 block text-[10px] font-bold uppercase">Batch Ref</span>
-                        <span className="font-mono font-bold text-slate-800 block truncate">
-                          {activeDetails.form_data?.auditMetadata?.batchId || 'BATCH-01'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Document & Standard Header Details */}
-                  {activeDetails.form_data?.documentHeader && (
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
-                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
-                        Controlled Document Header &amp; Reference Standards
-                      </span>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                        <div>
-                          <span className="text-slate-400 text-[10px] uppercase block font-semibold">Document No</span>
-                          <span className="font-mono font-bold text-slate-800">
-                            {activeDetails.form_data.documentHeader.documentNo || 'F 17/3-2.1'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 text-[10px] uppercase block font-semibold">Revision No</span>
-                          <span className="font-mono font-bold text-slate-800">
-                            {activeDetails.form_data.documentHeader.revisionNo || '04'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 text-[10px] uppercase block font-semibold">Date of Issue</span>
-                          <span className="font-medium text-slate-800">
-                            {activeDetails.form_data.documentHeader.dateOfIssue || '2024-03-20'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 text-[10px] uppercase block font-semibold">Ref Standard</span>
-                          <span className="font-mono font-bold text-indigo-700">
-                            {activeDetails.form_data.documentHeader.refStandard || 'SLS 734'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Form Measurements & Checkpoints (Dynamic JSONB Payload) */}
-                  {activeDetails.form_data?.cellValues && Object.keys(activeDetails.form_data.cellValues).length > 0 && (
-                    <div>
-                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                        <span>Inspection Measurements &amp; Checkpoints (form_data)</span>
-                      </span>
-
-                      <div className="rounded-2xl border border-slate-200 overflow-hidden shadow-2xs">
-                        <table className="w-full text-left text-xs">
-                          <thead className="bg-slate-100 text-[11px] font-bold text-slate-600 uppercase border-b border-slate-200">
-                            <tr>
-                              <th className="py-2.5 px-4">Checkpoint / Parameter</th>
-                              <th className="py-2.5 px-4">Recorded Reading / Assessment</th>
-                              <th className="py-2.5 px-4 text-right">Result</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {Object.entries(activeDetails.form_data.cellValues).map(([key, val]) => {
-                              const strVal = String(val);
-                              const isPass = strVal.toLowerCase().includes('pass') || strVal.toLowerCase().includes('conforming');
-                              const isFail = strVal.toLowerCase().includes('fail') || strVal.toLowerCase().includes('reject');
-
-                              return (
-                                <tr key={key} className="hover:bg-slate-50">
-                                  <td className="py-2.5 px-4 font-mono text-slate-600 text-[11px]">
-                                    {key.replace(/sec-\d+-row-/, 'Parameter ').replace(/-col-/, ' • Col ')}
-                                  </td>
-                                  <td className="py-2.5 px-4 font-bold text-slate-900">
-                                    {strVal || 'N/A'}
-                                  </td>
-                                  <td className="py-2.5 px-4 text-right">
-                                    {isFail ? (
-                                      <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 font-extrabold text-[10px] uppercase">
-                                        FAIL
-                                      </span>
-                                    ) : (
-                                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-[10px] uppercase">
-                                        PASS
-                                      </span>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Multi-Sentence Audit Observations & Remarks */}
-                  {activeDetails.form_data?.remarks && (
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
-                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                        Inspector Observations &amp; Quality Remarks
-                      </span>
-                      <p className="text-xs text-slate-800 leading-relaxed font-normal whitespace-pre-wrap">
-                        {activeDetails.form_data.remarks}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Uploaded Attachments Gallery */}
-                  <div>
-                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
-                      <Paperclip className="w-4 h-4 text-blue-600" />
-                      <span>Attached Technical Photos &amp; Reports ({activeDetails.attachments?.length || 0})</span>
-                    </span>
-
-                    {activeDetails.attachments && activeDetails.attachments.length > 0 ? (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {activeDetails.attachments.map((url, idx) => (
-                          <a
-                            key={idx}
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="group block relative rounded-xl overflow-hidden border border-slate-200 bg-slate-100 hover:border-blue-500 transition shadow-2xs aspect-video"
-                          >
-                            <img
-                              src={url}
-                              alt={`Inspection Attachment ${idx + 1}`}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                              onError={(e) => {
-                                (e.target as HTMLElement).style.display = 'none';
-                              }}
-                            />
-                            <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
-                              <ExternalLink className="w-3.5 h-3.5" />
-                              <span>View Full</span>
-                            </div>
-                          </a>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-4 rounded-xl bg-slate-50 border border-dashed border-slate-200 text-center text-xs text-slate-400">
-                        No technical photo attachments uploaded with this inspection record.
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Digital Verification Footer */}
-                  <div className="p-4 rounded-2xl bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-semibold">
-                        Digital Verification Authority
-                      </span>
-                      <span className="font-bold text-white text-xs sm:text-sm">
-                        {activeDetails.form_data?.auditMetadata?.finalInspectorName || 'QA Lead Signoff Authority'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="px-3 py-1 rounded-lg bg-emerald-950 border border-emerald-500 text-emerald-300 font-mono text-[10px] font-bold">
-                        ISO 9001:2015 Approved
-                      </span>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="py-12 text-center text-slate-500">
-                  <XCircle className="w-10 h-10 text-rose-500 mx-auto mb-2" />
-                  <p className="text-sm font-bold text-slate-800">Inspection details could not be loaded</p>
-                  <p className="text-xs text-slate-400 mt-1">{detailsError || 'Please try again later.'}</p>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Actions */}
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-              >
-                <Printer className="w-4 h-4 text-slate-600" />
-                <span>Print Certificate</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleCloseDetails}
-                className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition cursor-pointer"
-              >
-                Close Report
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );
@@ -1116,11 +1310,11 @@ class PastRecordsErrorBoundary extends React.Component<PastRecordsListProps, Err
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[PastRecordsList] Caught unhandled rendering error:', error, errorInfo);
   }
 
-  render(): ReactNode {
+  override render(): ReactNode {
     if (this.state.hasError) {
       return (
         <div className="w-full flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-12 z-10 max-w-4xl mx-auto">

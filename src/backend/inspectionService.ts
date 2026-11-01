@@ -158,6 +158,11 @@ export interface InspectionSummary {
   item_code: string;
   inspector_name: string;
   created_at: string;
+  child_card_name?: string;
+  product_desc?: string;
+  lot_number?: string;
+  batch_id?: string;
+  status?: string;
 }
 
 /**
@@ -225,6 +230,11 @@ export async function getInspectionSummaries(itemCode?: string): Promise<Inspect
         item_code: String(row.item_code || row.form_data?.auditMetadata?.itemCode || 'N/A'),
         inspector_name: String(row.inspector_name || row.form_data?.auditMetadata?.onlineInspectorName || 'Certified QC Inspector'),
         created_at: String(createdAt),
+        child_card_name: String(row.form_data?.hierarchy?.childCardName || row.form_data?.childCardName || ''),
+        product_desc: String(row.form_data?.auditMetadata?.productDescription || row.form_data?.documentHeader?.productType || ''),
+        lot_number: String(row.form_data?.auditMetadata?.lotNumber || ''),
+        batch_id: String(row.form_data?.auditMetadata?.batchId || ''),
+        status: String(row.form_data?.status || (row.form_data?.hasFailures ? 'fail' : 'pass')),
       };
     });
   } catch (err) {
