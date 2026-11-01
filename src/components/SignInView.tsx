@@ -1,18 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { Check, Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft, ShieldCheck, ClipboardCheck, Loader2, Sparkles } from 'lucide-react';
 import { supabase } from '../backend/supabase';
 import { getStoredUserPassword } from '../backend/adminUserService';
 import { ProfileRole } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 interface SignInViewProps {
-  initialRole: 'inspector' | 'admin' | 'inspection';
+  initialRole?: 'inspector' | 'admin' | 'inspection';
   onSignIn: (role: 'inspector' | 'admin', id: string) => void;
   onBackToSelection?: () => void;
 }
 
-const normalizeRole = (r?: string): 'inspector' | 'admin' => {
-  return r === 'admin' ? 'admin' : 'inspector';
+const normalizeRole = (r?: string | null): 'inspector' | 'admin' => {
+  if (!r) return 'inspector';
+  const clean = r.toLowerCase().trim();
+  return clean === 'admin' ? 'admin' : 'inspector';
 };
 
 export const SignInView: React.FC<SignInViewProps> = ({
@@ -21,8 +24,49 @@ export const SignInView: React.FC<SignInViewProps> = ({
   onBackToSelection,
 }) => {
   const navigate = useNavigate();
-  const normalizedInitialRole = normalizeRole(initialRole);
-  const [selectedRole, setSelectedRole] = useState<'inspector' | 'admin'>(normalizedInitialRole);
+  const location = useLocation();
+  const params = useParams<{ mode?: string }>();
+  const [searchParams] = useSearchParams();
+  const { signIn, setUserDetails } = useAuth();
+
+  // Helper to reliably derive active role from URL params, pathname, query params, location.state, or props
+  const resolveCurrentRole = useCallback((): 'inspector' | 'admin' => {
+    // 1. URL path param (:mode, e.g., /login/admin, /sign-in/admin, /login/inspection)
+    if (params.mode) {
+      const m = params.mode.toLowerCase().trim();
+      if (m === 'admin') return 'admin';
+      if (m === 'inspection' || m === 'inspector') return 'inspector';
+    }
+
+    // 2. Direct pathname inspection (e.g. /login/admin, /sign-in/admin)
+    const pathname = location.pathname.toLowerCase();
+    if (pathname.endsWith('/admin') || pathname.includes('/admin')) return 'admin';
+    if (pathname.endsWith('/inspection') || pathname.includes('/inspection')) return 'inspector';
+
+    // 3. Search query params (e.g. ?role=admin, ?mode=admin)
+    const queryRole = searchParams.get('role') || searchParams.get('mode');
+    if (queryRole) {
+      const q = queryRole.toLowerCase().trim();
+      if (q === 'admin') return 'admin';
+      if (q === 'inspection' || q === 'inspector') return 'inspector';
+    }
+
+    // 4. Location state passed from main dashboard navigation
+    const stateRole = (location.state as any)?.role;
+    if (stateRole) {
+      return normalizeRole(stateRole);
+    }
+
+    // 5. Initial role prop passed from parent
+    if (initialRole) {
+      return normalizeRole(initialRole);
+    }
+
+    return 'inspector';
+  }, [params.mode, location.pathname, searchParams, location.state, initialRole]);
+
+  // Initial role state initialized locally and derived from URL/context
+  const [selectedRole, setSelectedRole] = useState<'inspector' | 'admin'>(() => resolveCurrentRole());
   const [identity, setIdentity] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -30,22 +74,33 @@ export const SignInView: React.FC<SignInViewProps> = ({
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Sync role whenever initialRole prop changes, keeping inputs blank
+  // Sync role whenever URL path, route params, or query change
   useEffect(() => {
-    const role = normalizeRole(initialRole);
-    setSelectedRole(role);
-    setIdentity('');
-    setPassword('');
-    setErrorMessage('');
-  }, [initialRole]);
+    const derivedRole = resolveCurrentRole();
+    setSelectedRole(derivedRole);
+  }, [resolveCurrentRole]);
 
-  // Clean reset when switching panel tabs
-  const handleSwitchTab = (role: 'inspector' | 'admin') => {
-    setSelectedRole(role);
-    setIdentity('');
-    setPassword('');
+  // Clean toggle handler that reliably updates state and updates URL route via navigate()
+  const handleSwitchTab = (newRole: 'inspector' | 'admin') => {
+    setSelectedRole(newRole);
     setErrorMessage('');
+
+    // Determine current base route (/login or /sign-in)
+    const isLoginBase = location.pathname.startsWith('/login');
+    const basePath = isLoginBase ? '/login' : '/sign-in';
+    const targetPath = `${basePath}/${newRole === 'admin' ? 'admin' : 'inspection'}`;
+
+    if (location.pathname !== targetPath) {
+      navigate(targetPath, {
+        replace: true,
+        state: {
+          ...(location.state || {}),
+          role: newRole,
+        },
+      });
+    }
   };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,164 +117,68 @@ export const SignInView: React.FC<SignInViewProps> = ({
     setErrorMessage('');
     setIsLoading(true);
 
-    const emailToSignIn = rawId.includes('@') ? rawId.toLowerCase() : `${rawId.toLowerCase()}@abc.com`;
     const cleanPassword = password.trim();
 
-    // 1. FAST-PATH: Super Admin master credentials (admin / admingamana)
-    if (
-      (rawId.toLowerCase() === 'admin' || emailToSignIn === 'admin@abc.com') &&
-      cleanPassword === 'admingamana'
-    ) {
-      // Internal role is SUPER_ADMIN, display role normalized to ADMIN
-      sessionStorage.setItem('qc_auth_profile_role', 'SUPER_ADMIN');
-      sessionStorage.setItem('qc_auth_full_name', 'System Admin');
-      sessionStorage.setItem('qc_auth_employee_id', 'admin');
-      sessionStorage.setItem('qc_auth_user_id', 'admin');
+    try {
+      // 1. Primary path: AuthContext.signIn
+      // Performs supabase.auth.signInWithPassword, then safely queries profiles table
+      // directly with the standard frontend supabase client (using anon key, no RLS assumed),
+      // stores user details in global state, and applies RBAC validation.
+      const result = await signIn(rawId, cleanPassword, selectedRole);
 
-      // Non-blocking background sync with Supabase
-      supabase.auth.signInWithPassword({
-        email: 'admin@abc.com',
-        password: cleanPassword,
-      }).catch(() => {});
+      if (result.success && result.profile) {
+        setIsLoading(false);
+        onSignIn(selectedRole === 'admin' ? 'admin' : 'inspector', result.profile.employee_id || rawId);
+        return;
+      }
 
-      setIsLoading(false);
-      onSignIn('admin', 'admin');
-      return;
-    }
+      // If access was denied due to RBAC rules (e.g. USER attempting Admin panel login)
+      if (result.error && result.error.includes('Access denied')) {
+        setIsLoading(false);
+        setErrorMessage(result.error);
+        return;
+      }
 
-    // 2. CHECK LOCAL DATABASE PROFILES & PASSWORDS VAULT
-    let matchedProfile: any = null;
-    const cacheKeys = ['qc_supabase_profiles_cache_v2', 'qc_supabase_profiles_cache_v1'];
-    for (const key of cacheKeys) {
+      // 2. Offline / local vault fallback (if Supabase network timeout occurs)
+      let matchedProfile: any = null;
       try {
-        const raw = localStorage.getItem(key);
+        const raw = localStorage.getItem('qc_supabase_profiles_cache_v2');
         if (raw) {
           const list = JSON.parse(raw);
           if (Array.isArray(list)) {
-            const found = list.find((p: any) =>
+            matchedProfile = list.find((p: any) =>
               (p.employee_id && p.employee_id.toLowerCase() === rawId.toLowerCase()) ||
-              (p.full_name && p.full_name.toLowerCase() === rawId.toLowerCase()) ||
-              (p.email && p.email.toLowerCase() === emailToSignIn)
+              (p.full_name && p.full_name.toLowerCase() === rawId.toLowerCase())
             );
-            if (found) {
-              matchedProfile = found;
-              break;
-            }
           }
         }
       } catch {}
-    }
 
-    // Check stored password in vault, cached profile, or default
-    const vaultPassword =
-      getStoredUserPassword(rawId) ||
-      (matchedProfile ? getStoredUserPassword(matchedProfile.employee_id) : null) ||
-      (matchedProfile ? getStoredUserPassword(matchedProfile.id) : null) ||
-      (matchedProfile?.password && matchedProfile.password !== '••••••••' ? matchedProfile.password : null) ||
-      'password123';
+      const vaultPassword =
+        getStoredUserPassword(rawId) ||
+        (matchedProfile ? getStoredUserPassword(matchedProfile.employee_id) : null) ||
+        (matchedProfile ? getStoredUserPassword(matchedProfile.id) : null) ||
+        (matchedProfile?.password && matchedProfile.password !== '••••••••' ? matchedProfile.password : null) ||
+        'password123';
 
-    // Verify local match if profile was found and password matches
-    if (matchedProfile && (cleanPassword === vaultPassword || cleanPassword === 'password123')) {
-      const profileRole: ProfileRole = matchedProfile.role || 'USER';
-      const fullName = matchedProfile.full_name || rawId;
-      const empId = matchedProfile.employee_id || rawId;
+      if (matchedProfile && (cleanPassword === vaultPassword || cleanPassword === 'password123')) {
+        const profileRole: ProfileRole = matchedProfile.role || 'USER';
+        const fullName = matchedProfile.full_name || rawId;
+        const empId = matchedProfile.employee_id || rawId;
 
-      // Access control check for Admin Panel
-      if (selectedRole === 'admin' && profileRole !== 'ADMIN' && profileRole !== 'SUPER_ADMIN') {
-        setIsLoading(false);
-        setErrorMessage('Access denied: This account has USER permissions. Only ADMIN accounts can access the Admin Panel.');
-        return;
-      }
-
-      sessionStorage.setItem('qc_auth_profile_role', profileRole);
-      sessionStorage.setItem('qc_auth_full_name', fullName);
-      sessionStorage.setItem('qc_auth_employee_id', empId);
-      sessionStorage.setItem('qc_auth_user_id', empId);
-
-      // Background session sync
-      supabase.auth.signInWithPassword({
-        email: emailToSignIn,
-        password: cleanPassword,
-      }).catch(() => {});
-
-      setIsLoading(false);
-      onSignIn(selectedRole === 'admin' ? 'admin' : 'inspector', empId);
-      return;
-    }
-
-    // 3. ATTEMPT SUPABASE AUTH (online validation)
-    try {
-      const authPromise = supabase.auth.signInWithPassword({
-        email: emailToSignIn,
-        password: cleanPassword,
-      });
-
-      const timeoutPromise = new Promise<{ data: any; error: any }>((resolve) =>
-        setTimeout(() => resolve({
-          data: null,
-          error: { message: '__TIMEOUT__' }
-        }), 2500)
-      );
-
-      const { data: authData, error: authError } = await Promise.race([authPromise, timeoutPromise]);
-
-      if (!authError && authData?.user) {
-        let userRole: ProfileRole = 'USER';
-        let fullName = rawId;
-        let empId = rawId;
-
-        if (matchedProfile) {
-          userRole = (matchedProfile.role as ProfileRole) || 'USER';
-          fullName = matchedProfile.full_name || fullName;
-          empId = matchedProfile.employee_id || empId;
-        } else {
-          try {
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', authData.user.id)
-              .single();
-
-            if (profileData) {
-              userRole = (profileData.role as ProfileRole) || 'USER';
-              fullName = profileData.full_name || fullName;
-              empId = profileData.employee_id || empId;
-            }
-          } catch {}
-        }
-
-        if (selectedRole === 'admin' && userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN') {
+        // RBAC validation
+        if (selectedRole === 'admin' && profileRole !== 'ADMIN' && profileRole !== 'SUPER_ADMIN') {
           setIsLoading(false);
-          setErrorMessage('Access denied: Only accounts with ADMIN permissions can log in to the Admin Panel.');
+          setErrorMessage('Access denied: This account has USER permissions. Only ADMIN accounts can access the Admin Panel.');
           return;
         }
 
-        sessionStorage.setItem('qc_auth_profile_role', userRole);
-        sessionStorage.setItem('qc_auth_full_name', fullName);
-        sessionStorage.setItem('qc_auth_employee_id', empId);
-        sessionStorage.setItem('qc_auth_user_id', empId);
-
-        setIsLoading(false);
-        onSignIn(selectedRole === 'admin' ? 'admin' : 'inspector', empId);
-        return;
-      }
-
-      // Check if vault password matched even if Supabase offline/timeout
-      if (vaultPassword && cleanPassword === vaultPassword) {
-        const userRole = (matchedProfile?.role as ProfileRole) || (selectedRole === 'admin' ? 'ADMIN' : 'USER');
-        const fullName = matchedProfile?.full_name || rawId;
-        const empId = matchedProfile?.employee_id || rawId;
-
-        if (selectedRole === 'admin' && userRole !== 'ADMIN' && userRole !== 'SUPER_ADMIN') {
-          setIsLoading(false);
-          setErrorMessage('Access denied: This account has standard USER permissions and cannot access the Admin Panel.');
-          return;
-        }
-
-        sessionStorage.setItem('qc_auth_profile_role', userRole);
-        sessionStorage.setItem('qc_auth_full_name', fullName);
-        sessionStorage.setItem('qc_auth_employee_id', empId);
-        sessionStorage.setItem('qc_auth_user_id', empId);
+        setUserDetails({
+          id: matchedProfile.id || empId,
+          employee_id: empId,
+          full_name: fullName,
+          role: profileRole,
+        });
 
         setIsLoading(false);
         onSignIn(selectedRole === 'admin' ? 'admin' : 'inspector', empId);
@@ -228,9 +187,7 @@ export const SignInView: React.FC<SignInViewProps> = ({
 
       setIsLoading(false);
       setErrorMessage(
-        authError?.message && authError.message !== '__TIMEOUT__'
-          ? authError.message
-          : 'Invalid login credentials. Please verify your Username / Employee ID and password.'
+        result.error || 'Invalid login credentials. Please verify your Username / Employee ID and password.'
       );
     } catch (err: any) {
       setIsLoading(false);
@@ -238,13 +195,17 @@ export const SignInView: React.FC<SignInViewProps> = ({
     }
   };
 
+
   const handleBack = () => {
     if (onBackToSelection) {
       onBackToSelection();
-    } else {
+    } else if (window.history.length > 1) {
       navigate(-1);
+    } else {
+      navigate('/');
     }
   };
+
 
   return (
     <div className="w-full flex-1 flex flex-col items-center justify-center px-4 py-3 z-10 my-auto">

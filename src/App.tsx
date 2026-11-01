@@ -27,6 +27,7 @@ import { ModuleInspectionPortal } from './components/ModuleInspectionPortal';
 import { AddRemoveInspectionPortal } from './components/AddRemoveInspectionPortal';
 import { SplashScreen } from './components/SplashScreen';
 import { Toaster } from 'react-hot-toast';
+import { useAuth } from './context/AuthContext';
 
 // Wrapper to extract moduleId and childCardId from URL route parameters
 function ModuleInspectionPortalWrapper(props: {
@@ -47,6 +48,7 @@ function ModuleInspectionPortalWrapper(props: {
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAuthenticated: isAuthLoggedIn, canManageUsers, signOut: authSignOut } = useAuth();
 
   // Splash Screen State (shows on portal launch, auto-hides after 3 seconds)
   const [showSplash, setShowSplash] = useState<boolean>(true);
@@ -63,6 +65,7 @@ export default function App() {
   });
   const [selectedModule, setSelectedModule] = useState<InspectionModule>('in-process');
 
+
   // Application Data States
   const [inspections, setInspections] = useState<InspectionRecord[]>(INITIAL_INSPECTIONS);
   const [specs] = useState(INITIAL_SPECS);
@@ -73,7 +76,7 @@ export default function App() {
   const currentMode: WorkspaceMode = (() => {
     const path = location.pathname;
     if (path === '/' || path === '/workspace-selection') return 'workspace-selection';
-    if (path === '/sign-in') return 'sign-in';
+    if (path.startsWith('/sign-in') || path.startsWith('/login')) return 'sign-in';
     if (path === '/inspection') return 'inspection-dashboard';
     if (path.startsWith('/inspection/incoming')) return 'incoming-inspection';
     if (path.startsWith('/inspection/in-process')) return 'in-process-inspection';
@@ -91,13 +94,13 @@ export default function App() {
   const handleSelectWorkspace = (workspace: 'inspection' | 'admin') => {
     if (workspace === 'admin') {
       // Admin Panel requires authentication; show sign-in page
-      navigate('/sign-in', { state: { role: 'admin', from: '/admin' } });
+      navigate('/sign-in/admin', { state: { role: 'admin', from: '/admin' } });
       return;
     }
 
     const destination = '/inspection';
     if (!isAuthenticated || userRole !== 'inspector') {
-      navigate('/sign-in', { state: { role: 'inspector', from: destination } });
+      navigate('/sign-in/inspection', { state: { role: 'inspector', from: destination } });
       return;
     }
 
@@ -107,8 +110,9 @@ export default function App() {
   // Open dedicated Sign-in Screen
   const handleOpenSignIn = (workspace: 'inspection' | 'admin') => {
     const role: 'inspector' | 'admin' = workspace === 'admin' ? 'admin' : 'inspector';
-    navigate('/sign-in', { state: { role, from: role === 'admin' ? '/admin' : '/inspection' } });
+    navigate(`/sign-in/${role === 'admin' ? 'admin' : 'inspection'}`, { state: { role, from: role === 'admin' ? '/admin' : '/inspection' } });
   };
+
 
   // Handle Successful Sign-In
   const handleSignIn = (role: 'inspector' | 'admin', id: string, redirectTo?: string) => {
@@ -185,6 +189,7 @@ export default function App() {
 
   // Logout - destroys session, returns to home page ('/')
   const handleLogout = () => {
+    authSignOut();
     setIsAuthenticated(false);
     setUserRole(null);
     setUserId('');
@@ -196,6 +201,7 @@ export default function App() {
     sessionStorage.removeItem('qc_auth_employee_id');
     navigate('/');
   };
+
 
   return (
     <div className="min-h-screen text-slate-800 font-sans flex flex-col justify-between selection:bg-blue-500 selection:text-white relative overflow-x-hidden">
@@ -279,12 +285,11 @@ export default function App() {
           />
           <Route path="/workspace-selection" element={<Navigate to="/" replace />} />
 
-          {/* 2. Authentication Screen */}
+          {/* 2. Authentication Screens - Supports direct link shortcuts /sign-in, /sign-in/:mode, /login, /login/:mode */}
           <Route
             path="/sign-in"
             element={
               <SignInView
-                initialRole={(location.state as any)?.role || userRole || 'inspector'}
                 onSignIn={(role, id) =>
                   handleSignIn(role, id, (location.state as any)?.from)
                 }
@@ -292,6 +297,40 @@ export default function App() {
               />
             }
           />
+          <Route
+            path="/sign-in/:mode"
+            element={
+              <SignInView
+                onSignIn={(role, id) =>
+                  handleSignIn(role, id, (location.state as any)?.from)
+                }
+                onBackToSelection={() => navigate(-1)}
+              />
+            }
+          />
+          <Route
+            path="/login"
+            element={
+              <SignInView
+                onSignIn={(role, id) =>
+                  handleSignIn(role, id, (location.state as any)?.from)
+                }
+                onBackToSelection={() => navigate(-1)}
+              />
+            }
+          />
+          <Route
+            path="/login/:mode"
+            element={
+              <SignInView
+                onSignIn={(role, id) =>
+                  handleSignIn(role, id, (location.state as any)?.from)
+                }
+                onBackToSelection={() => navigate(-1)}
+              />
+            }
+          />
+
 
           {/* 3. Inspection Dashboard */}
           <Route
@@ -455,7 +494,7 @@ export default function App() {
           <Route
             path="/admin/records"
             element={
-              !isAuthenticated || userRole !== 'admin' ? (
+              (!isAuthenticated && !isAuthLoggedIn) || userRole !== 'admin' ? (
                 <Navigate to="/sign-in" replace state={{ role: 'admin', from: '/admin/records' }} />
               ) : (
                 <AdminSubviews
@@ -472,7 +511,7 @@ export default function App() {
           <Route
             path="/admin/analytics"
             element={
-              !isAuthenticated || userRole !== 'admin' ? (
+              (!isAuthenticated && !isAuthLoggedIn) || userRole !== 'admin' ? (
                 <Navigate to="/sign-in" replace state={{ role: 'admin', from: '/admin/analytics' }} />
               ) : (
                 <AdminSubviews
@@ -489,8 +528,10 @@ export default function App() {
           <Route
             path="/admin/users"
             element={
-              !isAuthenticated || userRole !== 'admin' ? (
+              (!isAuthenticated && !isAuthLoggedIn) || userRole !== 'admin' ? (
                 <Navigate to="/sign-in" replace state={{ role: 'admin', from: '/admin/users' }} />
+              ) : !canManageUsers ? (
+                <Navigate to="/admin" replace />
               ) : (
                 <AdminSubviews
                   activeView="admin-users"
@@ -503,6 +544,7 @@ export default function App() {
               )
             }
           />
+
 
           {/* Catch-all Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

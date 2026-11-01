@@ -36,6 +36,7 @@ import {
   deleteProfileUser,
   getStoredUserPassword
 } from '../backend/adminUserService';
+import { useAuth } from '../context/AuthContext';
 
 interface UserManagementProps {
   onBack: () => void;
@@ -46,15 +47,25 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   onBack, 
   currentUserRole: propRole 
 }) => {
+  const { role: authRole } = useAuth();
+
   // Current logged in user's profile role (SUPER_ADMIN or ADMIN)
   const [currentUserRole, setCurrentUserRole] = useState<ProfileRole>(() => {
     if (propRole) return propRole;
+    if (authRole) return authRole;
     const sessionRole = sessionStorage.getItem('qc_auth_profile_role') as ProfileRole | null;
     if (sessionRole === 'SUPER_ADMIN' || sessionRole === 'ADMIN' || sessionRole === 'USER') {
       return sessionRole;
     }
     return 'SUPER_ADMIN'; // Default to SUPER_ADMIN if unspecified
   });
+
+  useEffect(() => {
+    if (authRole) {
+      setCurrentUserRole(authRole);
+    }
+  }, [authRole]);
+
 
   // State: profiles from Supabase / adminUserService
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
@@ -324,7 +335,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             Logged In Admin:
           </span>
           <span className="font-bold text-xs text-slate-900 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200 flex items-center gap-1.5">
-            <span>{sessionStorage.getItem('qc_auth_full_name') || sessionStorage.getItem('qc_auth_employee_id') || 'System Admin'}</span>
+            <span>{sessionStorage.getItem('qc_auth_full_name') || sessionStorage.getItem('qc_auth_employee_id') || 'Admin'}</span>
             <span className="text-slate-400 font-mono text-[11px]">({sessionStorage.getItem('qc_auth_employee_id') || 'admin'})</span>
           </span>
         </div>

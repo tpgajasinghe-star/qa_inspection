@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Wifi, LogOut, RefreshCw, UserCheck, Shield, Sparkles } from 'lucide-react';
 import { WorkspaceMode } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 interface PortalHeaderProps {
   currentMode: WorkspaceMode;
@@ -24,7 +25,11 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { fullName, employeeId, role: authRole, isSuperAdmin, signOut: authSignOut } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
+
+  const effectiveName = fullName || sessionStorage.getItem('qc_auth_full_name') || userId || (userRole === 'admin' ? 'Admin' : 'Inspector');
+  const effectiveEmpId = employeeId || sessionStorage.getItem('qc_auth_employee_id') || userId || (userRole === 'admin' ? 'admin' : 'inspector');
 
   const isRoot = location.pathname === '/' || location.pathname === '/workspace-selection';
 
@@ -37,13 +42,18 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
     if (p.startsWith('/inspection/live')) return 'Back to Inspection Modules';
     if (p.startsWith('/admin/') && p !== '/admin') return 'Back to QA Admin Dashboard';
     if (p === '/inspection' || p === '/admin') return 'Back to Workspace Selection';
-    if (p === '/sign-in') return 'Back to Workspace Selection';
+    if (p.startsWith('/sign-in') || p.startsWith('/login')) return 'Back to Workspace Selection';
     return 'Back';
   };
 
   const handleBackClick = () => {
-    navigate(-1);
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/');
+    }
   };
+
 
   return (
     <header className="w-full flex items-center justify-between py-2 sm:py-2.5 px-3 sm:px-5 select-none relative z-30 shrink-0">
@@ -104,14 +114,14 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
                 <span className="hidden sm:inline">
                   {userRole === 'admin' ? 'Admin: ' : 'Inspector: '}
                   <strong className="font-semibold text-slate-900">
-                    {sessionStorage.getItem('qc_auth_full_name') || userId}
+                    {effectiveName}
                   </strong>
-                  {userId && (
-                    <span className="text-slate-400 font-mono text-[11px] font-normal ml-1">({userId})</span>
+                  {effectiveEmpId && (
+                    <span className="text-slate-400 font-mono text-[11px] font-normal ml-1">({effectiveEmpId})</span>
                   )}
                 </span>
                 <span className="sm:hidden font-semibold text-slate-900">
-                  {sessionStorage.getItem('qc_auth_full_name') || userId}
+                  {effectiveName}
                 </span>
               </button>
 
@@ -125,18 +135,19 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
                   <div className="absolute right-0 mt-2 w-56 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/80 p-2 z-50 text-xs text-slate-700 animate-in fade-in zoom-in-95 duration-150">
                     <div className="px-3 py-2 border-b border-slate-100">
                       <p className="font-bold text-slate-900">
-                        {sessionStorage.getItem('qc_auth_full_name') || (userRole === 'admin' ? 'System Admin' : 'Marcus Vance')}
+                        {effectiveName}
                       </p>
                       <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                        ID: <strong className="font-mono text-slate-800">{sessionStorage.getItem('qc_auth_employee_id') || userId}</strong>
+                        ID: <strong className="font-mono text-slate-800">{effectiveEmpId}</strong>
                       </p>
                       <p className="text-[11px] text-slate-500 font-semibold flex items-center gap-1.5 mt-0.5">
                         <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                         <span>
-                          {sessionStorage.getItem('qc_auth_profile_role') === 'SUPER_ADMIN' ? 'ADMIN' : (sessionStorage.getItem('qc_auth_profile_role') || (userRole === 'admin' ? 'ADMIN' : 'USER'))}
+                          {isSuperAdmin || authRole === 'SUPER_ADMIN' || authRole === 'ADMIN' || userRole === 'admin' ? 'ADMIN' : 'USER'}
                         </span>
                       </p>
                     </div>
+
 
                     <div className="py-1">
                       <button

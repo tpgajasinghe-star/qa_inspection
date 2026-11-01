@@ -1,4 +1,4 @@
-import { supabaseAdmin } from './supabase';
+import { supabase, supabaseAdmin } from './supabase';
 import { UserProfile, ProfileRole } from '../types';
 
 // Real database-driven profiles storage key
@@ -98,10 +98,10 @@ export async function seedSuperAdmin(): Promise<{
   const targetEmail = 'admin@abc.com';
   const targetPassword = 'admingamana';
   const targetEmployeeId = 'admin';
-  const targetFullName = 'System Admin';
+  const targetFullName = 'Admin';
   const targetRole: ProfileRole = 'SUPER_ADMIN';
 
-  console.log('[adminUserService:seedSuperAdmin] Verifying Super Admin in database...');
+  console.log('[adminUserService:seedSuperAdmin] Verifying Admin in database...');
 
   try {
     let authUser: any = null;
@@ -113,13 +113,13 @@ export async function seedSuperAdmin(): Promise<{
     } else if (listData && Array.isArray((listData as any).users)) {
       authUser = (listData as any).users.find((u: any) => u.email?.toLowerCase() === targetEmail.toLowerCase());
       if (authUser) {
-        console.log('[adminUserService:seedSuperAdmin] Super Admin exists in Auth with ID:', authUser.id);
+        console.log('[adminUserService:seedSuperAdmin] Admin exists in Auth with ID:', authUser.id);
       }
     }
 
     // 2. If not found in Auth, create it using supabaseAdmin.auth.admin.createUser
     if (!authUser) {
-      console.log('[adminUserService:seedSuperAdmin] Seeding Super Admin into Auth:', targetEmail);
+      console.log('[adminUserService:seedSuperAdmin] Seeding Admin into Auth:', targetEmail);
       const { data: createData, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email: targetEmail,
         password: targetPassword,
@@ -134,34 +134,36 @@ export async function seedSuperAdmin(): Promise<{
 
       if (createError) {
         console.error('[adminUserService:seedSuperAdmin] Auth creation failed:', createError.message);
-        throw new Error(`Failed to create Super Admin in Auth: ${createError.message}`);
+        throw new Error(`Failed to create Admin in Auth: ${createError.message}`);
       }
 
       authUser = createData?.user;
     }
 
     if (!authUser || !authUser.id) {
-      throw new Error('Super Admin Auth record could not be found or created.');
+      throw new Error('Admin Auth record could not be found or created.');
     }
 
-    // 3. Insert or Upsert record into the profiles table using supabaseAdmin (bypassing RLS)
-    const { data: profileData, error: profileError } = await supabaseAdmin
+    // 3. Only insert if profile does not exist yet (never overwrite existing full_name)
+    const { data: existingProfile } = await supabaseAdmin
       .from('profiles')
-      .upsert(
-        {
+      .select('*')
+      .eq('id', authUser.id)
+      .maybeSingle();
+
+    if (!existingProfile) {
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .insert({
           id: authUser.id,
           employee_id: targetEmployeeId,
           full_name: targetFullName,
           role: targetRole,
-        },
-        { onConflict: 'id' }
-      )
-      .select()
-      .single();
+        });
 
-    if (profileError) {
-      console.error('[adminUserService:seedSuperAdmin] Error upserting into profiles table:', profileError.message);
-      throw new Error(`Failed to upsert Super Admin profile: ${profileError.message}`);
+      if (profileError) {
+        console.error('[adminUserService:seedSuperAdmin] Error inserting admin profile:', profileError.message);
+      }
     }
 
     console.log('[adminUserService:seedSuperAdmin] Super Admin profile verified in database.');
@@ -169,7 +171,7 @@ export async function seedSuperAdmin(): Promise<{
     return {
       success: true,
       message: 'Super Admin profile successfully connected and synced with Supabase!',
-      user: profileData,
+      user: existingProfile || authUser,
     };
   } catch (error: any) {
     console.error('[adminUserService:seedSuperAdmin] Fatal error during Super Admin seeding:', error);
@@ -192,16 +194,28 @@ export async function seedSuperAdmin(): Promise<{
 export async function fetchProfiles(currentUserRole: ProfileRole): Promise<UserProfile[]> {
   console.log('[adminUserService:fetchProfiles] Querying real database profiles for active role:', currentUserRole);
   try {
-    // 1. Fetch all profiles from Supabase database
-    const { data: rawProfiles, error: dbError } = await supabaseAdmin
+    // 1. Fetch all profiles from Supabase database using standard client (anon key) with admin fallback
+    let rawProfiles: any[] | null = null;
+    const { data: stdProfiles, error: stdError } = await supabase
       .from('profiles')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (dbError) {
-      console.error('[adminUserService:fetchProfiles] Error querying profiles table:', dbError.message);
-      throw dbError;
+    if (!stdError && stdProfiles) {
+      rawProfiles = stdProfiles;
+    } else {
+      const { data: adminProfiles, error: dbError } = await supabaseAdmin
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (dbError) {
+        console.error('[adminUserService:fetchProfiles] Error querying profiles table:', dbError.message);
+        throw dbError;
+      }
+      rawProfiles = adminProfiles;
     }
+
 
     const dbProfiles: any[] = Array.isArray(rawProfiles) ? [...rawProfiles] : [];
 
