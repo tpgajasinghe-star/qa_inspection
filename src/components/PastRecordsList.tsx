@@ -34,6 +34,11 @@ import {
   InspectionRecordResponse 
 } from '../backend/inspectionService';
 import { fetchItems, DbItem, lookupDatabaseItem, SEED_FACTORY_ITEMS } from '../backend/itemService';
+import { 
+  INITIAL_DEFAULT_DEPLOYED_FORMS, 
+  LOCAL_STORAGE_DEPLOYED_FORMS_KEY, 
+  DeployedInspectionForm 
+} from '../deployedFormsData';
 import toast from 'react-hot-toast';
 
 export interface PastRecordsListProps {
@@ -173,6 +178,51 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
   const [fullRecordData, setFullRecordData] = useState<InspectionRecordResponse | null>(null);
   const [isLoadingFullRecord, setIsLoadingFullRecord] = useState<boolean>(false);
   const [fullRecordError, setFullRecordError] = useState<string | null>(null);
+
+  // Resolve Deployed Form Schema for section blocks rendering
+  const formSchema: DeployedInspectionForm = useMemo(() => {
+    let deployedForms = INITIAL_DEFAULT_DEPLOYED_FORMS;
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(LOCAL_STORAGE_DEPLOYED_FORMS_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            deployedForms = [...parsed, ...INITIAL_DEFAULT_DEPLOYED_FORMS];
+          }
+        }
+      } catch (e) {
+        console.warn('Error reading deployed forms cache:', e);
+      }
+    }
+
+    if (!fullRecordData) return deployedForms[0];
+
+    const formId = fullRecordData.form_data?.formId;
+    const childName = (fullRecordData.form_data?.hierarchy?.childCardName || categoryName || '').toLowerCase().trim();
+    const productType = (fullRecordData.form_data?.documentHeader?.productType || fullRecordData.form_data?.auditMetadata?.productDescription || '').toLowerCase().trim();
+
+    if (formId) {
+      const match = deployedForms.find(f => f.id === formId || f.sourceFormId === formId);
+      if (match) return match;
+    }
+    if (childName) {
+      const match = deployedForms.find(f => 
+        f.targetChildCardName.toLowerCase().includes(childName) ||
+        childName.includes(f.targetChildCardName.toLowerCase())
+      );
+      if (match) return match;
+    }
+    if (productType) {
+      const match = deployedForms.find(f => 
+        f.productType.toLowerCase().includes(productType) ||
+        productType.includes(f.productType.toLowerCase())
+      );
+      if (match) return match;
+    }
+
+    return deployedForms[0];
+  }, [fullRecordData, categoryName]);
 
   // 3. Load Items from database for rich item code mapping
   useEffect(() => {
@@ -715,68 +765,256 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
                 </div>
               </div>
 
-              {/* MEASUREMENTS & CHECKPOINTS TABLE GRID (Read-Only) */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>Recorded Parameters, Measurements &amp; Tolerance Checks</span>
-                  </h3>
-                  <span className="text-xs text-slate-400 font-mono">
-                    Non-Editable Certified Snapshot
-                  </span>
-                </div>
+              {/* DYNAMIC SECTIONS & TABLE GRIDS (READ-ONLY SECTION BLOCKS) */}
+              <div className="space-y-6">
+                {formSchema.sections.map((section, sIdx) => {
+                  const tableEl = section.elements?.find(el => el.tableConfig);
+                  const nonTableEls = section.elements?.filter(el => !el.tableConfig) || [];
 
-                {fullRecordData.form_data?.cellValues && Object.keys(fullRecordData.form_data.cellValues).length > 0 ? (
-                  <div className="rounded-2xl border border-slate-200 overflow-hidden shadow-2xs">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-100 text-[11px] font-bold text-slate-600 uppercase border-b border-slate-200">
-                        <tr>
-                          <th className="py-3 px-4 w-12 text-center">#</th>
-                          <th className="py-3 px-4">Inspection Parameter / Checkpoint</th>
-                          <th className="py-3 px-4">Recorded Reading / Observation</th>
-                          <th className="py-3 px-4 text-right">QA Assessment</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 bg-white">
-                        {Object.entries(fullRecordData.form_data.cellValues).map(([key, val], idx) => {
-                          const strVal = String(val);
-                          const isPass = strVal.toLowerCase().includes('pass') || strVal.toLowerCase().includes('conforming');
-                          const isFail = strVal.toLowerCase().includes('fail') || strVal.toLowerCase().includes('reject');
+                  return (
+                    <div 
+                      key={section.id || sIdx}
+                      className="rounded-2xl border border-slate-200 bg-white shadow-2xs overflow-hidden"
+                    >
+                      {/* Section Title Header */}
+                      <div className="bg-slate-100/90 px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
+                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-lg bg-blue-600 text-white text-[11px] flex items-center justify-center font-bold">
+                            {section.sectionNumber || sIdx + 1}
+                          </span>
+                          <span>{section.title.replace(/DIGITAL FACTORY\s*/i, '')}</span>
+                        </h4>
+                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700 uppercase tracking-wide font-mono">
+                          Verified Section Block
+                        </span>
+                      </div>
 
-                          return (
-                            <tr key={key} className="hover:bg-slate-50 transition-colors">
-                              <td className="py-3 px-4 text-center font-mono text-slate-400 text-[11px]">
-                                {idx + 1}
-                              </td>
-                              <td className="py-3 px-4 font-bold text-slate-800">
-                                {key.replace(/sec-\d+-row-/, 'Parameter ').replace(/-col-/, ' • Point ')}
-                              </td>
-                              <td className="py-3 px-4 font-mono font-bold text-slate-900">
-                                {strVal || 'Conforming'}
-                              </td>
-                              <td className="py-3 px-4 text-right">
-                                {isFail ? (
-                                  <span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-800 font-extrabold text-[10px] uppercase border border-rose-200">
-                                    FAIL
-                                  </span>
-                                ) : (
-                                  <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-[10px] uppercase border border-emerald-200">
-                                    PASS
-                                  </span>
-                                )}
-                              </td>
+                      {/* Non-Table Elements (Inspection Log metadata fields like Inspection Date, Item Code, Batch No) */}
+                      {nonTableEls.length > 0 && (
+                        <div className={`p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 ${nonTableEls.length >= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4 border-b border-slate-100 bg-slate-50/50`}>
+                          {nonTableEls.map(el => {
+                            const val = 
+                              fullRecordData.form_data?.fieldValues?.[el.id] ||
+                              (el.id === 'el-item-code' ? fullRecordData.item_code :
+                               el.id === 'el-desc' ? (fullRecordData.form_data?.auditMetadata?.productDescription || fullRecordData.form_data?.documentHeader?.productType) :
+                               el.id === 'el-batch' ? fullRecordData.form_data?.auditMetadata?.batchId :
+                               el.id === 'el-date' ? (fullRecordData.form_data?.auditMetadata?.auditDate || fullRecordData.created_at?.slice(0, 10)) :
+                               '');
+
+                            return (
+                              <div key={el.id} className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                                  {el.name}
+                                </span>
+                                <span className="font-mono font-bold text-slate-900 text-xs sm:text-sm block truncate">
+                                  {val || 'N/A'}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Table Grid (Group Headers, Parameters, Time / Interval Columns, and Specifications) */}
+                      {tableEl && tableEl.tableConfig && (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs border-collapse">
+                            <thead>
+                              <tr className="bg-slate-200/80 text-slate-800 font-bold border-b border-slate-300">
+                                {tableEl.tableConfig.columns.map(col => {
+                                  const timeKey = `${section.id}-${col.id}`;
+                                  const recordedTime = 
+                                    fullRecordData.form_data?.columnTimeHeaders?.[timeKey] || 
+                                    col.defaultHeaderTime;
+                                  const isTimeCol = col.hasTimeHeader || /time|interval|shift/i.test(col.header);
+
+                                  return (
+                                    <th 
+                                      key={col.id} 
+                                      className="px-3.5 py-3 text-center first:text-left last:text-left border-r border-slate-300/80 last:border-r-0"
+                                      style={{ width: col.width }}
+                                    >
+                                      <div>
+                                        <span className="block text-[11px] uppercase tracking-wider">{col.header}</span>
+                                        {isTimeCol && recordedTime && (
+                                          <div className="mt-1 inline-flex items-center justify-center gap-1 bg-white border border-slate-300 rounded-md px-2 py-0.5 text-[10px] font-mono font-bold text-blue-700 shadow-2xs">
+                                            <Clock className="w-3 h-3 text-blue-600" />
+                                            <span>{recordedTime}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </th>
+                                  );
+                                })}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200 bg-white">
+                              {tableEl.tableConfig.rows.map(row => {
+                                if (row.isGroupHeader) {
+                                  return (
+                                    <tr key={row.id} className="bg-slate-100 font-bold text-slate-800">
+                                      <td 
+                                        colSpan={tableEl.tableConfig?.columns.length} 
+                                        className="px-4 py-2.5 text-xs uppercase tracking-wider font-extrabold text-blue-900 bg-blue-50/70 border-y border-blue-200"
+                                      >
+                                        {row.groupTitle || 'Group Section'}
+                                      </td>
+                                    </tr>
+                                  );
+                                }
+
+                                return (
+                                  <tr key={row.id} className="hover:bg-slate-50 transition-colors">
+                                    {tableEl.tableConfig?.columns.map(col => {
+                                      const cellKey = `${section.id}-${row.id}-${col.id}`;
+                                      const isParamCol = col.id === 'col-param' || col.id === 'col-fi-param' || /parameter/i.test(col.header);
+                                      const isMicCol = col.id === 'col-mic' || col.id === 'col-fi-mic' || /mic/i.test(col.header);
+                                      const isSpecCol = col.id === 'col-specs' || col.id === 'col-fi-specs' || /specification/i.test(col.header);
+
+                                      // MIC NO column
+                                      if (isMicCol) {
+                                        return (
+                                          <td key={col.id} className="px-3.5 py-2.5 font-mono text-[11px] font-bold text-slate-600 border-r border-slate-200/80">
+                                            {row.cells[col.id] || '-'}
+                                          </td>
+                                        );
+                                      }
+
+                                      // Parameter column (with unit tag if specified)
+                                      if (isParamCol) {
+                                        return (
+                                          <td key={col.id} className="px-3.5 py-2.5 font-bold text-slate-900 text-xs border-r border-slate-200/80">
+                                            <div className="flex items-center justify-between">
+                                              <span>{row.cells[col.id] || '-'}</span>
+                                              {row.unit && (
+                                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 font-bold ml-1">
+                                                  {row.unit}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </td>
+                                        );
+                                      }
+
+                                      // Specifications column
+                                      if (isSpecCol) {
+                                        return (
+                                          <td key={col.id} className="px-3.5 py-2.5 text-slate-600 text-[11px] leading-relaxed border-r border-slate-200/80">
+                                            {row.cells[col.id] || '-'}
+                                          </td>
+                                        );
+                                      }
+
+                                      // Reading / Assessment cell (Read-Only)
+                                      const recordedVal = 
+                                        fullRecordData.form_data?.cellValues?.[cellKey] || 
+                                        fullRecordData.form_data?.cellValues?.[`${row.id}-${col.id}`] ||
+                                        row.cells[col.id] || 
+                                        '';
+                                      const strVal = String(recordedVal || '').trim();
+                                      const isPass = strVal.toLowerCase().includes('pass') || strVal.toLowerCase().includes('conforming');
+                                      const isFail = strVal.toLowerCase().includes('fail') || strVal.toLowerCase().includes('reject');
+
+                                      return (
+                                        <td key={col.id} className="px-2.5 py-2.5 text-center border-r border-slate-200/80">
+                                          {isPass ? (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-[10px] uppercase border border-emerald-300 shadow-2xs">
+                                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                              <span>Pass</span>
+                                            </span>
+                                          ) : isFail ? (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 font-extrabold text-[10px] uppercase border border-rose-300 shadow-2xs">
+                                              <XCircle className="w-3 h-3 text-rose-600" />
+                                              <span>Fail</span>
+                                            </span>
+                                          ) : strVal && strVal !== '--Select--' ? (
+                                            <span className="font-mono font-bold text-xs text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                              {strVal}
+                                            </span>
+                                          ) : (
+                                            <span className="text-slate-300 text-xs font-mono">-</span>
+                                          )}
+                                        </td>
+                                      );
+                                    })}
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Extra Checkpoints Block if any outside standard template */}
+                {(() => {
+                  const cellValues = fullRecordData.form_data?.cellValues || {};
+                  const standardKeys = new Set<string>();
+                  formSchema.sections.forEach(sec => {
+                    sec.elements?.forEach(el => {
+                      el.tableConfig?.rows?.forEach(r => {
+                        el.tableConfig?.columns?.forEach(c => {
+                          standardKeys.add(`${sec.id}-${r.id}-${c.id}`);
+                          standardKeys.add(`${r.id}-${c.id}`);
+                        });
+                      });
+                    });
+                  });
+
+                  const extraEntries = Object.entries(cellValues).filter(([k]) => !standardKeys.has(k));
+                  if (extraEntries.length === 0) return null;
+
+                  return (
+                    <div className="rounded-2xl border border-slate-200 bg-white shadow-2xs overflow-hidden">
+                      <div className="bg-slate-100/90 px-5 py-3 border-b border-slate-200 flex items-center justify-between">
+                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white text-[11px] flex items-center justify-center font-bold">
+                            +
+                          </span>
+                          <span>Additional Recorded Parameters &amp; Checkpoints</span>
+                        </h4>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 uppercase tracking-wide">
+                          {extraEntries.length} Checkpoints
+                        </span>
+                      </div>
+                      <div className="p-4 overflow-x-auto">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead>
+                            <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-[11px] uppercase">
+                              <th className="py-2.5 px-4">Parameter / Checkpoint</th>
+                              <th className="py-2.5 px-4">Recorded Reading</th>
+                              <th className="py-2.5 px-4 text-right">Assessment</th>
                             </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="p-6 rounded-2xl bg-slate-50 border border-dashed border-slate-300 text-center text-xs text-slate-500">
-                    Standard electrical &amp; dimensional inspections verified conforming to SLS 734 parameters.
-                  </div>
-                )}
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {extraEntries.map(([k, v]) => {
+                              const strVal = String(v);
+                              const isPass = strVal.toLowerCase().includes('pass') || strVal.toLowerCase().includes('conforming');
+                              const isFail = strVal.toLowerCase().includes('fail') || strVal.toLowerCase().includes('reject');
+                              return (
+                                <tr key={k} className="hover:bg-slate-50">
+                                  <td className="py-2 px-4 font-mono text-slate-700">{k.replace(/sec-\d+-row-/, 'Parameter ').replace(/-col-/, ' • Point ')}</td>
+                                  <td className="py-2 px-4 font-bold text-slate-900">{strVal || 'Recorded'}</td>
+                                  <td className="py-2 px-4 text-right">
+                                    {isPass ? (
+                                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">PASS</span>
+                                    ) : isFail ? (
+                                      <span className="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px]">FAIL</span>
+                                    ) : (
+                                      <span className="font-mono text-xs">{strVal}</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* REMARKS & OBSERVATIONS (Read-Only) */}
