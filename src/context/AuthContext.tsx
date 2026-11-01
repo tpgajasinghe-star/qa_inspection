@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../backend/supabase';
 import { ProfileRole, UserProfile } from '../types';
+import { FullScreenAuthLoading } from '../components/ProtectedRoute';
 
 export interface AuthContextType {
   user: User | null;
@@ -11,6 +13,7 @@ export interface AuthContextType {
   employeeId: string;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isInitializing: boolean;
   isSuperAdmin: boolean;
   isAdmin: boolean;
   isUser: boolean;
@@ -38,6 +41,7 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [role, setRole] = useState<ProfileRole | null>(() => {
@@ -53,6 +57,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return sessionStorage.getItem('qc_auth_logged_in') === 'true';
   });
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isInitializing, setIsInitializing] = useState<boolean>(true);
+
 
   // Helper to persist auth details to sessionStorage for smooth navigation and reloads
   const persistSession = useCallback((
@@ -204,7 +210,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } catch (e) {
         console.warn('[AuthContext] Session restore check encountered issue:', e);
       } finally {
-        if (isMounted) setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+          setIsInitializing(false);
+        }
       }
     }
 
@@ -227,6 +236,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         sessionStorage.removeItem('qc_auth_profile_role');
         sessionStorage.removeItem('qc_auth_full_name');
         sessionStorage.removeItem('qc_auth_employee_id');
+
+        // Cleanly redirect to login screen on session expiry
+        navigate('/login');
       } else if (newSession?.user) {
         setUser(newSession.user);
         const loadedProfile = await fetchProfileFromDatabase(newSession.user.id);
@@ -241,6 +253,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
     });
+
 
     return () => {
       isMounted = false;
@@ -404,7 +417,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     sessionStorage.removeItem('qc_auth_profile_role');
     sessionStorage.removeItem('qc_auth_full_name');
     sessionStorage.removeItem('qc_auth_employee_id');
-  }, []);
+    navigate('/login');
+  }, [navigate]);
 
   // Derived RBAC permission flags
   const isSuperAdmin = role === 'SUPER_ADMIN';
@@ -422,6 +436,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         employeeId,
         isAuthenticated,
         isLoading,
+        isInitializing,
         isSuperAdmin,
         isAdmin,
         isUser,
@@ -432,10 +447,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUserDetails,
       }}
     >
-      {children}
+      {isInitializing ? <FullScreenAuthLoading /> : children}
     </AuthContext.Provider>
   );
 };
+
 
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);

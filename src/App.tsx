@@ -28,6 +28,8 @@ import { AddRemoveInspectionPortal } from './components/AddRemoveInspectionPorta
 import { SplashScreen } from './components/SplashScreen';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
+import { ProtectedRoute, PublicAuthRoute } from './components/ProtectedRoute';
+
 
 // Wrapper to extract moduleId and childCardId from URL route parameters
 function ModuleInspectionPortalWrapper(props: {
@@ -48,13 +50,21 @@ function ModuleInspectionPortalWrapper(props: {
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated: isAuthLoggedIn, canManageUsers, signOut: authSignOut } = useAuth();
+  const { 
+    isAuthenticated: isAuthLoggedIn, 
+    role: authProfileRole, 
+    canManageUsers, 
+    employeeId, 
+    signOut: authSignOut 
+  } = useAuth();
 
   // Splash Screen State (shows on portal launch, auto-hides after 3 seconds)
   const [showSplash, setShowSplash] = useState<boolean>(true);
 
+
   // Authentication State persisted in sessionStorage for seamless browser back/forward navigation
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+
     return sessionStorage.getItem('qc_auth_logged_in') === 'true';
   });
   const [userRole, setUserRole] = useState<'inspector' | 'admin' | null>(() => {
@@ -63,7 +73,9 @@ export default function App() {
   const [userId, setUserId] = useState<string>(() => {
     return sessionStorage.getItem('qc_auth_user_id') || '';
   });
+  const effectiveUserId = employeeId || userId;
   const [selectedModule, setSelectedModule] = useState<InspectionModule>('in-process');
+
 
 
   // Application Data States
@@ -285,181 +297,202 @@ export default function App() {
           />
           <Route path="/workspace-selection" element={<Navigate to="/" replace />} />
 
-          {/* 2. Authentication Screens - Supports direct link shortcuts /sign-in, /sign-in/:mode, /login, /login/:mode */}
-          <Route
-            path="/sign-in"
-            element={
-              <SignInView
-                onSignIn={(role, id) =>
-                  handleSignIn(role, id, (location.state as any)?.from)
-                }
-                onBackToSelection={() => navigate(-1)}
-              />
-            }
-          />
-          <Route
-            path="/sign-in/:mode"
-            element={
-              <SignInView
-                onSignIn={(role, id) =>
-                  handleSignIn(role, id, (location.state as any)?.from)
-                }
-                onBackToSelection={() => navigate(-1)}
-              />
-            }
-          />
+          {/* 2. Authentication Screens - Public-only route: if already authenticated, redirects to respective dashboard */}
           <Route
             path="/login"
             element={
-              <SignInView
-                onSignIn={(role, id) =>
-                  handleSignIn(role, id, (location.state as any)?.from)
-                }
-                onBackToSelection={() => navigate(-1)}
-              />
+              <PublicAuthRoute>
+                <SignInView
+                  onSignIn={(role, id) =>
+                    handleSignIn(role, id, (location.state as any)?.from)
+                  }
+                  onBackToSelection={() => navigate(-1)}
+                />
+              </PublicAuthRoute>
             }
           />
           <Route
             path="/login/:mode"
             element={
-              <SignInView
-                onSignIn={(role, id) =>
-                  handleSignIn(role, id, (location.state as any)?.from)
-                }
-                onBackToSelection={() => navigate(-1)}
-              />
+              <PublicAuthRoute>
+                <SignInView
+                  onSignIn={(role, id) =>
+                    handleSignIn(role, id, (location.state as any)?.from)
+                  }
+                  onBackToSelection={() => navigate(-1)}
+                />
+              </PublicAuthRoute>
+            }
+          />
+          <Route
+            path="/sign-in"
+            element={
+              <PublicAuthRoute>
+                <SignInView
+                  onSignIn={(role, id) =>
+                    handleSignIn(role, id, (location.state as any)?.from)
+                  }
+                  onBackToSelection={() => navigate(-1)}
+                />
+              </PublicAuthRoute>
+            }
+          />
+          <Route
+            path="/sign-in/:mode"
+            element={
+              <PublicAuthRoute>
+                <SignInView
+                  onSignIn={(role, id) =>
+                    handleSignIn(role, id, (location.state as any)?.from)
+                  }
+                  onBackToSelection={() => navigate(-1)}
+                />
+              </PublicAuthRoute>
             }
           />
 
-
-          {/* 3. Inspection Dashboard */}
+          {/* 3. Inspection Dashboard - Protected: Unauthenticated users are redirected to /login */}
           <Route
             path="/inspection"
             element={
-              <InspectionDashboard
-                onSelectModule={handleStartInspectionModule}
-              />
+              <ProtectedRoute>
+                <InspectionDashboard
+                  onSelectModule={handleStartInspectionModule}
+                />
+              </ProtectedRoute>
             }
           />
 
-          {/* 4. Incoming Inspection Portal (Categories & Child Card View) */}
+          {/* 4. Incoming Inspection Portal (Categories & Child Card View) - Protected */}
           <Route
             path="/inspection/incoming"
             element={
-              <IncomingInspectionPortal
-                onBack={() => navigate(-1)}
-                onOpenLiveInspection={() => {
-                  setSelectedModule('incoming');
-                  navigate('/inspection/live');
-                }}
-                onAddInspectionRecord={handleAddInspection}
-                userId={userId}
-                inspections={inspections}
-              />
+              <ProtectedRoute>
+                <IncomingInspectionPortal
+                  onBack={() => navigate(-1)}
+                  onOpenLiveInspection={() => {
+                    setSelectedModule('incoming');
+                    navigate('/inspection/live');
+                  }}
+                  onAddInspectionRecord={handleAddInspection}
+                  userId={effectiveUserId}
+                  inspections={inspections}
+                />
+              </ProtectedRoute>
             }
           />
           <Route
             path="/inspection/incoming/:childCardId"
             element={
-              <IncomingInspectionPortal
-                onBack={() => navigate(-1)}
-                onOpenLiveInspection={() => {
-                  setSelectedModule('incoming');
-                  navigate('/inspection/live');
-                }}
-                onAddInspectionRecord={handleAddInspection}
-                userId={userId}
-                inspections={inspections}
-              />
+              <ProtectedRoute>
+                <IncomingInspectionPortal
+                  onBack={() => navigate(-1)}
+                  onOpenLiveInspection={() => {
+                    setSelectedModule('incoming');
+                    navigate('/inspection/live');
+                  }}
+                  onAddInspectionRecord={handleAddInspection}
+                  userId={effectiveUserId}
+                  inspections={inspections}
+                />
+              </ProtectedRoute>
             }
           />
 
-          {/* 5. In-Process Inspection Portal (Categories & Child Card View) */}
+          {/* 5. In-Process Inspection Portal (Categories & Child Card View) - Protected */}
           <Route
             path="/inspection/in-process"
             element={
-              <InProcessInspectionPortal
-                onBack={() => navigate(-1)}
-                onOpenLiveInspection={() => {
-                  setSelectedModule('in-process');
-                  navigate('/inspection/live');
-                }}
-                onAddInspectionRecord={handleAddInspection}
-                userId={userId}
-                inspections={inspections}
-              />
+              <ProtectedRoute>
+                <InProcessInspectionPortal
+                  onBack={() => navigate(-1)}
+                  onOpenLiveInspection={() => {
+                    setSelectedModule('in-process');
+                    navigate('/inspection/live');
+                  }}
+                  onAddInspectionRecord={handleAddInspection}
+                  userId={effectiveUserId}
+                  inspections={inspections}
+                />
+              </ProtectedRoute>
             }
           />
           <Route
             path="/inspection/in-process/:childCardId"
             element={
-              <InProcessInspectionPortal
-                onBack={() => navigate(-1)}
-                onOpenLiveInspection={() => {
-                  setSelectedModule('in-process');
-                  navigate('/inspection/live');
-                }}
-                onAddInspectionRecord={handleAddInspection}
-                userId={userId}
-                inspections={inspections}
-              />
+              <ProtectedRoute>
+                <InProcessInspectionPortal
+                  onBack={() => navigate(-1)}
+                  onOpenLiveInspection={() => {
+                    setSelectedModule('in-process');
+                    navigate('/inspection/live');
+                  }}
+                  onAddInspectionRecord={handleAddInspection}
+                  userId={effectiveUserId}
+                  inspections={inspections}
+                />
+              </ProtectedRoute>
             }
           />
 
-          {/* 6. Dynamic Module Inspection Portal (Subcontracting, etc.) */}
+          {/* 6. Dynamic Module Inspection Portal (Subcontracting, etc.) - Protected */}
           <Route
             path="/inspection/module/:moduleId"
             element={
-              <ModuleInspectionPortalWrapper
-                onBack={() => navigate(-1)}
-                userId={userId}
-                inspections={inspections}
-                onAddInspectionRecord={handleAddInspection}
-              />
+              <ProtectedRoute>
+                <ModuleInspectionPortalWrapper
+                  onBack={() => navigate(-1)}
+                  userId={effectiveUserId}
+                  inspections={inspections}
+                  onAddInspectionRecord={handleAddInspection}
+                />
+              </ProtectedRoute>
             }
           />
           <Route
             path="/inspection/module/:moduleId/:childCardId"
             element={
-              <ModuleInspectionPortalWrapper
-                onBack={() => navigate(-1)}
-                userId={userId}
-                inspections={inspections}
-                onAddInspectionRecord={handleAddInspection}
-              />
+              <ProtectedRoute>
+                <ModuleInspectionPortalWrapper
+                  onBack={() => navigate(-1)}
+                  userId={effectiveUserId}
+                  inspections={inspections}
+                  onAddInspectionRecord={handleAddInspection}
+                />
+              </ProtectedRoute>
             }
           />
 
-          {/* 7. Live Inspection Workspace */}
+          {/* 7. Live Inspection Workspace - Protected */}
           <Route
             path="/inspection/live"
             element={
-              <LiveInspectionWorkspace
-                currentModule={selectedModule}
-                onSelectModule={(mod) => {
-                  setSelectedModule(mod);
-                  if (mod === 'incoming') {
-                    navigate('/inspection/incoming');
-                  } else if (mod === 'in-process') {
-                    navigate('/inspection/in-process');
-                  }
-                }}
-                onOpenIncomingPortal={() => navigate('/inspection/incoming')}
-                onOpenInProcessPortal={() => navigate('/inspection/in-process')}
-                inspections={inspections}
-                onAddInspection={handleAddInspection}
-                onUpdateStatus={handleUpdateStatus}
-              />
+              <ProtectedRoute>
+                <LiveInspectionWorkspace
+                  currentModule={selectedModule}
+                  onSelectModule={(mod) => {
+                    setSelectedModule(mod);
+                    if (mod === 'incoming') {
+                      navigate('/inspection/incoming');
+                    } else if (mod === 'in-process') {
+                      navigate('/inspection/in-process');
+                    }
+                  }}
+                  onOpenIncomingPortal={() => navigate('/inspection/incoming')}
+                  onOpenInProcessPortal={() => navigate('/inspection/in-process')}
+                  inspections={inspections}
+                  onAddInspection={handleAddInspection}
+                  onUpdateStatus={handleUpdateStatus}
+                />
+              </ProtectedRoute>
             }
           />
 
-          {/* 8. Admin Dashboard */}
+          {/* 8. Admin Dashboard - Protected (SUPER_ADMIN or ADMIN only) */}
           <Route
             path="/admin"
             element={
-              !isAuthenticated || userRole !== 'admin' ? (
-                <Navigate to="/sign-in" replace state={{ role: 'admin', from: '/admin' }} />
-              ) : (
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
                 <AdminDashboard
                   onNavigateAdminSub={(sub) => {
                     const map: Record<string, string> = {
@@ -471,32 +504,28 @@ export default function App() {
                     navigate(map[sub] || '/admin');
                   }}
                 />
-              )
+              </ProtectedRoute>
             }
           />
 
-          {/* 9. Admin Specification & Tolerance Controls */}
+          {/* 9. Admin Specification & Tolerance Controls - Protected */}
           <Route
             path="/admin/specs"
             element={
-              !isAuthenticated || userRole !== 'admin' ? (
-                <Navigate to="/sign-in" replace state={{ role: 'admin', from: '/admin/specs' }} />
-              ) : (
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
                 <AddRemoveInspectionPortal
                   onBack={() => navigate(-1)}
-                  userId={userId}
+                  userId={effectiveUserId}
                 />
-              )
+              </ProtectedRoute>
             }
           />
 
-          {/* 10. Admin Records, Analytics, and Users Subviews */}
+          {/* 10. Admin Records, Analytics, and Users Subviews - Protected */}
           <Route
             path="/admin/records"
             element={
-              (!isAuthenticated && !isAuthLoggedIn) || userRole !== 'admin' ? (
-                <Navigate to="/sign-in" replace state={{ role: 'admin', from: '/admin/records' }} />
-              ) : (
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
                 <AdminSubviews
                   activeView="admin-records"
                   specs={specs}
@@ -505,15 +534,13 @@ export default function App() {
                   defectMetrics={defectMetrics}
                   onBackToDashboard={() => navigate(-1)}
                 />
-              )
+              </ProtectedRoute>
             }
           />
           <Route
             path="/admin/analytics"
             element={
-              (!isAuthenticated && !isAuthLoggedIn) || userRole !== 'admin' ? (
-                <Navigate to="/sign-in" replace state={{ role: 'admin', from: '/admin/analytics' }} />
-              ) : (
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
                 <AdminSubviews
                   activeView="admin-analytics"
                   specs={specs}
@@ -522,28 +549,29 @@ export default function App() {
                   defectMetrics={defectMetrics}
                   onBackToDashboard={() => navigate(-1)}
                 />
-              )
+              </ProtectedRoute>
             }
           />
           <Route
             path="/admin/users"
             element={
-              (!isAuthenticated && !isAuthLoggedIn) || userRole !== 'admin' ? (
-                <Navigate to="/sign-in" replace state={{ role: 'admin', from: '/admin/users' }} />
-              ) : !canManageUsers ? (
-                <Navigate to="/admin" replace />
-              ) : (
-                <AdminSubviews
-                  activeView="admin-users"
-                  specs={specs}
-                  users={adminUsers}
-                  inspections={inspections}
-                  defectMetrics={defectMetrics}
-                  onBackToDashboard={() => navigate(-1)}
-                />
-              )
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
+                {!canManageUsers ? (
+                  <Navigate to="/admin" replace />
+                ) : (
+                  <AdminSubviews
+                    activeView="admin-users"
+                    specs={specs}
+                    users={adminUsers}
+                    inspections={inspections}
+                    defectMetrics={defectMetrics}
+                    onBackToDashboard={() => navigate(-1)}
+                  />
+                )}
+              </ProtectedRoute>
             }
           />
+
 
 
           {/* Catch-all Fallback */}

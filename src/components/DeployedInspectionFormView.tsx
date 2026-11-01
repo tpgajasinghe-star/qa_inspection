@@ -12,12 +12,15 @@ import {
   Paperclip, 
   ChevronRight, 
   Clock, 
-  Sparkles,
-  ClipboardCheck,
-  Tag,
-  Database,
-  Check
+  Sparkles, 
+  ClipboardCheck, 
+  Tag, 
+  Database, 
+  Check, 
+  X, 
+  Loader2 
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { DeployedInspectionForm } from '../deployedFormsData';
 import { InspectionRecord, QAStatus } from '../types';
 import { InspectionHierarchyCard } from '../inspectionHierarchyData';
@@ -25,6 +28,8 @@ import { TableRowSchema } from './FormEditorStudio';
 import { RoundClockTimePickerModal } from './RoundClockTimePickerModal';
 import { fetchItems, DbItem, lookupDatabaseItem, SEED_FACTORY_ITEMS } from '../backend/itemService';
 import { ItemCodeSmartInput } from './ItemCodeSmartInput';
+import { submitInspection, InspectionCoreData } from '../backend/inspectionService';
+
 
 interface DeployedInspectionFormViewProps {
   form: DeployedInspectionForm;
@@ -140,6 +145,8 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
   const [attachedFiles, setAttachedFiles] = useState<Array<{ id: string; name: string; size: string }>>(
     form.footer?.attachments || []
   );
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Dynamic values stored for all table rows across all sections
   // Key format: `${sectionId}-${rowId}-${colId}` -> string
@@ -237,23 +244,32 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
     }));
   };
 
-  // Handle file upload simulation
+  // Handle real file attachments & previews
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const file = files[0];
-      const newAtt = {
-        id: `att-${Date.now()}`,
+      const fileList: File[] = Array.from(files);
+      setUploadedFiles(prev => [...prev, ...fileList]);
+      const newAtts = fileList.map((file: File) => ({
+        id: `att-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         name: file.name,
         size: `${(file.size / 1024).toFixed(1)} KB`,
-      };
-      setAttachedFiles(prev => [...prev, newAtt]);
+      }));
+      setAttachedFiles(prev => [...prev, ...newAtts]);
     }
+    // Reset file input to allow selecting the same file again if desired
+    e.target.value = '';
   };
 
-  // Submit Inspection
-  const handleSubmitInspection = (e: React.FormEvent) => {
+  const handleRemoveAttachment = (index: number) => {
+    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Submit Inspection with Supabase persistence and storage uploads
+  const handleSubmitInspection = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
 
     // Check overall pass/fail status based on any 'Fail' values in dropdown cells
     let hasFailures = false;
@@ -267,34 +283,100 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
     const finalBatch = fieldValues['el-batch'] || batchId || `BATCH-${Date.now().toString().slice(-4)}`;
     const finalItemCode = fieldValues['el-item-code'] || itemCode || (matchedDbItem?.item_code) || `ITEM-${categoryPrefix}-01`;
     const finalProductDesc = fieldValues['el-desc'] || productDesc || form.productType || form.documentHeader.productType || childCard.name;
+    const finalInspector = onlineInspectorName?.trim() || 'Certified QC Inspector';
 
-    const newRecord: InspectionRecord = {
-      id: recId,
-      lotNumber,
-      batchId: finalBatch,
-      partNumber: finalItemCode,
-      partName: finalProductDesc,
-      module: (mainCard.moduleId as any) || 'in-process',
-      supplierOrLine: `${childCard.name} Station`,
-      nominalValue: 100,
-      toleranceMin: 98,
-      toleranceMax: 102,
-      measuredValue: hasFailures ? 95 : 100,
-      unit: '% Yield',
-      status,
-      defectSeverity: hasFailures ? 'major' : 'none',
-      defectType: hasFailures ? 'Tolerance / Dimensional Deviation' : undefined,
-      inspectorId: onlineEmpNo || userId || 'QA Inspector',
-      inspectorName: onlineInspectorName || 'Certified QC Inspector',
-      timestamp: new Date().toISOString(),
-      notes: remarks || `Verified against standard ${form.documentHeader.refStandard || 'SLS 734'} for ${finalProductDesc}.`,
-      verifiedBy: finalInspectorName ? `Final Lead: ${finalInspectorName}` : 'QA Lead Signoff',
-      category: childCard.name,
+    // 1. Core Data (mapped to item_code & inspector_name columns)
+    const coreData: InspectionCoreData = {
+      item_code: finalItemCode,
+      inspector_name: finalInspector,
     };
 
-    onSubmitRecord(newRecord);
-    setSubmittedRecordId(recId);
-    setSubmitted(true);
+    // 2. Dynamic Form Data (all variable inputs, table cells, radio options, dropdowns, headers)
+    const dynamicFormData = {
+      recId,
+      formId: form.id,
+      formName: form.name,
+      categoryPrefix,
+      hierarchy: {
+        mainCardId: mainCard.id,
+        mainCardName: mainCard.name,
+        childCardId: childCard.id,
+        childCardName: childCard.name,
+      },
+      documentHeader: {
+        documentNo: form.documentHeader.documentNo,
+        revisionNo: form.documentHeader.revisionNo,
+        dateOfIssue: form.documentHeader.dateOfIssue,
+        refStandard: form.documentHeader.refStandard,
+        productType: form.documentHeader.productType || finalProductDesc,
+      },
+      auditMetadata: {
+        auditDate: inspectionDate,
+        auditTime,
+        lotNumber,
+        batchId: finalBatch,
+        productDescription: finalProductDesc,
+        onlineEmpNo: onlineEmpNo || userId || 'QA-INSP',
+        finalInspectorName,
+        finalEmpNo,
+      },
+      // Dynamic table cell inputs across all sections
+      cellValues,
+      // Time headers configured across sections
+      columnTimeHeaders,
+      // General field values across sections
+      fieldValues,
+      // Observations, remarks, quality status
+      remarks,
+      status,
+      hasFailures,
+      submittedAt: new Date().toISOString(),
+    };
+
+    // 3. UI Feedback & Async Submission
+    setIsSubmitting(true);
+    const toastId = toast.loading('Submitting inspection...');
+
+    try {
+      const result = await submitInspection(coreData, dynamicFormData, uploadedFiles);
+      toast.dismiss(toastId);
+      toast.success('Inspection successfully submitted & certified!');
+
+      // Local state and in-memory log synchronization
+      const newRecord: InspectionRecord = {
+        id: result.data?.id || recId,
+        lotNumber,
+        batchId: finalBatch,
+        partNumber: finalItemCode,
+        partName: finalProductDesc,
+        module: (mainCard.moduleId as any) || 'in-process',
+        supplierOrLine: `${childCard.name} Station`,
+        nominalValue: 100,
+        toleranceMin: 98,
+        toleranceMax: 102,
+        measuredValue: hasFailures ? 95 : 100,
+        unit: '% Yield',
+        status,
+        defectSeverity: hasFailures ? 'major' : 'none',
+        defectType: hasFailures ? 'Tolerance / Dimensional Deviation' : undefined,
+        inspectorId: onlineEmpNo || userId || 'QA Inspector',
+        inspectorName: finalInspector,
+        timestamp: new Date().toISOString(),
+        notes: remarks || `Verified against standard ${form.documentHeader.refStandard || 'SLS 734'} for ${finalProductDesc}.`,
+        verifiedBy: finalInspectorName ? `Final Lead: ${finalInspectorName}` : 'QA Lead Signoff',
+        category: childCard.name,
+      };
+
+      onSubmitRecord(newRecord);
+      setSubmittedRecordId(result.data?.id || recId);
+      setSubmitted(true);
+    } catch (error: any) {
+      console.error('[DeployedInspectionFormView] Error submitting inspection:', error);
+      toast.dismiss(toastId);
+      toast.error(error?.message || 'Failed to submit inspection. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -848,12 +930,17 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-slate-700">Attach Technical Reports / Photos</span>
-                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer shadow-2xs">
+                <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-semibold shadow-2xs ${
+                  isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-50 cursor-pointer'
+                }`}>
                   <Paperclip className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Attach File</span>
+                  <span>Attach Files</span>
                   <input
                     type="file"
                     className="hidden"
+                    multiple
+                    accept="image/*,.pdf,.doc,.docx"
+                    disabled={isSubmitting}
                     onChange={handleFileUpload}
                   />
                 </label>
@@ -861,14 +948,23 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
 
               {attachedFiles.length > 0 && (
                 <div className="flex flex-wrap gap-2 pt-1">
-                  {attachedFiles.map(att => (
+                  {attachedFiles.map((att, idx) => (
                     <div 
                       key={att.id} 
-                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 shadow-2xs"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-800 shadow-2xs group"
                     >
                       <Paperclip className="w-3.5 h-3.5 text-blue-500" />
                       <span>{att.name}</span>
                       <span className="text-[10px] text-slate-400">({att.size})</span>
+                      <button
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={() => handleRemoveAttachment(idx)}
+                        className="text-slate-400 hover:text-red-500 transition-colors ml-1 p-0.5 rounded cursor-pointer disabled:opacity-50"
+                        title="Remove attachment"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -983,11 +1079,23 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
 
               <button
                 type="submit"
-                className="flex-1 sm:flex-initial px-7 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/25 transition cursor-pointer flex items-center justify-center gap-2"
+                disabled={isSubmitting}
+                className={`flex-1 sm:flex-initial px-7 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs sm:text-sm shadow-md shadow-blue-500/25 transition flex items-center justify-center gap-2 ${
+                  isSubmitting ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'
+                }`}
                 id="btn-submit-deployed-inspection"
               >
-                <CheckCircle2 className="w-4 h-4 text-white" />
-                <span>Submit & Certify Inspection</span>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 text-white animate-spin" />
+                    <span>Submitting & Certifying...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-white" />
+                    <span>Submit & Certify Inspection</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
