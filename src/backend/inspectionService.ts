@@ -121,21 +121,28 @@ export async function submitInspection(
 
   console.log('[inspectionService] Inspection record successfully saved with ID:', insertedData?.id);
 
-  // Immediate UI Sync: Broadcast custom event so active UI components instantly prepend this record
+  // Immediate UI Sync: Cache locally and broadcast custom event
   if (typeof window !== 'undefined' && insertedData) {
     try {
+      const recentKey = 'qc_recent_submissions';
+      const existingStr = localStorage.getItem(recentKey);
+      const existing: any[] = existingStr ? JSON.parse(existingStr) : [];
+      const itemToSave = {
+        id: String(insertedData.id),
+        item_code: String(insertedData.item_code || coreData.item_code),
+        inspector_name: String(insertedData.inspector_name || coreData.inspector_name),
+        created_at: insertedData.created_at || dynamicFormData.submittedAt || new Date().toISOString(),
+        form_data: insertedData.form_data || dynamicFormData,
+        attachments: insertedData.attachments || publicUrls,
+      };
+      const updated = [itemToSave, ...existing.filter((x: any) => x.id !== insertedData.id)].slice(0, 50);
+      localStorage.setItem(recentKey, JSON.stringify(updated));
+
       window.dispatchEvent(new CustomEvent('inspection-submitted', { 
-        detail: {
-          id: insertedData.id,
-          item_code: insertedData.item_code,
-          inspector_name: insertedData.inspector_name,
-          created_at: insertedData.created_at || new Date().toISOString(),
-          form_data: insertedData.form_data,
-          attachments: insertedData.attachments || [],
-        } 
+        detail: itemToSave
       }));
     } catch (e) {
-      console.warn('[inspectionService] Failed to dispatch inspection-submitted event:', e);
+      console.warn('[inspectionService] Failed to cache/dispatch inspection-submitted event:', e);
     }
   }
 
@@ -155,30 +162,73 @@ export interface InspectionSummary {
 
 /**
  * Lightweight Summary Fetch (Lazy Loading)
- * ONLY selects id, item_code, inspector_name, and created_at from the inspections table.
- * Does NOT fetch the heavy form_data or attachments initially.
+ * Robust fetch that handles schemas with or without created_at,
+ * merges local recently submitted cache, and safely formats records.
  */
 export async function getInspectionSummaries(itemCode?: string): Promise<InspectionSummary[]> {
   try {
-    let query = supabase
-      .from('inspections')
-      .select('id, item_code, inspector_name, created_at')
-      .order('created_at', { ascending: false });
+    let rawRows: any[] = [];
 
-    if (itemCode && itemCode.trim() && itemCode !== 'all') {
-      query = query.eq('item_code', itemCode.trim());
+    // 1. Query Supabase
+    try {
+      let query = supabase.from('inspections').select('*');
+      if (itemCode && itemCode.trim() && itemCode !== 'all') {
+        query = query.eq('item_code', itemCode.trim());
+      }
+      const { data, error } = await query;
+      if (!error && Array.isArray(data)) {
+        rawRows = data;
+      } else if (error) {
+        console.warn('[inspectionService] getInspectionSummaries remote query error:', error.message);
+      }
+    } catch (dbErr) {
+      console.warn('[inspectionService] Remote query exception:', dbErr);
     }
 
-    const { data, error } = await query;
-
-    if (error) {
-      console.warn('[inspectionService] getInspectionSummaries error:', error.message);
-      return [];
+    // 2. Also merge recently submitted records from localStorage cache
+    if (typeof window !== 'undefined') {
+      try {
+        const cachedStr = localStorage.getItem('qc_recent_submissions');
+        if (cachedStr) {
+          const cached: any[] = JSON.parse(cachedStr);
+          const existingIds = new Set(rawRows.map(r => String(r.id)));
+          cached.forEach(c => {
+            if (!existingIds.has(String(c.id))) {
+              if (!itemCode || itemCode === 'all' || String(c.item_code).trim() === itemCode.trim()) {
+                rawRows.unshift(c);
+              }
+            }
+          });
+        }
+      } catch (cacheErr) {
+        console.warn('[inspectionService] Cache read error:', cacheErr);
+      }
     }
 
-    return (data || []) as InspectionSummary[];
+    // 3. Sort by created_at or submittedAt descending
+    rawRows.sort((a, b) => {
+      const timeA = new Date(a.created_at || a.form_data?.submittedAt || a.form_data?.auditMetadata?.auditDate || 0).getTime();
+      const timeB = new Date(b.created_at || b.form_data?.submittedAt || b.form_data?.auditMetadata?.auditDate || 0).getTime();
+      return timeB - timeA;
+    });
+
+    // 4. Safely map to InspectionSummary format with complete null-checks
+    return rawRows.map((row: any) => {
+      const createdAt = 
+        row.created_at || 
+        row.form_data?.submittedAt || 
+        row.form_data?.auditMetadata?.auditDate || 
+        new Date().toISOString();
+
+      return {
+        id: String(row.id || ''),
+        item_code: String(row.item_code || row.form_data?.auditMetadata?.itemCode || 'N/A'),
+        inspector_name: String(row.inspector_name || row.form_data?.auditMetadata?.onlineInspectorName || 'Certified QC Inspector'),
+        created_at: String(createdAt),
+      };
+    });
   } catch (err) {
-    console.warn('[inspectionService] getInspectionSummaries exception:', err);
+    console.warn('[inspectionService] getInspectionSummaries fallback exception:', err);
     return [];
   }
 }
@@ -186,23 +236,51 @@ export async function getInspectionSummaries(itemCode?: string): Promise<Inspect
 /**
  * On-Demand Full Data Fetch
  * When a user clicks on a specific past record card, execute this function to
- * fetch the complete row (including form_data and attachments) from the database.
+ * fetch the complete row (including form_data and attachments) from the database or local cache.
  */
 export async function getInspectionDetails(id: string): Promise<InspectionRecordResponse | null> {
   try {
     console.log('[inspectionService] Fetching full details on-demand for record ID:', id);
-    const { data, error } = await supabase
-      .from('inspections')
-      .select('*')
-      .eq('id', id)
-      .single();
 
-    if (error) {
-      console.error('[inspectionService] getInspectionDetails error:', error);
-      throw error;
+    // 1. Try Supabase
+    try {
+      const { data, error } = await supabase
+        .from('inspections')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (!error && data) {
+        return {
+          id: String(data.id),
+          item_code: String(data.item_code || 'N/A'),
+          inspector_name: String(data.inspector_name || 'QC Inspector'),
+          form_data: data.form_data || {},
+          attachments: Array.isArray(data.attachments) ? data.attachments : [],
+          created_at: data.created_at || data.form_data?.submittedAt || new Date().toISOString(),
+        };
+      }
+    } catch (dbErr) {
+      console.warn('[inspectionService] Supabase getInspectionDetails query failed:', dbErr);
     }
 
-    return data as InspectionRecordResponse;
+    // 2. Check local recent cache
+    if (typeof window !== 'undefined') {
+      try {
+        const cachedStr = localStorage.getItem('qc_recent_submissions');
+        if (cachedStr) {
+          const cached: any[] = JSON.parse(cachedStr);
+          const match = cached.find((c: any) => String(c.id) === String(id));
+          if (match) {
+            return match;
+          }
+        }
+      } catch (cacheErr) {
+        console.warn('[inspectionService] Cache read error for details:', cacheErr);
+      }
+    }
+
+    return null;
   } catch (err) {
     console.error('[inspectionService] Error in getInspectionDetails:', err);
     throw err;
@@ -215,8 +293,7 @@ export async function getInspectionDetails(id: string): Promise<InspectionRecord
 export async function fetchInspections(): Promise<InspectionRecordResponse[]> {
   const { data, error } = await supabase
     .from('inspections')
-    .select('*')
-    .order('created_at', { ascending: false });
+    .select('*');
 
   if (error) {
     console.warn('[inspectionService] Failed to fetch inspections:', error);

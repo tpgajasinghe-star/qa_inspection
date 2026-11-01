@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Building2 } from 'lucide-react';
 import { WorkspaceMode, InspectionModule, QAStatus, InspectionRecord } from './types';
@@ -75,6 +75,15 @@ export default function App() {
   });
   const effectiveUserId = employeeId || userId;
   const [selectedModule, setSelectedModule] = useState<InspectionModule>('in-process');
+
+  // Synchronize local auth state with AuthContext
+  useEffect(() => {
+    setIsAuthenticated(isAuthLoggedIn);
+    if (!isAuthLoggedIn) {
+      setUserRole(null);
+      setUserId('');
+    }
+  }, [isAuthLoggedIn]);
 
 
 

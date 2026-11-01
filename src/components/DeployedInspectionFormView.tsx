@@ -642,7 +642,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                             }}
                             className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                           />
-                        ) : el.type === 'time_picker' || /time|hour|clock/i.test(el.name) ? (
+                        ) : (el.type as string) === 'time_picker' || /time|hour|clock/i.test(el.name) ? (
                           <div
                             onClick={() => {
                               setActiveClockPicker({

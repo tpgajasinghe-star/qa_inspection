@@ -1,9 +1,48 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
+import toast from 'react-hot-toast';
 import { supabase } from '../backend/supabase';
 import { ProfileRole, UserProfile } from '../types';
 import { FullScreenAuthLoading } from '../components/ProtectedRoute';
+
+// Inactivity timeout threshold: 15 minutes without interaction
+export const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000;
+export const LAST_ACTIVITY_KEY = 'qc_last_activity_timestamp';
+
+/**
+ * Checks whether user has exceeded the idle/inactivity threshold
+ */
+export function isSessionExpiredDueToInactivity(): boolean {
+  try {
+    const lastActivityStr = localStorage.getItem(LAST_ACTIVITY_KEY);
+    if (!lastActivityStr) return false;
+    const lastActivity = parseInt(lastActivityStr, 10);
+    if (isNaN(lastActivity)) return false;
+    const elapsed = Date.now() - lastActivity;
+    return elapsed > INACTIVITY_TIMEOUT_MS;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Updates the last activity timestamp in localStorage
+ */
+export function updateLastActivityTimestamp(): void {
+  try {
+    localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
+  } catch {}
+}
+
+/**
+ * Clears the activity timestamp upon sign out or session termination
+ */
+export function clearActivityTimestamp(): void {
+  try {
+    localStorage.removeItem(LAST_ACTIVITY_KEY);
+  } catch {}
+}
 
 export interface AuthContextType {
   user: User | null;
@@ -23,7 +62,7 @@ export interface AuthContextType {
     error?: string;
     profile?: UserProfile;
   }>;
-  signOut: () => Promise<void>;
+  signOut: (destination?: string) => Promise<void>;
   refreshProfile: () => Promise<UserProfile | null>;
   setUserDetails: (details: {
     id: string;
@@ -44,16 +83,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  // If user was inactive for too long prior to page reload/refresh, do not restore state
+  const isExpiredOnInit = isSessionExpiredDueToInactivity();
+
   const [role, setRole] = useState<ProfileRole | null>(() => {
+    if (isExpiredOnInit) return null;
     return (sessionStorage.getItem('qc_auth_profile_role') as ProfileRole | null) || null;
   });
   const [fullName, setFullName] = useState<string>(() => {
+    if (isExpiredOnInit) return '';
     return sessionStorage.getItem('qc_auth_full_name') || '';
   });
   const [employeeId, setEmployeeId] = useState<string>(() => {
+    if (isExpiredOnInit) return '';
     return sessionStorage.getItem('qc_auth_employee_id') || '';
   });
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    if (isExpiredOnInit) return false;
     return sessionStorage.getItem('qc_auth_logged_in') === 'true';
   });
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -135,6 +182,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setFullName(details.full_name);
     setEmployeeId(details.employee_id);
     setIsAuthenticated(true);
+    updateLastActivityTimestamp();
     setProfile({
       id: details.id,
       employee_id: details.employee_id,
@@ -169,11 +217,45 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     async function initAuth() {
       try {
+        // 1. INACTIVITY TIMEOUT CHECK ON PAGE REFRESH / INITIAL LOAD:
+        if (isSessionExpiredDueToInactivity()) {
+          console.log('[AuthContext] Inactivity timeout expired prior to page refresh. Logging out and redirecting to home.');
+          clearActivityTimestamp();
+          sessionStorage.removeItem('qc_auth_logged_in');
+          sessionStorage.removeItem('qc_auth_role');
+          sessionStorage.removeItem('qc_auth_user_id');
+          sessionStorage.removeItem('qc_auth_profile_role');
+          sessionStorage.removeItem('qc_auth_full_name');
+          sessionStorage.removeItem('qc_auth_employee_id');
+          await supabase.auth.signOut().catch(() => {});
+
+          if (isMounted) {
+            setUser(null);
+            setProfile(null);
+            setRole(null);
+            setFullName('');
+            setEmployeeId('');
+            setIsAuthenticated(false);
+            setIsLoading(false);
+            setIsInitializing(false);
+          }
+
+          toast.error('Session expired due to inactivity. You have been redirected to the home page.', {
+            id: 'inactivity-timeout-toast',
+            duration: 5000,
+            icon: '⏱️',
+          });
+
+          navigate('/', { replace: true });
+          return;
+        }
+
         // Check active Supabase session
         const { data: sessionData } = await supabase.auth.getSession();
         const activeSession = sessionData?.session;
 
         if (activeSession?.user) {
+          updateLastActivityTimestamp();
           if (isMounted) setUser(activeSession.user);
 
           // Query profiles directly using standard client with anon key
@@ -195,6 +277,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const isSavedLoggedIn = sessionStorage.getItem('qc_auth_logged_in') === 'true';
 
           if (isSavedLoggedIn && savedRole && savedEmpId && isMounted) {
+            updateLastActivityTimestamp();
             setRole(savedRole);
             setFullName(savedName || savedEmpId);
             setEmployeeId(savedEmpId);
@@ -224,6 +307,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (!isMounted) return;
 
       if (event === 'SIGNED_OUT') {
+        clearActivityTimestamp();
         setUser(null);
         setProfile(null);
         setRole(null);
@@ -237,9 +321,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         sessionStorage.removeItem('qc_auth_full_name');
         sessionStorage.removeItem('qc_auth_employee_id');
 
-        // Cleanly redirect to login screen on session expiry
-        navigate('/login');
+        // Cleanly redirect to home page on sign out
+        navigate('/');
       } else if (newSession?.user) {
+        updateLastActivityTimestamp();
         setUser(newSession.user);
         const loadedProfile = await fetchProfileFromDatabase(newSession.user.id);
         if (loadedProfile && isMounted) {
@@ -254,12 +339,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     });
 
-
     return () => {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [fetchProfileFromDatabase, persistSession]);
+  }, [fetchProfileFromDatabase, persistSession, navigate]);
 
   // Sign in method using standard frontend supabase client
   const signIn = useCallback(async (
@@ -305,6 +389,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setFullName(adminName);
       setEmployeeId('admin');
       setIsAuthenticated(true);
+      updateLastActivityTimestamp();
       setProfile(superAdminProfile);
       persistSession('SUPER_ADMIN', adminName, 'admin', 'admin', 'admin');
 
@@ -381,6 +466,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setFullName(resolvedProfile.full_name);
       setEmployeeId(resolvedProfile.employee_id);
       setIsAuthenticated(true);
+      updateLastActivityTimestamp();
 
       const targetPanel = resolvedProfile.role === 'USER' ? 'inspector' : panelRole;
       persistSession(
@@ -399,12 +485,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [fetchProfileFromDatabase, persistSession]);
 
   // Sign out method
-  const signOut = useCallback(async () => {
+  const signOut = useCallback(async (destination: string = '/') => {
     try {
       await supabase.auth.signOut();
     } catch (err) {
       console.warn('[AuthContext] Sign out error:', err);
     }
+    clearActivityTimestamp();
     setUser(null);
     setProfile(null);
     setRole(null);
@@ -417,8 +504,51 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     sessionStorage.removeItem('qc_auth_profile_role');
     sessionStorage.removeItem('qc_auth_full_name');
     sessionStorage.removeItem('qc_auth_employee_id');
-    navigate('/login');
+    navigate(destination);
   }, [navigate]);
+
+  // Live user interaction tracking and periodic inactivity watchdog
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    let lastInteraction = Date.now();
+    updateLastActivityTimestamp();
+
+    const handleUserActivity = () => {
+      const now = Date.now();
+      // Throttle updating localStorage to once every 4 seconds for optimal performance
+      if (now - lastInteraction > 4000) {
+        lastInteraction = now;
+        updateLastActivityTimestamp();
+      }
+    };
+
+    const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
+    activityEvents.forEach((evt) => {
+      window.addEventListener(evt, handleUserActivity, { passive: true });
+    });
+
+    // Check periodically if user has been inactive for longer than threshold
+    const watchdogInterval = setInterval(() => {
+      if (isSessionExpiredDueToInactivity()) {
+        console.log('[AuthContext] Inactivity watchdog: session expired. Logging out and redirecting to home.');
+        clearActivityTimestamp();
+        toast.error('Session expired due to inactivity. You have been redirected to the home page.', {
+          id: 'inactivity-timeout-toast',
+          duration: 5000,
+          icon: '⏱️',
+        });
+        signOut('/');
+      }
+    }, 15000); // Check every 15 seconds
+
+    return () => {
+      activityEvents.forEach((evt) => {
+        window.removeEventListener(evt, handleUserActivity);
+      });
+      clearInterval(watchdogInterval);
+    };
+  }, [isAuthenticated, signOut]);
 
   // Derived RBAC permission flags
   const isSuperAdmin = role === 'SUPER_ADMIN';

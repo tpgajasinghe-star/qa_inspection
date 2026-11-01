@@ -5,6 +5,8 @@ export interface DbItem {
   description: string;
   series?: string | null;
   category?: string | null;
+  drawing_number?: string | null;
+  department?: string | null;
 }
 
 // Fallback & fast seed database catalog containing verified factory items
@@ -318,11 +320,11 @@ export function resolveItemCodeOnEnter(
  * - Entering any numeric suffix (e.g. 537, 538, 550, 563) -> maps to corresponding 3000000XXX code
  */
 export function lookupDatabaseItem(
-  rawInput: string,
-  itemsList: DbItem[],
+  rawInput?: string | null,
+  itemsList?: DbItem[],
   contextHint?: string
 ): DbItem | null {
-  const trimmed = rawInput.trim();
+  const trimmed = (rawInput || '').trim();
   if (!trimmed) return null;
 
   const catalog = itemsList && itemsList.length > 0 ? itemsList : SEED_FACTORY_ITEMS;

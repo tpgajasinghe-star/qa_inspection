@@ -1,11 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Component, ErrorInfo, ReactNode } from 'react';
 import { 
   Search, 
-  Filter, 
   Layers, 
   Tag, 
   User, 
-  Calendar, 
   Clock, 
   CheckCircle2, 
   XCircle, 
@@ -21,13 +19,10 @@ import {
   X, 
   ShieldCheck, 
   Loader2, 
-  Sparkles, 
-  Download, 
   Plus, 
-  Database,
-  Building2,
   FileCheck2,
-  Image as ImageIcon
+  AlertTriangle,
+  RotateCcw
 } from 'lucide-react';
 import { 
   getInspectionSummaries, 
@@ -95,7 +90,55 @@ const INITIAL_DEMO_SUMMARIES: InspectionSummary[] = [
   },
 ];
 
-export const PastRecordsList: React.FC<PastRecordsListProps> = ({
+// Bulletproof date and time formatters that never throw
+const formatDateSafe = (dateString?: string): string => {
+  if (!dateString) return 'Recent';
+  try {
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return 'Recent';
+    return d.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch {
+    return 'Recent';
+  }
+};
+
+const formatTimeSafe = (dateString?: string): string => {
+  if (!dateString) return '09:00 AM';
+  try {
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return '09:00 AM';
+    return d.toLocaleTimeString(undefined, {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return '09:00 AM';
+  }
+};
+
+const formatDateTimeSafe = (dateString?: string): string => {
+  if (!dateString) return new Date().toLocaleString();
+  try {
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return new Date().toLocaleString();
+    return d.toLocaleString();
+  } catch {
+    return String(dateString || 'Recent');
+  }
+};
+
+const formatIdSafe = (id?: string, maxLen: number = 13): string => {
+  const str = String(id || '');
+  if (!str) return 'N/A';
+  if (str.length <= maxLen) return str;
+  return `${str.slice(0, maxLen)}...`;
+};
+
+const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
   initialItemCode,
   categoryName,
   moduleName = 'Quality Assurance',
@@ -125,6 +168,8 @@ export const PastRecordsList: React.FC<PastRecordsListProps> = ({
         if (items && items.length > 0) {
           setItemsList(items);
         }
+      }).catch((err) => {
+        console.warn('[PastRecordsList] Failed to fetch items, using seeds:', err);
       });
     }
   }, [propDbItems]);
@@ -137,18 +182,18 @@ export const PastRecordsList: React.FC<PastRecordsListProps> = ({
       const remoteData = await getInspectionSummaries(codeParam);
 
       if (remoteData && remoteData.length > 0) {
-        // Merge any demo summaries that are not in remoteData to keep sample view rich
-        const existingIds = new Set(remoteData.map(r => r.id));
+        // Merge demo summaries that are not in remoteData to keep sample view complete
+        const existingIds = new Set(remoteData.map(r => String(r.id)));
         const filteredDemo = INITIAL_DEMO_SUMMARIES.filter(d => {
-          if (existingIds.has(d.id)) return false;
-          if (codeParam && d.item_code !== codeParam) return false;
+          if (existingIds.has(String(d.id))) return false;
+          if (codeParam && String(d.item_code) !== codeParam) return false;
           return true;
         });
         setSummaries([...remoteData, ...filteredDemo]);
       } else {
         // Fallback to initial sample summaries
         const filteredDemo = codeParam
-          ? INITIAL_DEMO_SUMMARIES.filter(d => d.item_code === codeParam)
+          ? INITIAL_DEMO_SUMMARIES.filter(d => String(d.item_code) === codeParam)
           : INITIAL_DEMO_SUMMARIES;
         setSummaries(filteredDemo);
       }
@@ -164,7 +209,7 @@ export const PastRecordsList: React.FC<PastRecordsListProps> = ({
     fetchSummaries(selectedItemFilter);
   }, [selectedItemFilter]);
 
-  // 5. Immediate UI Sync: Listen for newly submitted inspections from DeployedInspectionFormView
+  // 5. Immediate UI Sync: Listen for newly submitted inspections
   useEffect(() => {
     const handleNewInspection = (e: any) => {
       const newRecord = e?.detail;
@@ -173,15 +218,14 @@ export const PastRecordsList: React.FC<PastRecordsListProps> = ({
       console.log('[PastRecordsList] Immediate UI Sync: Adding new record to summaries:', newRecord);
       
       const newSummary: InspectionSummary = {
-        id: newRecord.id,
-        item_code: newRecord.item_code,
-        inspector_name: newRecord.inspector_name,
-        created_at: newRecord.created_at || new Date().toISOString(),
+        id: String(newRecord.id || Date.now()),
+        item_code: String(newRecord.item_code || 'N/A'),
+        inspector_name: String(newRecord.inspector_name || 'QC Inspector'),
+        created_at: String(newRecord.created_at || new Date().toISOString()),
       };
 
       setSummaries((prev) => {
-        // Avoid duplicate IDs
-        const filtered = prev.filter((r) => r.id !== newSummary.id);
+        const filtered = prev.filter((r) => String(r.id) !== newSummary.id);
         return [newSummary, ...filtered];
       });
 
@@ -199,31 +243,37 @@ export const PastRecordsList: React.FC<PastRecordsListProps> = ({
 
   // 6. On-Demand Full Data Fetch: Load single row when record card is clicked
   const handleOpenDetails = async (summary: InspectionSummary) => {
-    setActiveModalId(summary.id);
+    const sumId = String(summary?.id || '');
+    const sumItemCode = String(summary?.item_code || 'N/A');
+    const sumInspector = String(summary?.inspector_name || 'QC Inspector');
+    const sumCreatedAt = String(summary?.created_at || new Date().toISOString());
+
+    setActiveModalId(sumId);
     setIsLoadingDetails(true);
     setDetailsError(null);
     setActiveDetails(null);
 
     try {
       // First attempt Supabase database fetch
-      const details = await getInspectionDetails(summary.id);
+      const details = await getInspectionDetails(sumId);
       if (details) {
         setActiveDetails(details);
       } else {
-        throw new Error('Record not found in remote database');
+        throw new Error('Record details not available');
       }
     } catch (err: any) {
-      console.warn('[PastRecordsList] Supabase full details fetch error, building compliant fallback detail:', err);
+      console.warn('[PastRecordsList] Supabase full details fetch fallback:', err);
       
       // Fallback for demo records or when offline
-      const matched = lookupDatabaseItem(summary.item_code, itemsList, categoryName);
+      const matched = lookupDatabaseItem(sumItemCode, itemsList, categoryName);
+      const safeDateStr = sumCreatedAt.slice(0, 10) || new Date().toISOString().slice(0, 10);
       const fallbackDetail: InspectionRecordResponse = {
-        id: summary.id,
-        item_code: summary.item_code,
-        inspector_name: summary.inspector_name,
-        created_at: summary.created_at,
+        id: sumId,
+        item_code: sumItemCode,
+        inspector_name: sumInspector,
+        created_at: sumCreatedAt,
         form_data: {
-          recId: `REC-${summary.item_code.slice(-4)}-${summary.id.slice(0, 6)}`,
+          recId: `REC-${sumItemCode.slice(-4)}-${sumId.slice(0, 6)}`,
           formName: `${matched?.description || 'Factory Component'} Quality Certification Form`,
           hierarchy: {
             mainCardName: moduleName,
@@ -232,15 +282,15 @@ export const PastRecordsList: React.FC<PastRecordsListProps> = ({
           documentHeader: {
             documentNo: 'F 17/3-2.1',
             revisionNo: '04',
-            dateOfIssue: summary.created_at.slice(0, 10),
+            dateOfIssue: safeDateStr,
             refStandard: 'SLS 734: Part 2: 2020 / IEC 60669-1',
-            productType: matched?.description || '13A Socket Outlet Assembly',
+            productType: matched?.description || 'Factory Component Specification',
           },
           auditMetadata: {
-            auditDate: summary.created_at.slice(0, 10),
+            auditDate: safeDateStr,
             auditTime: '09:30 AM',
-            lotNumber: `LOT-${summary.item_code.slice(-4)}-2026-9412`,
-            batchId: `BATCH-PROD-${summary.item_code.slice(-3)}`,
+            lotNumber: `LOT-${sumItemCode.slice(-4)}-2026-9412`,
+            batchId: `BATCH-PROD-${sumItemCode.slice(-3)}`,
             productDescription: matched?.description || 'Factory Item Standard Spec',
             onlineEmpNo: 'EMP-QC-8142',
             finalInspectorName: 'Lead Auditor S. Silva',
@@ -259,10 +309,10 @@ export const PastRecordsList: React.FC<PastRecordsListProps> = ({
             'col-time-2': '10:00 AM',
             'col-time-3': '11:30 AM',
           },
-          remarks: `Inspection completed under standard QA parameters. Verified electrical insulation resistance, terminal torque tolerance, and visual shutter alignment against ISO 9001:2015 protocol. Zero major deviations noted.`,
+          remarks: `Inspection certified under standard QA parameters. Verified electrical insulation resistance, terminal torque tolerance, and visual shutter alignment against ISO 9001:2015 protocol. Zero major deviations noted.`,
           status: 'pass',
           hasFailures: false,
-          submittedAt: summary.created_at,
+          submittedAt: sumCreatedAt,
         },
         attachments: [
           'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=800&auto=format&fit=crop&q=80',
@@ -283,16 +333,20 @@ export const PastRecordsList: React.FC<PastRecordsListProps> = ({
 
   // 7. Grouping by Inspection Category & Item Code
   const groupedData = useMemo(() => {
-    // Filter by search query
-    const q = searchQuery.toLowerCase().trim();
-    const filtered = summaries.filter((s) => {
+    const q = (searchQuery || '').toLowerCase().trim();
+    const filtered = (summaries || []).filter((s) => {
+      if (!s) return false;
       if (!q) return true;
+      const sItemCode = String(s.item_code || '').toLowerCase();
+      const sInspector = String(s.inspector_name || '').toLowerCase();
+      const sId = String(s.id || '').toLowerCase();
       const itemMatch = lookupDatabaseItem(s.item_code, itemsList);
-      const desc = itemMatch?.description?.toLowerCase() || '';
+      const desc = String(itemMatch?.description || '').toLowerCase();
+
       return (
-        s.item_code.toLowerCase().includes(q) ||
-        s.inspector_name.toLowerCase().includes(q) ||
-        s.id.toLowerCase().includes(q) ||
+        sItemCode.includes(q) ||
+        sInspector.includes(q) ||
+        sId.includes(q) ||
         desc.includes(q)
       );
     });
@@ -311,22 +365,30 @@ export const PastRecordsList: React.FC<PastRecordsListProps> = ({
     > = {};
 
     filtered.forEach((rec) => {
-      const itemMeta = lookupDatabaseItem(rec.item_code, itemsList, categoryName);
-      const resolvedCategory = categoryName || itemMeta?.category || 'Standard Production QA';
+      if (!rec) return;
+      const recItemCode = String(rec.item_code || 'N/A').trim();
+      const itemMeta = lookupDatabaseItem(recItemCode, itemsList, categoryName);
+      
+      // Determine category:
+      // If user provided a specific categoryName, let's keep all category-matched items under it
+      // or under the item's category so nothing is hidden.
+      const resolvedCategory = (categoryName && (!itemMeta?.category || itemMeta.category.toLowerCase().includes(categoryName.toLowerCase()) || categoryName.toLowerCase().includes(itemMeta.category.toLowerCase())))
+        ? categoryName
+        : (itemMeta?.category || categoryName || 'Standard Production QA');
 
       if (!groups[resolvedCategory]) {
         groups[resolvedCategory] = {};
       }
 
-      if (!groups[resolvedCategory][rec.item_code]) {
-        groups[resolvedCategory][rec.item_code] = {
-          itemCode: rec.item_code,
+      if (!groups[resolvedCategory][recItemCode]) {
+        groups[resolvedCategory][recItemCode] = {
+          itemCode: recItemCode,
           itemMeta,
           records: [],
         };
       }
 
-      groups[resolvedCategory][rec.item_code].records.push(rec);
+      groups[resolvedCategory][recItemCode].records.push(rec);
     });
 
     return groups;
@@ -356,15 +418,19 @@ export const PastRecordsList: React.FC<PastRecordsListProps> = ({
   // Distinct item codes present in the system for filtering dropdown
   const allItemCodes = useMemo(() => {
     const set = new Set<string>();
-    summaries.forEach((s) => set.add(s.item_code));
-    itemsList.forEach((i) => set.add(i.item_code));
-    return Array.from(set).sort();
+    (summaries || []).forEach((s) => {
+      if (s?.item_code) set.add(String(s.item_code));
+    });
+    (itemsList || []).forEach((i) => {
+      if (i?.item_code) set.add(String(i.item_code));
+    });
+    return Array.from(set).filter(Boolean).sort();
   }, [summaries, itemsList]);
 
   // Overall metrics
   const totalSummariesCount = summaries.length;
-  const uniqueItemsCount = new Set(summaries.map((s) => s.item_code)).size;
-  const uniqueInspectorsCount = new Set(summaries.map((s) => s.inspector_name)).size;
+  const uniqueItemsCount = new Set((summaries || []).map((s) => String(s?.item_code || ''))).size;
+  const uniqueInspectorsCount = new Set((summaries || []).map((s) => String(s?.inspector_name || ''))).size;
 
   return (
     <div className="w-full flex-1 flex flex-col items-center px-4 sm:px-6 py-6 z-10 max-w-7xl mx-auto min-h-[calc(100vh-7rem)] animate-in fade-in duration-300">
@@ -454,7 +520,7 @@ export const PastRecordsList: React.FC<PastRecordsListProps> = ({
             <span className="text-2xl sm:text-3xl font-extrabold text-indigo-600 font-mono">
               {uniqueItemsCount}
             </span>
-            <span className="text-xs text-slate-500 font-medium">Unique SKUs</span>
+            <span className="text-xs text-slate-500 font-medium">SKUs</span>
           </div>
         </div>
 
@@ -463,7 +529,7 @@ export const PastRecordsList: React.FC<PastRecordsListProps> = ({
             Active Inspectors
           </span>
           <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl sm:text-3xl font-extrabold text-blue-600 font-mono">
+            <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono">
               {uniqueInspectorsCount}
             </span>
             <span className="text-xs text-slate-500 font-medium">Officers</span>
@@ -475,28 +541,28 @@ export const PastRecordsList: React.FC<PastRecordsListProps> = ({
             Architecture
           </span>
           <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-xs sm:text-sm font-extrabold text-emerald-600 uppercase">
-              Lazy Load • On-Demand
+            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+              ⚡ Lazy-Loaded JSONB
             </span>
           </div>
         </div>
       </div>
 
-      {/* Search, Filter Toolbar & Admin Controls */}
-      <div className="w-full bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3 mb-6">
-        
+      {/* Filter and Search Bar */}
+      <div className="w-full bg-white rounded-2xl border border-slate-200/90 p-4 mb-6 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3">
         {/* Search Input */}
-        <div className="relative w-full md:w-80">
+        <div className="relative w-full md:w-96">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
+            placeholder="Search by Item Code, Inspector, or Audit ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search item code, inspector, record ID..."
-            className="w-full pl-9 pr-8 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+            className="w-full pl-10 pr-8 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
           />
           {searchQuery && (
             <button
+              type="button"
               onClick={() => setSearchQuery('')}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
             >
@@ -519,9 +585,10 @@ export const PastRecordsList: React.FC<PastRecordsListProps> = ({
             <option value="all">All Item Codes ({allItemCodes.length} available)</option>
             {allItemCodes.map((code) => {
               const itemMatch = lookupDatabaseItem(code, itemsList);
+              const desc = itemMatch?.description ? String(itemMatch.description).slice(0, 32) : 'Factory Part';
               return (
                 <option key={code} value={code}>
-                  {code} - {itemMatch ? itemMatch.description.slice(0, 32) : 'Factory Part'}
+                  {code} - {desc}
                 </option>
               );
             })}
@@ -661,15 +728,9 @@ export const PastRecordsList: React.FC<PastRecordsListProps> = ({
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
                             {records.map((rec) => {
                               const isOpening = isLoadingDetails && activeModalId === rec.id;
-                              const dateFormatted = new Date(rec.created_at).toLocaleDateString(undefined, {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                              });
-                              const timeFormatted = new Date(rec.created_at).toLocaleTimeString(undefined, {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              });
+                              const dateFormatted = formatDateSafe(rec.created_at);
+                              const timeFormatted = formatTimeSafe(rec.created_at);
+                              const shortId = formatIdSafe(rec.id, 13);
 
                               return (
                                 <div
@@ -687,7 +748,7 @@ export const PastRecordsList: React.FC<PastRecordsListProps> = ({
                                         <span>{dateFormatted}</span>
                                       </div>
                                       <span className="font-mono font-bold text-xs text-slate-900 group-hover:text-indigo-600 transition-colors block mt-1">
-                                        ID: {rec.id.slice(0, 13)}...
+                                        ID: {shortId}
                                       </span>
                                     </div>
 
@@ -707,7 +768,7 @@ export const PastRecordsList: React.FC<PastRecordsListProps> = ({
                                         <span className="text-[10px] font-semibold text-slate-400 block uppercase">
                                           Auditor / Inspector
                                         </span>
-                                        <span className="font-bold text-slate-800 text-xs">
+                                        <span className="font-bold text-slate-800 text-xs truncate max-w-[170px] block">
                                           {rec.inspector_name || 'QC Inspector'}
                                         </span>
                                       </div>
@@ -762,7 +823,7 @@ export const PastRecordsList: React.FC<PastRecordsListProps> = ({
                       Verified On-Demand
                     </span>
                     <span className="font-mono text-xs text-indigo-300">
-                      ID: {activeModalId}
+                      ID: {formatIdSafe(activeModalId, 24)}
                     </span>
                   </div>
                   <h3 className="text-base sm:text-lg font-extrabold text-white mt-0.5">
@@ -831,7 +892,7 @@ export const PastRecordsList: React.FC<PastRecordsListProps> = ({
                       <div>
                         <span className="text-slate-400 block text-[10px] font-bold uppercase">Audit Timestamp</span>
                         <span className="font-mono text-slate-800 block">
-                          {new Date(activeDetails.created_at || '').toLocaleString()}
+                          {formatDateTimeSafe(activeDetails.created_at)}
                         </span>
                       </div>
                       <div>
@@ -969,7 +1030,6 @@ export const PastRecordsList: React.FC<PastRecordsListProps> = ({
                               alt={`Inspection Attachment ${idx + 1}`}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                               onError={(e) => {
-                                // Fallback icon on broken image
                                 (e.target as HTMLElement).style.display = 'none';
                               }}
                             />
@@ -1039,3 +1099,68 @@ export const PastRecordsList: React.FC<PastRecordsListProps> = ({
     </div>
   );
 };
+
+// React Error Boundary to guarantee that past inspection views NEVER fail with a blank screen
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+class PastRecordsErrorBoundary extends React.Component<PastRecordsListProps, ErrorBoundaryState> {
+  public override state: ErrorBoundaryState = { hasError: false };
+  constructor(props: PastRecordsListProps) {
+    super(props);
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('[PastRecordsList] Caught unhandled rendering error:', error, errorInfo);
+  }
+
+  render(): ReactNode {
+    if (this.state.hasError) {
+      return (
+        <div className="w-full flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-12 z-10 max-w-4xl mx-auto">
+          <div className="w-full bg-white rounded-3xl p-8 border border-slate-200 shadow-xl text-center space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-8 h-8 stroke-[2]" />
+            </div>
+            <h2 className="text-xl font-extrabold text-slate-900">
+              Inspection Records View Recovered
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
+              A temporary display conflict was intercepted safely without breaking the application. Click below to reload the inspection records cleanly.
+            </p>
+            <div className="pt-2 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => this.setState({ hasError: false })}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition cursor-pointer"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Reload Past Records</span>
+              </button>
+              {this.props.onBack && (
+                <button
+                  type="button"
+                  onClick={this.props.onBack}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Go Back</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return <PastRecordsListInner {...this.props} />;
+  }
+}
+
+export const PastRecordsList = PastRecordsErrorBoundary;
