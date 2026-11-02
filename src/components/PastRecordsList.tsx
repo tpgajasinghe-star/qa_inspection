@@ -25,7 +25,9 @@ import {
   RotateCcw,
   Building2,
   Calendar,
-  Sparkles
+  Sparkles,
+  LayoutGrid,
+  List
 } from 'lucide-react';
 import { 
   getInspectionSummaries, 
@@ -172,6 +174,7 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
   const [selectedItemFilter, setSelectedItemFilter] = useState<string>(initialItemCode || 'all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  const [viewMode, setViewMode] = useState<'tiles' | 'list'>('tiles');
 
   // 2. Full Sheet View State (NO POPUP MODAL! Opens full in-place inspection sheet)
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
@@ -516,7 +519,7 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
         ` }} />
 
         {/* Top Navigation & Action Header (Hidden in Print) */}
-        <div className="w-full no-print flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-200/80">
+        <div className="w-full no-print print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-200/80">
           <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
@@ -526,10 +529,6 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
               <ArrowLeft className="w-4 h-4 text-slate-500" />
               <span>Back to Past Records List</span>
             </button>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-xs font-mono font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
-              Record ID: {formatIdSafe(selectedRecordId, 24)}
-            </span>
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0">
@@ -600,9 +599,14 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
                 <div className="space-y-2 flex flex-col items-center justify-center text-center w-full">
                   <div className="flex items-center justify-center gap-2 flex-wrap">
                     <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
-                      {fullRecordData.form_data?.documentHeader?.documentType ||
-                        fullRecordData.form_data?.formName ||
-                        'Certified Quality Inspection Form'}
+                      {(() => {
+                        const docType = fullRecordData.form_data?.documentHeader?.documentType;
+                        const fName = fullRecordData.form_data?.formName;
+                        if (docType && docType !== fName && !/^test(ing)?(_|\s|-|\d)/i.test(docType) && !/test/i.test(docType)) {
+                          return docType;
+                        }
+                        return 'Online & Final Inspection Report';
+                      })()}
                     </h1>
                     <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-600 text-white tracking-wide shadow-2xs">
                       Archived QA Record
@@ -947,96 +951,16 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
                     </div>
                   );
                 })}
-
-                {/* Extra Checkpoints Block if any outside standard template */}
-                {(() => {
-                  const cellValues = fullRecordData.form_data?.cellValues || {};
-                  const standardKeys = new Set<string>();
-                  formSchema.sections.forEach(sec => {
-                    sec.elements?.forEach(el => {
-                      el.tableConfig?.rows?.forEach(r => {
-                        el.tableConfig?.columns?.forEach(c => {
-                          standardKeys.add(`${sec.id}-${r.id}-${c.id}`);
-                          standardKeys.add(`${r.id}-${c.id}`);
-                        });
-                      });
-                    });
-                  });
-
-                  const extraEntries = Object.entries(cellValues).filter(([k]) => !standardKeys.has(k));
-                  if (extraEntries.length === 0) return null;
-
-                  return (
-                    <div className="rounded-2xl border border-slate-200 bg-white shadow-2xs overflow-hidden">
-                      <div className="bg-slate-100/90 px-5 py-3 border-b border-slate-200 flex items-center justify-between">
-                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                          <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white text-[11px] flex items-center justify-center font-bold">
-                            +
-                          </span>
-                          <span>Additional Recorded Parameters &amp; Checkpoints</span>
-                        </h4>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 uppercase tracking-wide">
-                          {extraEntries.length} Checkpoints
-                        </span>
-                      </div>
-                      <div className="p-4 overflow-x-auto">
-                        <table className="w-full text-left text-xs border-collapse">
-                          <thead>
-                            <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-[11px] uppercase">
-                              <th className="py-2.5 px-4">Parameter / Checkpoint</th>
-                              <th className="py-2.5 px-4">Recorded Reading</th>
-                              <th className="py-2.5 px-4 text-right">Assessment</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {extraEntries.map(([k, v]) => {
-                              const strVal = String(v);
-                              const isPass = strVal.toLowerCase().includes('pass') || strVal.toLowerCase().includes('conforming');
-                              const isFail = strVal.toLowerCase().includes('fail') || strVal.toLowerCase().includes('reject');
-                              return (
-                                <tr key={k} className="hover:bg-slate-50">
-                                  <td className="py-2 px-4 font-mono text-slate-700">{k.replace(/sec-\d+-row-/, 'Parameter ').replace(/-col-/, ' • Point ')}</td>
-                                  <td className="py-2 px-4 font-bold text-slate-900">{strVal || 'Recorded'}</td>
-                                  <td className="py-2 px-4 text-right">
-                                    {isPass ? (
-                                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">PASS</span>
-                                    ) : isFail ? (
-                                      <span className="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px]">FAIL</span>
-                                    ) : (
-                                      <span className="font-mono text-xs">{strVal}</span>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  );
-                })()}
               </div>
 
-              {/* REMARKS & OBSERVATIONS (Read-Only) */}
-              <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-200 space-y-3">
-                <h4 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-slate-600" />
-                  <span>Auditor Observations &amp; Quality Remarks</span>
-                </h4>
-                <div className="p-4 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm text-slate-800 leading-relaxed font-normal whitespace-pre-wrap">
-                  {fullRecordData.form_data?.remarks ||
-                    'Inspection successfully completed under controlled factory parameters. All physical tolerances, insulation resistances, and shutter mechanisms conform strictly to technical drawings and SLS standards.'}
-                </div>
-              </div>
+              {/* ATTACHED TECHNICAL PHOTOS & CERTIFICATES (Rendered only if attachments were uploaded) */}
+              {fullRecordData.attachments && fullRecordData.attachments.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <Paperclip className="w-4 h-4 text-blue-600" />
+                    <span>Attached Technical Photos &amp; Verification Reports ({fullRecordData.attachments.length})</span>
+                  </h4>
 
-              {/* ATTACHED TECHNICAL PHOTOS & CERTIFICATES */}
-              <div className="space-y-3">
-                <h4 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                  <Paperclip className="w-4 h-4 text-blue-600" />
-                  <span>Attached Technical Photos &amp; Verification Reports ({fullRecordData.attachments?.length || 0})</span>
-                </h4>
-
-                {fullRecordData.attachments && fullRecordData.attachments.length > 0 ? (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {fullRecordData.attachments.map((url, idx) => (
                       <a
@@ -1061,12 +985,8 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
                       </a>
                     ))}
                   </div>
-                ) : (
-                  <div className="p-5 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-center text-xs text-slate-400">
-                    No technical photo attachments uploaded with this inspection record.
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* FOOTER SECTION: SIGN-OFF & AUDITOR CREDENTIALS (Identical to New Form, Read-Only) */}
               <div className="bg-slate-900 text-white rounded-2xl p-6 sm:p-7 shadow-lg space-y-6 print-break-inside-avoid">
@@ -1128,7 +1048,7 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
             </div>
 
             {/* Bottom Actions Bar (Hidden during Print) */}
-            <div className="p-5 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-4 no-print">
+            <div className="p-5 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-4 no-print print:hidden">
               <button
                 type="button"
                 onClick={handleBackToList}
@@ -1161,17 +1081,8 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
     <div className="w-full flex-1 flex flex-col items-center px-4 sm:px-6 py-6 z-10 max-w-7xl mx-auto min-h-[calc(100vh-7rem)] animate-in fade-in duration-300">
       
       {/* Top Header Banner */}
-      <div className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-200/80">
+      <div className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-200/80">
         <div>
-          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-800 border border-indigo-200">
-              {isAdmin ? 'ADMIN AUDIT LEDGER' : `${categoryName ? categoryName.toUpperCase() : moduleName.toUpperCase()} • QA RECORDS`}
-            </span>
-            <span className="text-xs text-slate-400 font-mono">
-              Database Records ({totalSummariesCount})
-            </span>
-          </div>
-
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
             <span>Past Inspection Records</span>
             {categoryName && (
@@ -1180,11 +1091,6 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
               </span>
             )}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-3xl">
-            {isAdmin 
-              ? 'Complete company-wide quality audit trail across all categories, registered items, and certified inspections.'
-              : `Past inspection records registered under ${categoryName || 'this category'}. Click any inspection card to open the complete certified sheet.`}
-          </p>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
@@ -1203,7 +1109,7 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
             type="button"
             onClick={() => fetchSummaries(selectedItemFilter)}
             disabled={isLoadingSummaries}
-            title="Refresh inspection summaries from Supabase"
+            title="Refresh inspection summaries"
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm font-semibold shadow-2xs transition cursor-pointer disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-slate-600 ${isLoadingSummaries ? 'animate-spin' : ''}`} />
@@ -1223,63 +1129,14 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
         </div>
       </div>
 
-      {/* Overview Metrics Cards */}
-      <div className="w-full grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-            Total Logged Inspections
-          </span>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono">
-              {totalSummariesCount}
-            </span>
-            <span className="text-xs text-slate-500 font-medium">Audits</span>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-            Monitored Item Codes
-          </span>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl sm:text-3xl font-extrabold text-indigo-600 font-mono">
-              {uniqueItemsCount}
-            </span>
-            <span className="text-xs text-slate-500 font-medium">SKUs</span>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-            Active Category Scope
-          </span>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-sm font-extrabold text-slate-800 truncate block">
-              {categoryName || (isAdmin ? 'All Categories' : 'Quality Assurance')}
-            </span>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-            Database Storage
-          </span>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-              ✓ Verified Supabase Data
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="w-full bg-white rounded-2xl border border-slate-200/90 p-4 mb-6 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3">
+      {/* Filter, Search Bar & Windows File Manager Style View Switcher */}
+      <div className="w-full bg-white rounded-2xl border border-slate-200/90 p-3.5 mb-6 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3">
         {/* Search Input */}
-        <div className="relative w-full md:w-96">
+        <div className="relative w-full md:w-80">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search by Item Code, Inspector, or Audit ID..."
+            placeholder="Search by Item Code or Inspector..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-8 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
@@ -1295,38 +1152,70 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
           )}
         </div>
 
-        {/* Item Code Filter Dropdown */}
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <label className="text-xs font-bold text-slate-500 shrink-0 flex items-center gap-1">
-            <Tag className="w-3.5 h-3.5 text-indigo-500" />
-            <span>Filter Item:</span>
-          </label>
-          <select
-            value={selectedItemFilter}
-            onChange={(e) => setSelectedItemFilter(e.target.value)}
-            className="w-full md:w-64 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-          >
-            <option value="all">All Items in this Category ({allItemCodes.length} available)</option>
-            {allItemCodes.map((code) => {
-              const itemMatch = lookupDatabaseItem(code, itemsList);
-              const desc = itemMatch?.description ? String(itemMatch.description).slice(0, 32) : 'Factory Part';
-              return (
-                <option key={code} value={code}>
-                  {code} - {desc}
-                </option>
-              );
-            })}
-          </select>
+        {/* Right side: Item Code Filter Dropdown & View Mode Switcher (Pure Symbols) */}
+        <div className="flex items-center gap-2.5 w-full md:w-auto justify-between md:justify-end flex-wrap">
+          <div className="flex items-center gap-2 flex-1 md:flex-initial">
+            <label className="text-xs font-bold text-slate-500 shrink-0 flex items-center gap-1">
+              <Tag className="w-3.5 h-3.5 text-indigo-500" />
+              <span>Filter Item:</span>
+            </label>
+            <select
+              value={selectedItemFilter}
+              onChange={(e) => setSelectedItemFilter(e.target.value)}
+              className="w-full md:w-56 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+            >
+              <option value="all">All Items ({allItemCodes.length})</option>
+              {allItemCodes.map((code) => {
+                const itemMatch = lookupDatabaseItem(code, itemsList);
+                const desc = itemMatch?.description ? String(itemMatch.description).slice(0, 28) : 'Factory Part';
+                return (
+                  <option key={code} value={code}>
+                    {code} - {desc}
+                  </option>
+                );
+              })}
+            </select>
 
-          {selectedItemFilter !== 'all' && (
+            {selectedItemFilter !== 'all' && (
+              <button
+                type="button"
+                onClick={() => setSelectedItemFilter('all')}
+                className="text-xs text-indigo-600 hover:underline font-bold shrink-0 cursor-pointer"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+
+          {/* View Mode Toggle: ONLY symbols (Tiles & List) */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/90 shrink-0" role="group" aria-label="View Mode">
             <button
               type="button"
-              onClick={() => setSelectedItemFilter('all')}
-              className="text-xs text-indigo-600 hover:underline font-bold shrink-0 cursor-pointer"
+              onClick={() => setViewMode('tiles')}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                viewMode === 'tiles'
+                  ? 'bg-white text-indigo-700 shadow-xs border border-slate-200 font-bold'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/60'
+              }`}
+              title="Tiles View"
+              aria-label="Tiles View"
             >
-              Reset
+              <LayoutGrid className="w-4 h-4" />
             </button>
-          )}
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                viewMode === 'list'
+                  ? 'bg-white text-indigo-700 shadow-xs border border-slate-200 font-bold'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/60'
+              }`}
+              title="List View"
+              aria-label="List View"
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1450,73 +1339,110 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
                             </div>
                           </div>
 
-                          {/* Records Grid */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                            {records.map((rec) => {
-                              const dateFormatted = formatDateSafe(rec.created_at);
-                              const timeFormatted = formatTimeSafe(rec.created_at);
-                              const shortId = formatIdSafe(rec.id, 13);
-                              const isOpeningThis = isLoadingFullRecord && selectedRecordId === rec.id;
+                          {/* Records Display: Tiles View or List View */}
+                          {viewMode === 'list' ? (
+                            /* Windows File Manager Details List Mode */
+                            <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+                              {records.map((rec) => {
+                                const dateFormatted = formatDateSafe(rec.created_at);
+                                const timeFormatted = formatTimeSafe(rec.created_at);
+                                const isOpeningThis = isLoadingFullRecord && selectedRecordId === rec.id;
 
-                              return (
-                                <div
-                                  key={rec.id}
-                                  onClick={() => handleOpenFullSheet(rec)}
-                                  className="group p-4 rounded-xl border border-slate-200 bg-white hover:border-indigo-400 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between space-y-3 relative overflow-hidden"
-                                >
-                                  {/* Top Row: Audit ID & Timestamp */}
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div>
-                                      <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-400">
-                                        <Clock className="w-3 h-3 text-slate-400" />
-                                        <span>{timeFormatted}</span>
-                                        <span>•</span>
-                                        <span>{dateFormatted}</span>
-                                      </div>
-                                      <span className="font-mono font-bold text-xs text-slate-900 group-hover:text-indigo-600 transition-colors block mt-1">
-                                        ID: {shortId}
+                                return (
+                                  <div
+                                    key={rec.id}
+                                    onClick={() => handleOpenFullSheet(rec)}
+                                    className="px-3.5 py-2 hover:bg-indigo-50/60 transition-colors flex items-center justify-between gap-3 text-xs cursor-pointer group select-none"
+                                  >
+                                    {/* Date & Time */}
+                                    <div className="flex items-center gap-1.5 text-slate-600 min-w-[150px] shrink-0 font-mono">
+                                      <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                      <span className="font-semibold text-slate-800">{dateFormatted}</span>
+                                      <span className="text-slate-400 text-[11px]">{timeFormatted}</span>
+                                    </div>
+
+                                    {/* Inspector / Auditor */}
+                                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                      <User className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                      <span className="font-semibold text-slate-800 truncate">
+                                        {rec.inspector_name || 'QC Inspector'}
                                       </span>
                                     </div>
 
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                      <span>Certified</span>
-                                    </span>
-                                  </div>
+                                    {/* Status Badge */}
+                                    <div className="shrink-0">
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                        <span>Certified</span>
+                                      </span>
+                                    </div>
 
-                                  {/* Inspector Information */}
-                                  <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-[10px]">
-                                        <User className="w-3.5 h-3.5" />
+                                    {/* Open Arrow */}
+                                    <div className="shrink-0 text-slate-400 group-hover:text-indigo-600 pl-1">
+                                      {isOpeningThis ? (
+                                        <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                                      ) : (
+                                        <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            /* Compact Tiles View (Halved size, no raw ID) */
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                              {records.map((rec) => {
+                                const dateFormatted = formatDateSafe(rec.created_at);
+                                const timeFormatted = formatTimeSafe(rec.created_at);
+                                const isOpeningThis = isLoadingFullRecord && selectedRecordId === rec.id;
+
+                                return (
+                                  <div
+                                    key={rec.id}
+                                    onClick={() => handleOpenFullSheet(rec)}
+                                    className="group p-3 rounded-xl border border-slate-200 bg-white hover:border-indigo-400 hover:shadow-xs transition-all duration-150 cursor-pointer flex flex-col justify-between space-y-2 relative overflow-hidden"
+                                  >
+                                    {/* Row 1: Timestamp & Certified Badge */}
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-500">
+                                        <Clock className="w-3 h-3 text-slate-400" />
+                                        <span>{dateFormatted}</span>
+                                        <span>•</span>
+                                        <span>{timeFormatted}</span>
                                       </div>
-                                      <div>
-                                        <span className="text-[10px] font-semibold text-slate-400 block uppercase">
-                                          Auditor / Inspector
-                                        </span>
-                                        <span className="font-bold text-slate-800 text-xs truncate max-w-[170px] block">
+
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                        <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                                        <span>Certified</span>
+                                      </span>
+                                    </div>
+
+                                    {/* Row 2: Auditor / Inspector & Open Indicator */}
+                                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                        <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-[9px] shrink-0">
+                                          <User className="w-3 h-3" />
+                                        </div>
+                                        <span className="font-semibold text-slate-800 text-xs truncate">
                                           {rec.inspector_name || 'QC Inspector'}
                                         </span>
                                       </div>
+
+                                      <div className="shrink-0 flex items-center gap-1 text-[11px] font-semibold text-indigo-600 group-hover:text-indigo-700 pl-2">
+                                        <span className="hidden sm:inline">Open</span>
+                                        {isOpeningThis ? (
+                                          <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                                        ) : (
+                                          <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 group-hover:text-indigo-600 transition-transform" />
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
-
-                                  {/* Bottom Action */}
-                                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-indigo-600 group-hover:text-indigo-700">
-                                    <span className="flex items-center gap-1.5">
-                                      <Eye className="w-3.5 h-3.5" />
-                                      <span>Open Inspection Sheet</span>
-                                    </span>
-                                    {isOpeningThis ? (
-                                      <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
-                                    ) : (
-                                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform" />
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -1526,6 +1452,49 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
             );
           })
         )}
+      </div>
+
+      {/* Windows File Manager Style Bottom Status Bar */}
+      <div className="w-full mt-6 py-2 px-4 rounded-xl bg-slate-100/90 border border-slate-200/90 shadow-2xs flex items-center justify-between text-xs text-slate-500">
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-slate-700">{totalSummariesCount} {totalSummariesCount === 1 ? 'record' : 'records'}</span>
+          {selectedItemFilter !== 'all' && (
+            <>
+              <span className="text-slate-300">•</span>
+              <span className="font-mono text-indigo-700 font-bold">{selectedItemFilter}</span>
+            </>
+          )}
+        </div>
+
+        {/* Pure symbol view switcher (Windows File Manager style) */}
+        <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200/90 shadow-2xs" role="group" aria-label="Bottom View Switcher">
+          <button
+            type="button"
+            onClick={() => setViewMode('tiles')}
+            className={`p-1.5 rounded-md transition-all cursor-pointer ${
+              viewMode === 'tiles'
+                ? 'bg-slate-900 text-white shadow-2xs'
+                : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+            }`}
+            title="Tiles View"
+            aria-label="Tiles View"
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('list')}
+            className={`p-1.5 rounded-md transition-all cursor-pointer ${
+              viewMode === 'list'
+                ? 'bg-slate-900 text-white shadow-2xs'
+                : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+            }`}
+            title="List View"
+            aria-label="List View"
+          >
+            <List className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
     </div>

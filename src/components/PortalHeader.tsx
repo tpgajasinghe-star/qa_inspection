@@ -25,11 +25,47 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { fullName, employeeId, role: authRole, isSuperAdmin, signOut: authSignOut } = useAuth();
+  const { fullName, employeeId, role: authRole, isSuperAdmin, signOut: authSignOut, isAuthenticated: isAuthLoggedIn } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  const effectiveName = fullName || sessionStorage.getItem('qc_auth_full_name') || userId || (userRole === 'admin' ? 'Admin' : 'Inspector');
-  const effectiveEmpId = employeeId || sessionStorage.getItem('qc_auth_employee_id') || userId || (userRole === 'admin' ? 'admin' : 'inspector');
+  // Derive effective role from props or AuthContext
+  const effectiveRole: 'inspector' | 'admin' | null = 
+    userRole || 
+    (authRole === 'ADMIN' || authRole === 'SUPER_ADMIN' ? 'admin' : authRole === 'USER' ? 'inspector' : null);
+
+  const isLoggedIn = Boolean(
+    (isAuthLoggedIn || !!userRole) && 
+    effectiveRole && 
+    (fullName || employeeId || userId || sessionStorage.getItem('qc_auth_employee_id'))
+  );
+
+  const effectiveName = fullName || sessionStorage.getItem('qc_auth_full_name') || userId || (effectiveRole === 'admin' ? 'Admin' : 'Inspector');
+  const effectiveEmpId = employeeId || sessionStorage.getItem('qc_auth_employee_id') || userId || (effectiveRole === 'admin' ? 'admin' : 'inspector');
+
+  // Robust sign out handler: invokes parent onLogout prop AND AuthContext signOut
+  const handleSignOut = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setShowUserMenu(false);
+
+    try {
+      if (onLogout) {
+        await onLogout();
+      }
+    } catch (err) {
+      console.warn('[PortalHeader:handleSignOut] onLogout prop error:', err);
+    }
+
+    try {
+      await authSignOut('/');
+    } catch (err) {
+      console.warn('[PortalHeader:handleSignOut] authSignOut error:', err);
+    }
+
+    navigate('/', { replace: true });
+  };
 
   const isRoot = location.pathname === '/' || location.pathname === '/workspace-selection';
 
@@ -56,7 +92,7 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
 
 
   return (
-    <header className="w-full flex items-center justify-between py-2 sm:py-2.5 px-3 sm:px-5 select-none relative z-30 shrink-0">
+    <header className="w-full flex items-center justify-between py-2 sm:py-2.5 px-3 sm:px-5 select-none relative z-30 shrink-0 no-print print:hidden">
       {/* Back Navigation Button - Synced with browser history stack via navigate(-1) */}
       {!isRoot ? (
         <button
@@ -96,7 +132,7 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
         </button>
 
         {/* User Identity Pill with Dropdown & Direct Sign Out */}
-        {userRole && (
+        {isLoggedIn && (
           <div className="flex items-center gap-1.5 sm:gap-2">
             <div className="relative">
               <button
@@ -106,13 +142,13 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
               >
                 <div
                   className={`w-6 h-6 rounded-full text-white flex items-center justify-center font-bold text-[10px] tracking-tight shadow-xs ${
-                    userRole === 'admin' ? 'bg-indigo-600' : 'bg-blue-600'
+                    effectiveRole === 'admin' ? 'bg-indigo-600' : 'bg-blue-600'
                   }`}
                 >
-                  {userRole === 'admin' ? 'AD' : 'QA'}
+                  {effectiveRole === 'admin' ? 'AD' : 'QA'}
                 </div>
                 <span className="hidden sm:inline">
-                  {userRole === 'admin' ? 'Admin: ' : 'Inspector: '}
+                  {effectiveRole === 'admin' ? 'Admin: ' : 'Inspector: '}
                   <strong className="font-semibold text-slate-900">
                     {effectiveName}
                   </strong>
@@ -143,22 +179,21 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
                       <p className="text-[11px] text-slate-500 font-semibold flex items-center gap-1.5 mt-0.5">
                         <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                         <span>
-                          {isSuperAdmin || authRole === 'SUPER_ADMIN' || authRole === 'ADMIN' || userRole === 'admin' ? 'ADMIN' : 'USER'}
+                          {isSuperAdmin || authRole === 'SUPER_ADMIN' || authRole === 'ADMIN' || effectiveRole === 'admin' ? 'ADMIN' : 'USER'}
                         </span>
                       </p>
                     </div>
-
 
                     <div className="py-1">
                       <button
                         onClick={() => {
                           setShowUserMenu(false);
-                          onSwitchRole(userRole === 'admin' ? 'inspector' : 'admin');
+                          onSwitchRole(effectiveRole === 'admin' ? 'inspector' : 'admin');
                         }}
                         className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-100 text-slate-700 transition cursor-pointer text-left"
                       >
                         <RefreshCw className="w-3.5 h-3.5 text-blue-600" />
-                        <span>Switch to {userRole === 'admin' ? 'Inspection Panel' : 'Admin Panel'}</span>
+                        <span>Switch to {effectiveRole === 'admin' ? 'Inspection Panel' : 'Admin Panel'}</span>
                       </button>
 
                       <button
@@ -188,11 +223,9 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
 
                     <div className="pt-1 border-t border-slate-100">
                       <button
-                        onClick={() => {
-                          setShowUserMenu(false);
-                          onLogout();
-                        }}
+                        onClick={handleSignOut}
                         className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-rose-50 text-rose-600 transition cursor-pointer text-left"
+                        id="btn-dropdown-sign-out"
                       >
                         <LogOut className="w-3.5 h-3.5 text-rose-500" />
                         <span className="font-medium">Sign Out</span>
@@ -206,7 +239,7 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
             {/* Direct One-Click Sign Out Button */}
             <button
               type="button"
-              onClick={onLogout}
+              onClick={handleSignOut}
               className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-full bg-rose-50/90 hover:bg-rose-100 text-rose-700 hover:text-rose-800 text-xs font-semibold border border-rose-200/80 shadow-2xs hover:shadow-xs transition-all cursor-pointer"
               id="btn-direct-sign-out"
               title="Sign Out of Session"

@@ -82,8 +82,30 @@ export default function App() {
     if (!isAuthLoggedIn) {
       setUserRole(null);
       setUserId('');
+    } else {
+      if (authProfileRole === 'ADMIN' || authProfileRole === 'SUPER_ADMIN') {
+        setUserRole('admin');
+      } else if (authProfileRole === 'USER') {
+        setUserRole('inspector');
+      }
+      if (employeeId) {
+        setUserId(employeeId);
+      }
     }
-  }, [isAuthLoggedIn]);
+  }, [isAuthLoggedIn, authProfileRole, employeeId]);
+
+  // Global logout event listener
+  useEffect(() => {
+    const handleGlobalLogout = () => {
+      setIsAuthenticated(false);
+      setUserRole(null);
+      setUserId('');
+    };
+    window.addEventListener('qc_auth_logout', handleGlobalLogout);
+    return () => {
+      window.removeEventListener('qc_auth_logout', handleGlobalLogout);
+    };
+  }, []);
 
 
 
@@ -208,9 +230,8 @@ export default function App() {
     }
   };
 
-  // Logout - destroys session, returns to home page ('/')
-  const handleLogout = () => {
-    authSignOut();
+  // Logout - completely destroys session, cleanses storage, and returns to home page ('/') in fresh unauthenticated state
+  const handleLogout = async () => {
     setIsAuthenticated(false);
     setUserRole(null);
     setUserId('');
@@ -220,7 +241,12 @@ export default function App() {
     sessionStorage.removeItem('qc_auth_profile_role');
     sessionStorage.removeItem('qc_auth_full_name');
     sessionStorage.removeItem('qc_auth_employee_id');
-    navigate('/');
+
+    try {
+      await authSignOut('/');
+    } catch {}
+
+    navigate('/', { replace: true });
   };
 
 

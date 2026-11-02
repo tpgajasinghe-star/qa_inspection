@@ -19,7 +19,8 @@ import {
   ChevronDown,
   ChevronRight,
   FolderPlus,
-  Check
+  Check,
+  Loader2
 } from 'lucide-react';
 import {
   InspectionHierarchyCard,
@@ -36,6 +37,8 @@ import {
   InspectionCardIconRenderer,
   AVAILABLE_CARD_ICONS
 } from './InspectionCardIconRenderer';
+import { useAuth } from '../context/AuthContext';
+import { verifyCurrentAdminPassword } from '../backend/adminUserService';
 
 interface InspectionEditorProps {
   onBack: () => void;
@@ -46,6 +49,8 @@ export const InspectionEditor: React.FC<InspectionEditorProps> = ({
   onBack,
   userId = 'AD-1004'
 }) => {
+  const { employeeId, user } = useAuth();
+
   // State for all cards
   const [cards, setCards] = useState<InspectionHierarchyCard[]>(() => getStoredInspectionCards());
   const [searchQuery, setSearchQuery] = useState('');
@@ -78,6 +83,7 @@ export const InspectionEditor: React.FC<InspectionEditorProps> = ({
   const [deletingCard, setDeletingCard] = useState<InspectionHierarchyCard | null>(null);
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
   const [deletePasswordError, setDeletePasswordError] = useState('');
+  const [isVerifyingDelete, setIsVerifyingDelete] = useState(false);
 
   // =========================================================================
   // MODAL: RESET DEFAULTS
@@ -183,8 +189,8 @@ export const InspectionEditor: React.FC<InspectionEditorProps> = ({
     setDeletePasswordError('');
   };
 
-  // Confirm Delete with Admin Password (Requirement 5)
-  const handleConfirmDelete = (e: React.FormEvent) => {
+  // Confirm Delete with Admin Password (verified against database / Supabase Auth)
+  const handleConfirmDelete = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!deletingCard) return;
 
@@ -195,26 +201,38 @@ export const InspectionEditor: React.FC<InspectionEditorProps> = ({
       return;
     }
 
-    // Accept standard default password 'password123' or any valid authenticated session credentials
-    if (trimmedPass !== 'password123') {
-      setDeletePasswordError('Invalid admin password. Authorization denied.');
-      return;
-    }
-
-    const cardName = deletingCard.name;
-    const isMain = deletingCard.location === 'main';
-    const childCount = isMain ? getChildCards(deletingCard.id, cards).length : 0;
-
-    const remaining = deleteInspectionCard(deletingCard.id);
-    setCards(remaining);
-    setDeletingCard(null);
-    setAdminPasswordInput('');
+    setIsVerifyingDelete(true);
     setDeletePasswordError('');
 
-    const msg = isMain && childCount > 0
-      ? `Deleted main card "${cardName}" and its ${childCount} child cards.`
-      : `Deleted card "${cardName}".`;
-    showToast(msg, 'danger');
+    try {
+      const currentAdminId = employeeId || user?.email || userId || 'admin';
+      const checkResult = await verifyCurrentAdminPassword(currentAdminId, trimmedPass, user?.email);
+
+      if (!checkResult.success) {
+        setDeletePasswordError(checkResult.error || 'Incorrect admin password. Authorization denied.');
+        return;
+      }
+
+      const cardName = deletingCard.name;
+      const isMain = deletingCard.location === 'main';
+      const childCount = isMain ? getChildCards(deletingCard.id, cards).length : 0;
+
+      const remaining = deleteInspectionCard(deletingCard.id);
+      setCards(remaining);
+      setDeletingCard(null);
+      setAdminPasswordInput('');
+      setDeletePasswordError('');
+
+      const msg = isMain && childCount > 0
+        ? `Deleted main card "${cardName}" and its ${childCount} child cards.`
+        : `Deleted card "${cardName}".`;
+      showToast(msg, 'danger');
+    } catch (err: any) {
+      console.error('[InspectionEditor:delete] Error:', err);
+      setDeletePasswordError(err.message || 'Authorization failed. Please try again.');
+    } finally {
+      setIsVerifyingDelete(false);
+    }
   };
 
   // Reset to Factory Defaults
@@ -902,7 +920,7 @@ export const InspectionEditor: React.FC<InspectionEditorProps> = ({
                       setAdminPasswordInput(e.target.value);
                       setDeletePasswordError('');
                     }}
-                    placeholder="Enter admin password (e.g. password123)"
+                    placeholder="Enter your admin account password"
                     className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all font-mono"
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
@@ -915,10 +933,10 @@ export const InspectionEditor: React.FC<InspectionEditorProps> = ({
                     <span>{deletePasswordError}</span>
                   </p>
                 )}
-                <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-400">
-                  <span>Authorized role: <strong>QA Admin ({userId})</strong></span>
-                  <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
-                    Admin pass: password123
+                <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-500">
+                  <span>Authorized Admin: <strong>{employeeId || user?.email || userId}</strong></span>
+                  <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 text-[10px]">
+                    Database Protected
                   </span>
                 </div>
               </div>
@@ -928,21 +946,31 @@ export const InspectionEditor: React.FC<InspectionEditorProps> = ({
                 <button
                   type="button"
                   onClick={() => setDeletingCard(null)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-bold transition-all cursor-pointer"
+                  disabled={isVerifyingDelete}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={!adminPasswordInput.trim()}
+                  disabled={!adminPasswordInput.trim() || isVerifyingDelete}
                   className={`px-5 py-2 rounded-xl text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition-all ${
-                    !adminPasswordInput.trim()
+                    !adminPasswordInput.trim() || isVerifyingDelete
                       ? 'bg-rose-300 cursor-not-allowed shadow-none'
                       : 'bg-rose-600 hover:bg-rose-700 active:bg-rose-800 shadow-rose-500/20 cursor-pointer'
                   }`}
                 >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Confirm Delete</span>
+                  {isVerifyingDelete ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      <span>Confirm Delete</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

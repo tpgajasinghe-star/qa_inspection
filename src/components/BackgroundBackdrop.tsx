@@ -6,7 +6,7 @@ export const BackgroundBackdrop: React.FC = () => {
 
   return (
     <div 
-      className="fixed inset-0 pointer-events-none z-0 overflow-hidden bg-gradient-to-br from-slate-100 via-sky-50 to-blue-100" 
+      className="fixed inset-0 pointer-events-none z-0 overflow-hidden bg-gradient-to-br from-slate-100 via-sky-50 to-blue-100 no-print print:hidden" 
       aria-hidden="true"
     >
       {/* Background Graphic */}

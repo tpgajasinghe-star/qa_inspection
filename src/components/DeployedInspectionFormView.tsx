@@ -383,7 +383,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
     <div className="w-full flex-1 flex flex-col items-center px-4 sm:px-6 py-6 z-10 max-w-6xl mx-auto min-h-[calc(100vh-7rem)] animate-in fade-in duration-300">
       
       {/* Top Breadcrumb Navigation */}
-      <div className="w-full flex items-center justify-between mb-6 pb-4 border-b border-slate-200/70">
+      <div className="w-full flex items-center justify-between mb-6 pb-4 border-b border-slate-200/70 no-print print:hidden">
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 flex-wrap">
           <button 
             type="button"
@@ -450,7 +450,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                 Inspection Form Certified &amp; Saved Successfully!
               </h4>
               <p className="text-xs text-emerald-800 mt-0.5">
-                Audit Record <strong className="font-mono">{submittedRecordId}</strong> has been logged into the quality register for Product: <strong>{productDesc || form.productType || form.documentHeader.productType}</strong> (Item Code: <strong className="font-mono">{itemCode || matchedDbItem?.item_code || 'N/A'}</strong>).
+                The inspection audit record has been certified and logged into the quality register for Product: <strong>{productDesc || form.productType || form.documentHeader.productType}</strong> (Item Code: <strong className="font-mono">{itemCode || matchedDbItem?.item_code || 'N/A'}</strong>).
               </p>
             </div>
           </div>
@@ -468,7 +468,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
       )}
 
       {/* Full Live Inspection Form Container */}
-      <form onSubmit={handleSubmitInspection} className="w-full bg-white rounded-3xl shadow-xl border border-slate-200/90 mb-10 overflow-visible relative">
+      <form onSubmit={handleSubmitInspection} className="w-full bg-white rounded-3xl shadow-xl border border-slate-200/90 mb-10 overflow-visible relative print-clean">
         
         {/* Form Header Banner - Centered topics layout as previously styled */}
         <div className="p-6 sm:p-8 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white border-b border-slate-800 text-center relative overflow-hidden">
@@ -487,7 +487,9 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
             <div className="space-y-2 flex flex-col items-center justify-center text-center w-full">
               <div className="flex items-center justify-center gap-2 flex-wrap">
                 <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
-                  {form.documentHeader.documentType || form.name}
+                  {form.documentHeader.documentType && !/^test(ing)?(_|\s|-|\d)/i.test(form.documentHeader.documentType) && form.documentHeader.documentType !== form.name
+                    ? form.documentHeader.documentType
+                    : 'Online & Final Inspection Report'}
                 </h1>
                 <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-600 text-white tracking-wide shadow-2xs">
                   Deployed Form
@@ -1057,7 +1059,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
           </div>
 
           {/* Form Actions Toolbar */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200 no-print print:hidden">
             <button
               type="button"
               onClick={onBackToList}

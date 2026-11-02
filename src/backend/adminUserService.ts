@@ -610,3 +610,65 @@ export async function deleteProfileUser(id: string, currentUserRole: ProfileRole
     throw error;
   }
 }
+
+/**
+ * Verifies the currently logged-in Admin's password against the database / Supabase Auth.
+ * Used to protect high-impact operations:
+ * - Deleting inspection main cards and child cards
+ * - Deleting user profiles
+ */
+export async function verifyCurrentAdminPassword(
+  adminIdentifier: string,
+  passwordAttempt: string,
+  adminEmail?: string
+): Promise<{ success: boolean; error?: string }> {
+  const cleanPass = passwordAttempt.trim();
+  const cleanId = (adminIdentifier || '').trim().toLowerCase();
+
+  if (!cleanPass) {
+    return { success: false, error: 'Admin password is required to authorize deletion.' };
+  }
+
+  // 1. Root Super Admin master credentials check (admin / admingamana)
+  if (
+    (cleanId === 'admin' || cleanId === 'admin@abc.com' || (adminEmail && adminEmail.toLowerCase() === 'admin@abc.com')) &&
+    cleanPass === 'admingamana'
+  ) {
+    return { success: true };
+  }
+
+  // 2. Check local password vault
+  const vaultPass = getStoredUserPassword(cleanId) || (adminEmail ? getStoredUserPassword(adminEmail) : null);
+  if (vaultPass && vaultPass === cleanPass) {
+    return { success: true };
+  }
+
+  // 3. Supabase Auth direct verification
+  const emailCandidates: string[] = [];
+  if (adminEmail && adminEmail.includes('@')) {
+    emailCandidates.push(adminEmail.toLowerCase());
+  }
+  if (cleanId.includes('@')) {
+    emailCandidates.push(cleanId);
+  } else if (cleanId) {
+    emailCandidates.push(`${cleanId}@abc.com`);
+  }
+
+  for (const email of emailCandidates) {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password: cleanPass,
+      });
+
+      if (!error && data?.user) {
+        return { success: true };
+      }
+    } catch (authErr) {
+      console.warn('[verifyCurrentAdminPassword] Supabase auth check error:', authErr);
+    }
+  }
+
+  return { success: false, error: 'Incorrect admin password. Authorization denied.' };
+}
+

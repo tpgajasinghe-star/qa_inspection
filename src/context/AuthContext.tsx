@@ -484,13 +484,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [fetchProfileFromDatabase, persistSession]);
 
-  // Sign out method
+  // Sign out method - fully cleanses state and storage, redirects to fresh home page
   const signOut = useCallback(async (destination: string = '/') => {
-    try {
-      await supabase.auth.signOut();
-    } catch (err) {
-      console.warn('[AuthContext] Sign out error:', err);
-    }
+    // 1. Immediately reset React state synchronously
     clearActivityTimestamp();
     setUser(null);
     setProfile(null);
@@ -498,13 +494,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setFullName('');
     setEmployeeId('');
     setIsAuthenticated(false);
+
+    // 2. Clear all session storage tokens
     sessionStorage.removeItem('qc_auth_logged_in');
     sessionStorage.removeItem('qc_auth_role');
     sessionStorage.removeItem('qc_auth_user_id');
     sessionStorage.removeItem('qc_auth_profile_role');
     sessionStorage.removeItem('qc_auth_full_name');
     sessionStorage.removeItem('qc_auth_employee_id');
-    navigate(destination);
+
+    // 3. Clean any Supabase Auth tokens in localStorage
+    try {
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('sb-') || key.includes('auth-token') || key.startsWith('supabase.'))) {
+          localStorage.removeItem(key);
+        }
+      }
+    } catch {}
+
+    // 4. Dispatch global event for instant multi-component synchronization
+    try {
+      window.dispatchEvent(new CustomEvent('qc_auth_logout'));
+    } catch {}
+
+    // 5. Asynchronously notify Supabase
+    try {
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+      await supabase.auth.signOut().catch(() => {});
+    } catch (err) {
+      console.warn('[AuthContext] Sign out error:', err);
+    }
+
+    toast.success('Successfully logged out.');
+    navigate(destination, { replace: true });
   }, [navigate]);
 
   // Live user interaction tracking and periodic inactivity watchdog

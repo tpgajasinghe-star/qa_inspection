@@ -34,7 +34,8 @@ import {
   createProfileUser, 
   updateProfileUser, 
   deleteProfileUser,
-  getStoredUserPassword
+  getStoredUserPassword,
+  verifyCurrentAdminPassword
 } from '../backend/adminUserService';
 import { useAuth } from '../context/AuthContext';
 
@@ -47,7 +48,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   onBack, 
   currentUserRole: propRole 
 }) => {
-  const { role: authRole } = useAuth();
+  const { role: authRole, employeeId, user } = useAuth();
 
   // Current logged in user's profile role (SUPER_ADMIN or ADMIN)
   const [currentUserRole, setCurrentUserRole] = useState<ProfileRole>(() => {
@@ -102,6 +103,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   const [editPassword, setEditPassword] = useState('');
   const [showEditPassword, setShowEditPassword] = useState(false);
   const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
+  const [deleteAdminPassword, setDeleteAdminPassword] = useState('');
+  const [deletePasswordError, setDeletePasswordError] = useState('');
 
   // 1. Initial Load & Super Admin Seeding Check
   useEffect(() => {
@@ -268,18 +271,45 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     }
   };
 
-  // Confirm Delete User
+  // Open Delete Modal
+  const handleOpenDeleteUser = (user: UserProfile) => {
+    setDeletingUser(user);
+    setDeleteAdminPassword('');
+    setDeletePasswordError('');
+  };
+
+  // Confirm Delete User (verified against database / Supabase Auth)
   const handleConfirmDelete = async () => {
     if (!deletingUser) return;
+
+    const trimmedPass = deleteAdminPassword.trim();
+    if (!trimmedPass) {
+      setDeletePasswordError('Admin security password is required to delete user accounts.');
+      return;
+    }
+
     setIsSubmitting(true);
+    setDeletePasswordError('');
+
     try {
+      const currentAdminId = employeeId || user?.email || 'admin';
+      const checkResult = await verifyCurrentAdminPassword(currentAdminId, trimmedPass, user?.email);
+
+      if (!checkResult.success) {
+        setDeletePasswordError(checkResult.error || 'Incorrect admin password. Authorization denied.');
+        setIsSubmitting(false);
+        return;
+      }
+
       await deleteProfileUser(deletingUser.id, currentUserRole);
       await reloadProfiles();
-      toast.success('User successfully deleted!');
+      toast.success(`User "${deletingUser.full_name}" successfully deleted!`);
       setDeletingUser(null);
+      setDeleteAdminPassword('');
+      setDeletePasswordError('');
     } catch (error: any) {
       console.error('[UserManagement:deleteUser] Error caught:', error);
-      toast.error(error.message || 'Database connection failed or quota exceeded');
+      setDeletePasswordError(error.message || 'Database connection failed or quota exceeded');
     } finally {
       setIsSubmitting(false);
     }
@@ -958,7 +988,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                               {allowDelete ? (
                                 <button
                                   type="button"
-                                  onClick={() => setDeletingUser(user)}
+                                  onClick={() => handleOpenDeleteUser(user)}
                                   className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-700 transition cursor-pointer"
                                   title={`Delete ${user.full_name}`}
                                 >
@@ -1183,42 +1213,91 @@ export const UserManagement: React.FC<UserManagementProps> = ({
       {deletingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div 
-            className="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200"
+            className="bg-white rounded-3xl max-w-sm w-full p-6 text-left shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 mx-auto flex items-center justify-center mb-3">
               <ShieldAlert className="w-6 h-6" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900 mb-1">Delete User Profile?</h3>
-            <p className="text-xs text-slate-500 mb-4">
-              Are you sure you want to delete <strong>{deletingUser.full_name}</strong> ({deletingUser.employee_id})? This will remove their profile and Supabase Auth credentials.
+            <h3 className="text-lg font-bold text-slate-900 mb-1 text-center">Delete User Profile?</h3>
+            <p className="text-xs text-slate-500 mb-4 text-center">
+              Are you sure you want to delete <strong>{deletingUser.full_name}</strong> ({deletingUser.employee_id})? This will permanently remove their profile and Supabase Auth credentials.
             </p>
 
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setDeletingUser(null)}
-                disabled={isSubmitting}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-semibold text-xs hover:bg-slate-50 cursor-pointer disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmDelete}
-                disabled={isSubmitting}
-                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm cursor-pointer disabled:opacity-75 flex items-center justify-center gap-1.5"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Deleting...</span>
-                  </>
-                ) : (
-                  <span>Yes, Delete</span>
+            {/* Admin Password Verification Form */}
+            <form onSubmit={(e) => { e.preventDefault(); handleConfirmDelete(); }} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Admin Security Password <span className="text-rose-500">*</span></span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    autoFocus
+                    required
+                    value={deleteAdminPassword}
+                    onChange={(e) => {
+                      setDeleteAdminPassword(e.target.value);
+                      setDeletePasswordError('');
+                    }}
+                    placeholder="Enter your admin account password"
+                    className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all font-mono"
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                    <KeyRound className="w-4 h-4" />
+                  </div>
+                </div>
+                {deletePasswordError && (
+                  <p className="text-xs text-rose-600 font-semibold mt-1.5 flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{deletePasswordError}</span>
+                  </p>
                 )}
-              </button>
-            </div>
+                <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-500">
+                  <span>Authorized Admin: <strong>{employeeId || user?.email || 'admin'}</strong></span>
+                  <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 text-[10px]">
+                    Database Protected
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeletingUser(null);
+                    setDeleteAdminPassword('');
+                    setDeletePasswordError('');
+                  }}
+                  disabled={isSubmitting}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-semibold text-xs hover:bg-slate-50 cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !deleteAdminPassword.trim()}
+                  className={`flex-1 py-2.5 rounded-xl text-white font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition ${
+                    isSubmitting || !deleteAdminPassword.trim()
+                      ? 'bg-rose-300 cursor-not-allowed shadow-none'
+                      : 'bg-rose-600 hover:bg-rose-700 cursor-pointer'
+                  }`}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Yes, Delete</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

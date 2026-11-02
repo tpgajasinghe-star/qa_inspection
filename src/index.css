@@ -27,3 +27,92 @@
 .portal-glass-card:hover {
   box-shadow: 0 28px 56px -12px rgba(37, 99, 235, 0.18), 0 0 1px 1px rgba(147, 197, 253, 0.7);
 }
+
+/* =========================================================================
+   OFFICIAL QA INSPECTION SHEET PRINT STYLING
+   Optimizes sheets for hardcopy paper printing and PDF export (window.print)
+   ========================================================================= */
+@media print {
+  /* Hide non-printable app UI elements */
+  header,
+  nav,
+  aside,
+  .no-print,
+  .print\:hidden,
+  [data-no-print],
+  button:not(.allow-print),
+  .portal-bg-wallpaper,
+  [role="status"],
+  div[data-toaster],
+  div[aria-live="polite"] {
+    display: none !important;
+  }
+
+  /* Reset page body */
+  @page {
+    margin: 10mm 12mm 10mm 12mm;
+    size: A4 portrait;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    background-image: none !important;
+    color: #0f172a !important;
+    font-size: 10pt !important;
+    line-height: 1.35 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Force exact background colors and borders in Chrome / Safari / Edge */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Remove outer dropshadows that cause dark halos when printed */
+  .portal-glass-card,
+  .shadow-2xs,
+  .shadow-xs,
+  .shadow-sm,
+  .shadow-md,
+  .shadow-lg,
+  .shadow-xl,
+  .shadow-2xl {
+    box-shadow: none !important;
+  }
+
+  /* Container clean print styling */
+  .print-clean {
+    box-shadow: none !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 12px !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: #ffffff !important;
+  }
+
+  /* Prevent page breaks inside cards, tables, sections, and certification boxes */
+  .print-break-inside-avoid,
+  .break-inside-avoid,
+  table,
+  tr,
+  fieldset,
+  section,
+  .inspection-section-block {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Inputs and form controls */
+  input, textarea, select {
+    border-color: #cbd5e1 !important;
+    background-color: transparent !important;
+    color: #0f172a !important;
+  }
+}
