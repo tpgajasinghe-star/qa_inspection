@@ -738,6 +738,14 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
   const [deployProductType, setDeployProductType] = useState<string>('');
   const [deployFormName, setDeployFormName] = useState<string>('');
 
+  // Deploy Success Modal State (Shows popup without redirecting)
+  const [deploySuccessModal, setDeploySuccessModal] = useState<{
+    isOpen: boolean;
+    formName: string;
+    targetCategory: string;
+    productType: string;
+  } | null>(null);
+
   // 12-hour round clock time picker modal state for Form Generator
   const [studioClockPicker, setStudioClockPicker] = useState<{
     isOpen: boolean;
@@ -2309,14 +2317,20 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
     }
 
     setShowDeployModal(false);
-    showToast(`Form deployed to ${targetMainName} > ${targetChildName} under Product Type "${finalProductType}"!`);
+    setDeploySuccessModal({
+      isOpen: true,
+      formName: deployFormName.trim() || activeForm?.name || 'Inspection Form',
+      targetCategory: `${targetMainName} > ${targetChildName}`,
+      productType: finalProductType,
+    });
+    showToast('Deployed successfully!');
   };
 
   // Render the Document Header Section (Document Control Specifications)
   const renderDocumentHeaderCard = () => (
     <div 
       id="document-header-section-card" 
-      className="w-full bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden transition-all duration-200"
+      className="w-full bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden transition-all duration-200 no-print print:hidden"
     >
       <div className="bg-slate-900 text-white px-5 py-3.5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -2496,7 +2510,7 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
   const renderFooterSectionCard = () => (
     <div
       id="section-block-footer"
-      className={`w-full bg-white rounded-xl border-2 transition-all shadow-sm overflow-hidden ${
+      className={`w-full bg-white rounded-xl border-2 transition-all shadow-sm overflow-hidden no-print print:hidden ${
         footerData.enabled 
           ? 'border-indigo-300 ring-1 ring-indigo-200/50 bg-slate-50/20' 
           : 'border-slate-300 hover:border-slate-400'
@@ -3068,9 +3082,9 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
     return (
       <div 
         id="live-preview-bottom-container" 
-        className="w-full bg-slate-50/60 p-4 sm:p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-4 animate-in fade-in slide-in-from-top-3 duration-200"
+        className="w-full bg-slate-50/60 p-4 sm:p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-4 animate-in fade-in slide-in-from-top-3 duration-200 print-clean"
       >
-        <div className="flex items-center justify-between px-1">
+        <div className="flex items-center justify-between px-1 no-print print:hidden">
           <div className="flex items-center gap-2">
             <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
@@ -3635,7 +3649,7 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
       {/* Top Header Bar / Form Generator Toolbar: Placed at the top */}
       <div 
         id="form-generator-top-bar"
-        className="w-full flex flex-wrap items-center justify-between gap-3 bg-white px-5 py-4 rounded-2xl border border-slate-200/80 shadow-xs"
+        className="w-full flex flex-wrap items-center justify-between gap-3 bg-white px-5 py-4 rounded-2xl border border-slate-200/80 shadow-xs no-print print:hidden"
       >
         <div className="flex items-center gap-3">
           <button
@@ -3777,7 +3791,8 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
       {/* 2. FOOTER SECTION BLOCK: Placed consecutively right under Header Section in Editable Stage */}
       {renderFooterSectionCard()}
 
-      {/* Main Content Area */}
+      {/* Main Content Area (Hidden in Print so only Live Form Sheet Prints) */}
+      <div id="editor-sections-builder-container" className="no-print print:hidden space-y-6">
       {sections.length === 0 ? (
         /* Empty State */
         <div className="w-full min-h-[380px] rounded-2xl border-2 border-dashed border-slate-300 bg-white/70 flex flex-col items-center justify-center p-8 text-center space-y-4 shadow-2xs">
@@ -4308,6 +4323,7 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
           </div>
         </div>
       )}
+      </div>
 
       {/* 3. LIVE DATA ENTRY PREVIEW: Placed at the BOTTOM of the page */}
       {renderLivePreviewAtBottom()}
@@ -6220,6 +6236,63 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
             setStudioClockPicker(null);
           }}
         />
+      )}
+
+      {/* Deploy Success Popup Modal (User requested: popup message only, no redirect) */}
+      {deploySuccessModal && deploySuccessModal.isOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setDeploySuccessModal(null);
+          }}
+        >
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 sm:p-7 text-center animate-in zoom-in-95 duration-150">
+            {/* Green Checkmark Badge */}
+            <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center mx-auto mb-4 shadow-sm">
+              <CheckCircle2 className="w-9 h-9 stroke-[2.2]" />
+            </div>
+
+            <h3 className="text-xl font-extrabold text-slate-900 mb-1">
+              Deployed Successfully!
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-500 mb-5 leading-relaxed">
+              Your inspection form has been deployed and registered in QA operations.
+            </p>
+
+            {/* Details Box */}
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 text-left space-y-2 mb-6 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-semibold">Form:</span>
+                <span className="font-bold text-slate-800">{deploySuccessModal.formName}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-semibold">Destination:</span>
+                <span className="font-bold text-blue-700">{deploySuccessModal.targetCategory}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-semibold">Product Type:</span>
+                <span className="font-bold text-slate-800">{deploySuccessModal.productType}</span>
+              </div>
+              <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
+                <span className="text-slate-400 font-semibold">Status:</span>
+                <span className="inline-flex items-center gap-1 text-emerald-600 font-bold">
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Ready for In-Line &amp; Final Inspection</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Dismiss Button */}
+            <button
+              type="button"
+              onClick={() => setDeploySuccessModal(null)}
+              className="w-full py-3 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-sm shadow-md shadow-blue-500/25 transition cursor-pointer"
+              id="btn-deploy-success-ok"
+            >
+              OK, Got it
+            </button>
+          </div>
+        </div>
       )}
 
     </div>

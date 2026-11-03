@@ -522,7 +522,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
         <div className="w-full flex justify-center pt-2">
           <button
             type="button"
-            onClick={() => onBackToChildCards ? onBackToChildCards() : navigate(-1)}
+            onClick={() => onBackToChildCards ? onBackToChildCards() : navigate(`/inspection/module/${mainCard.id}`)}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-blue-700 font-semibold text-xs sm:text-sm shadow-sm border border-slate-200/80 backdrop-blur-md transition-all cursor-pointer group hover:shadow-md"
             id="btn-back-to-child-cards"
           >

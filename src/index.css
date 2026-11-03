@@ -28,91 +28,397 @@
   box-shadow: 0 28px 56px -12px rgba(37, 99, 235, 0.18), 0 0 1px 1px rgba(147, 197, 253, 0.7);
 }
 
+/* Seamless browser password autofill styling */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: #0f172a !important;
+  transition: background-color 50000s ease-in-out 0s;
+  box-shadow: inset 0 0 0px 1000px #f8fafc !important;
+}
+
 /* =========================================================================
-   OFFICIAL QA INSPECTION SHEET PRINT STYLING
-   Optimizes sheets for hardcopy paper printing and PDF export (window.print)
+   OFFICIAL QA INSPECTION SHEET PRINT STYLING (SINGLE A4 PORTRAIT)
+   Calibrated typography, compact margins & balanced spacing to fit
+   on a single A4 page without distortion or overflowing to page 2.
    ========================================================================= */
 @media print {
-  /* Hide non-printable app UI elements */
+  /* Strict A4 Portrait page with balanced 5mm vertical and 6mm horizontal margins */
+  @page {
+    size: A4 portrait;
+    margin: 5mm 6mm 5mm 6mm;
+  }
+
+  /* Root print reset */
+  html, body, #root {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    background-image: none !important;
+    color: #0f172a !important;
+    font-size: 7.2pt !important;
+    line-height: 1.15 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Eliminate page-breaking outer margins & paddings on parent wrapper divs */
+  main,
+  .min-h-\[calc\(100vh-7rem\)\],
+  .min-h-screen,
+  div:has(> form.print-clean),
+  div:has(> div.print-clean) {
+    min-height: auto !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  /* Hide all non-printable app UI elements */
   header,
   nav,
   aside,
   .no-print,
   .print\:hidden,
   [data-no-print],
-  button:not(.allow-print),
+  button,
   .portal-bg-wallpaper,
   [role="status"],
   div[data-toaster],
-  div[aria-live="polite"] {
+  div[aria-live="polite"],
+  #form-generator-top-bar,
+  #form-generator-workspace-tools,
+  #document-header-section-card,
+  #section-block-footer,
+  #editor-sections-builder-container,
+  #live-preview-bottom-container > div:first-child,
+  .print-hide {
     display: none !important;
   }
 
-  /* Reset page body */
-  @page {
-    margin: 10mm 12mm 10mm 12mm;
-    size: A4 portrait;
-  }
-
-  html, body {
-    background: #ffffff !important;
-    background-color: #ffffff !important;
-    background-image: none !important;
-    color: #0f172a !important;
-    font-size: 10pt !important;
-    line-height: 1.35 !important;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  /* Force exact background colors and borders in Chrome / Safari / Edge */
+  /* Force exact background colors and borders */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
   }
 
-  /* Remove outer dropshadows that cause dark halos when printed */
-  .portal-glass-card,
-  .shadow-2xs,
-  .shadow-xs,
-  .shadow-sm,
-  .shadow-md,
-  .shadow-lg,
-  .shadow-xl,
-  .shadow-2xl {
-    box-shadow: none !important;
-  }
-
-  /* Container clean print styling */
-  .print-clean {
-    box-shadow: none !important;
-    border: 1px solid #cbd5e1 !important;
-    border-radius: 12px !important;
-    margin: 0 !important;
+  /* Primary Form Print Container */
+  .print-clean,
+  form.print-clean,
+  #printable-inspection-sheet,
+  #live-preview-bottom-container,
+  #form-live-data-entry-preview-section {
     width: 100% !important;
     max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 1px solid #94a3b8 !important;
+    border-radius: 4px !important;
     background: #ffffff !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: avoid !important;
   }
 
-  /* Prevent page breaks inside cards, tables, sections, and certification boxes */
-  .print-break-inside-avoid,
-  .break-inside-avoid,
-  table,
-  tr,
-  fieldset,
-  section,
+  /* Tighten vertical spacing across all containers */
+  .space-y-8,
+  .space-y-6,
+  .space-y-4 {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    gap: 3px !important;
+  }
+
+  /* 1. Header Banner */
+  .print-clean > div:first-child,
+  .bg-gradient-to-r.from-slate-950,
+  .bg-\[\#0b0f19\] {
+    padding: 4px 8px !important;
+    border-bottom: 2px solid #dc2626 !important;
+    background: #0b0f19 !important;
+    color: #ffffff !important;
+  }
+
+  .print-clean > div:first-child h1,
+  .print-clean > div:first-child h2,
+  .bg-gradient-to-r.from-slate-950 h1,
+  .bg-\[\#0b0f19\] h2 {
+    font-size: 9pt !important;
+    line-height: 1.15 !important;
+    margin: 1px 0 !important;
+    font-weight: 800 !important;
+    color: #ffffff !important;
+  }
+
+  .text-white.font-extrabold.tracking-wider {
+    font-size: 7.5pt !important;
+    line-height: 1.1 !important;
+    color: #ffffff !important;
+  }
+
+  .text-\[9px\].tracking-widest,
+  .text-\[10px\].tracking-widest {
+    font-size: 6pt !important;
+    line-height: 1 !important;
+    color: #94a3b8 !important;
+  }
+
+  .bg-red-950\/70,
+  .bg-red-950\/60 {
+    padding: 1px 6px !important;
+    font-size: 7pt !important;
+    margin: 1px 0 !important;
+    border: 1px solid #dc2626 !important;
+    border-radius: 9999px !important;
+    background-color: #450a0a !important;
+    color: #fca5a5 !important;
+  }
+
+  .text-\[11px\].tracking-wide,
+  .text-\[11px\].text-slate-300,
+  .text-\[11px\].text-slate-400 {
+    font-size: 6.5pt !important;
+    gap: 4px !important;
+    padding-top: 1px !important;
+    color: #cbd5e1 !important;
+  }
+
+  .bg-purple-950\/70,
+  .bg-emerald-950\/70 {
+    padding: 1px 5px !important;
+    font-size: 6pt !important;
+    border-radius: 9999px !important;
+  }
+
+  /* 2. Document Control Meta-Data Bar (Doc No, Date, Rev, Std, Lot, Audit Date, Time) */
+  .bg-slate-50.border-b.grid,
+  .px-5.sm\:px-6.py-4.bg-white.border-b {
+    padding: 2px 6px !important;
+    gap: 3px !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+    background-color: #f8fafc !important;
+  }
+
+  .bg-slate-50.border-b.grid span,
+  .px-5.sm\:px-6.py-4.bg-white.border-b span,
+  .px-5.sm\:px-6.py-4.bg-white.border-b div {
+    font-size: 6.5pt !important;
+    line-height: 1.1 !important;
+  }
+
+  .bg-slate-50.border-b.grid input {
+    height: 15px !important;
+    font-size: 6.5pt !important;
+    padding: 0 2px !important;
+  }
+
+  /* 3. Main Form Body Padding & Margins */
+  .p-6.sm\:p-8,
+  .p-4.sm\:p-6,
+  .p-4.sm\:p-5 {
+    padding: 3px 5px !important;
+    gap: 3px !important;
+  }
+
+  /* 4. Section Card Blocks (Section 1, Section 2, Section 3) */
+  .rounded-2xl.border.border-slate-200.bg-white,
+  .w-full.bg-white.rounded-2xl.border.border-slate-200,
   .inspection-section-block {
+    margin-bottom: 3px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 4px !important;
+    overflow: hidden !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }
 
-  /* Inputs and form controls */
-  input, textarea, select {
-    border-color: #cbd5e1 !important;
-    background-color: transparent !important;
+  /* Section Title Header */
+  .bg-slate-100\/90,
+  .bg-slate-800.px-6.py-3\.5,
+  .bg-slate-900.px-5.py-3 {
+    padding: 2px 6px !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+    min-height: auto !important;
+  }
+
+  .bg-slate-100\/90 h4,
+  .bg-slate-800 h3,
+  .bg-slate-900 h4 {
+    font-size: 7.5pt !important;
+    line-height: 1.15 !important;
+    font-weight: 700 !important;
+  }
+
+  /* Section 1 Grid */
+  .grid.grid-cols-1.sm\:grid-cols-2 {
+    padding: 3px 6px !important;
+    gap: 3px !important;
+  }
+
+  label {
+    font-size: 6.5pt !important;
+    line-height: 1.1 !important;
+    margin-bottom: 1px !important;
+  }
+
+  /* Input fields & dropdowns */
+  input[type="text"],
+  input[type="date"],
+  select {
+    height: 16px !important;
+    min-height: 16px !important;
+    padding: 1px 4px !important;
+    font-size: 6.8pt !important;
+    border: 1px solid #94a3b8 !important;
+    border-radius: 3px !important;
+    line-height: 1.1 !important;
+    background-color: #ffffff !important;
     color: #0f172a !important;
+  }
+
+  /* Radio Button Pills */
+  .flex-wrap.gap-2 {
+    gap: 2.5px !important;
+    padding-top: 1px !important;
+  }
+
+  .flex-wrap.gap-2 label,
+  label.rounded-lg.border,
+  label.rounded-xl.border {
+    padding: 1px 4px !important;
+    font-size: 6.5pt !important;
+    border-radius: 3px !important;
+    border: 1px solid #94a3b8 !important;
+    background-color: #ffffff !important;
+    line-height: 1.1 !important;
+  }
+
+  input[type="radio"] {
+    width: 9px !important;
+    height: 9px !important;
+    margin-right: 2px !important;
+  }
+
+  /* 5. Inspection Tables (Online & Final inspection matrices) */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 6.5pt !important;
+    line-height: 1.15 !important;
+    margin: 0 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  th {
+    padding: 2px 3px !important;
+    font-size: 6.5pt !important;
+    font-weight: 700 !important;
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    height: 16px !important;
+  }
+
+  td {
+    padding: 1px 3px !important;
+    font-size: 6.5pt !important;
+    color: #0f172a !important;
+    border: 1px solid #e2e8f0 !important;
+    height: 15px !important;
+  }
+
+  tr.bg-slate-100,
+  tr.bg-slate-100\/90,
+  tr:has(td[colspan]) {
+    background-color: #f8fafc !important;
+    font-weight: 700 !important;
+    font-size: 6.5pt !important;
+    height: 15px !important;
+  }
+
+  td select,
+  td input {
+    height: 13px !important;
+    padding: 0 2px !important;
+    font-size: 6.5pt !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 2px !important;
+  }
+
+  /* 6. Remarks Box */
+  .bg-slate-50\/80.rounded-2xl.p-6,
+  #form-live-footer-section {
+    padding: 3px 6px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 4px !important;
+    margin-top: 3px !important;
+    gap: 2px !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  textarea {
+    height: 26px !important;
+    min-height: 26px !important;
+    max-height: 26px !important;
+    padding: 2px 4px !important;
+    font-size: 6.5pt !important;
+    line-height: 1.15 !important;
+    border: 1px solid #94a3b8 !important;
+    border-radius: 3px !important;
+    resize: none !important;
+  }
+
+  /* 7. Footer Sign-off Container */
+  .bg-slate-900.text-white.rounded-2xl.p-6,
+  .bg-slate-900.text-white.rounded-2xl.p-6.sm\:p-7 {
+    padding: 3px 6px !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 4px !important;
+    margin-top: 3px !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .bg-slate-900.text-white.rounded-2xl.p-6 h4,
+  .bg-slate-900.text-white.rounded-2xl.p-6 span {
+    color: #0f172a !important;
+  }
+
+  .bg-slate-800\/80 {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    padding: 2px 4px !important;
+    border-radius: 3px !important;
+  }
+
+  .bg-slate-800\/80 span,
+  .bg-slate-800\/80 label {
+    color: #334155 !important;
+    font-size: 6pt !important;
+  }
+
+  .bg-slate-800\/80 input {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #94a3b8 !important;
+    height: 15px !important;
+    padding: 0 3px !important;
+    font-size: 6.5pt !important;
   }
 }

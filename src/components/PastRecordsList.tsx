@@ -507,16 +507,6 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
   if (selectedRecordId) {
     return (
       <div className="w-full flex-1 flex flex-col items-center px-4 sm:px-6 py-6 z-10 max-w-6xl mx-auto animate-in fade-in duration-300">
-        
-        {/* Print Stylesheet */}
-        <style dangerouslySetInnerHTML={{ __html: `
-          @media print {
-            body { background: white !important; color: black !important; font-size: 11px; }
-            .no-print { display: none !important; }
-            .print-clean { box-shadow: none !important; border: 1px solid #94a3b8 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
-            .print-break-inside-avoid { break-inside: avoid; }
-          }
-        ` }} />
 
         {/* Top Navigation & Action Header (Hidden in Print) */}
         <div className="w-full no-print print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-200/80">
@@ -810,9 +800,16 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
                                   {el.name}
                                 </span>
-                                <span className="font-mono font-bold text-slate-900 text-xs sm:text-sm block truncate">
-                                  {val || 'N/A'}
-                                </span>
+                                {(el.type === 'radio' || /cordination/i.test(el.name)) && val ? (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-blue-200 bg-blue-50 text-blue-800 font-bold text-xs">
+                                    <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                                    <span>{val}</span>
+                                  </span>
+                                ) : (
+                                  <span className="font-mono font-bold text-slate-900 text-xs sm:text-sm block truncate">
+                                    {val || 'N/A'}
+                                  </span>
+                                )}
                               </div>
                             );
                           })}

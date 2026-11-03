@@ -285,7 +285,7 @@ export const AddRemoveInspectionPortal: React.FC<AddRemoveInspectionPortalProps>
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedSeriesFilter, setSelectedSeriesFilter] = useState<string>('All');
   const [selectedStageFilter, setSelectedStageFilter] = useState<string>('All');
-  const [activeTab, setActiveTab] = useState<'cards' | 'form' | 'table' | 'editor'>('cards');
+  const [activeTab, setActiveTab] = useState<'cards' | 'form' | 'editor'>('cards');
 
   // Modal States
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
@@ -810,143 +810,11 @@ export const AddRemoveInspectionPortal: React.FC<AddRemoveInspectionPortalProps>
             onUpdateDocumentHeader={setDocHeaderData}
             onDeployToSpecs={(newSpecs) => {
               setSpecs(prev => [...newSpecs, ...prev]);
-              showToast(`Deployed ${newSpecs.length} inspection specifications to active standards register!`, 'success');
-              setActiveTab('table');
+              showToast('Form deployed successfully to QA operations!', 'success');
             }}
           />
         </div>
-      ) : (
-        /* Table View: Full Inspection Register with direct Add & Remove buttons */
-        <div className="w-full max-w-7xl my-auto mb-8 portal-glass-card rounded-3xl overflow-hidden shadow-sm border border-slate-200/80">
-          <div className="p-5 bg-slate-50/80 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setActiveTab('cards')}
-                className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                title="Back to Specification Controls"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Controls</span>
-              </button>
-              <div>
-                <h3 className="font-bold text-slate-900 text-sm sm:text-base">
-                  Master Inspection Specifications & Checkpoints Register
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Live calibrated test parameters linked to Supabase engineering items.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="text-xs font-semibold text-slate-600">
-                Showing <strong className="text-blue-600">{filteredSpecs.length}</strong> of {specs.length} records
-              </div>
-              <button
-                type="button"
-                onClick={() => handleOpenAddModal()}
-                className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm shadow-blue-500/20 cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Inspection</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs sm:text-sm">
-              <thead className="bg-slate-100/70 border-b border-slate-200/80 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
-                <tr>
-                  <th className="py-3 px-4">Spec ID</th>
-                  <th className="py-3 px-4">Item Code & Name</th>
-                  <th className="py-3 px-4">Series / Category</th>
-                  <th className="py-3 px-4">Inspection Parameter</th>
-                  <th className="py-3 px-4">Nominal Target</th>
-                  <th className="py-3 px-4">Tolerance</th>
-                  <th className="py-3 px-4">Stage</th>
-                  <th className="py-3 px-4">Criticality</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredSpecs.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className="py-8 text-center text-slate-400">
-                      No inspection specifications found matching your query.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredSpecs.map((spec) => (
-                    <tr key={spec.id} className="hover:bg-blue-50/30 transition">
-                      <td className="py-3 px-4 font-mono font-bold text-blue-700 text-xs">
-                        {spec.id}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="font-bold text-slate-900">{spec.itemName}</div>
-                        <div className="text-[11px] font-mono text-slate-400">{spec.itemCode}</div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="font-semibold text-slate-800">{spec.series}</span>
-                        <span className="text-[10px] text-slate-400 block">{spec.category}</span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="font-bold text-slate-900">{spec.parameter}</span>
-                        <span className="text-[10px] text-slate-500 block truncate max-w-[180px]">{spec.equipment}</span>
-                      </td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-900">
-                        {spec.nominalTarget} {spec.unit}
-                      </td>
-                      <td className="py-3 px-4 font-mono font-semibold text-emerald-700">
-                        {spec.tolerance}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                          spec.inspectionStage === 'incoming' 
-                            ? 'bg-sky-50 text-sky-700 border border-sky-200' 
-                            : spec.inspectionStage === 'in-process'
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        }`}>
-                          {spec.inspectionStage}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          spec.criticality === 'Critical'
-                            ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                            : spec.criticality === 'Major'
-                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                            : 'bg-slate-100 text-slate-600'
-                        }`}>
-                          {spec.criticality}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
-                          <Check className="w-3 h-3 text-emerald-600" />
-                          <span>{spec.status}</span>
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => setItemToRemove(spec)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition border border-rose-100"
-                          title="Remove this inspection specification"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Remove</span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      ) : null}
 
       {/* MODAL 1: ADD INSPECTION SPECIFICATION */}
       {isAddModalOpen && (

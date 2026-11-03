@@ -67,7 +67,7 @@ export const AdminSubviews: React.FC<AdminSubviewsProps> = ({
   if (activeView === 'admin-users') {
     return (
       <UserManagement
-        onBack={() => navigate(-1)}
+        onBack={() => navigate('/admin')}
       />
     );
   }
@@ -94,7 +94,7 @@ export const AdminSubviews: React.FC<AdminSubviewsProps> = ({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => navigate(-1)}
+              onClick={() => navigate('/admin')}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-semibold transition cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4 text-slate-500" />
@@ -166,7 +166,7 @@ export const AdminSubviews: React.FC<AdminSubviewsProps> = ({
       <PastRecordsList
         isAdmin={true}
         moduleName="Regulatory QA Ledger"
-        onBack={() => navigate(-1)}
+        onBack={() => navigate('/admin')}
       />
     );
   }
@@ -192,7 +192,7 @@ export const AdminSubviews: React.FC<AdminSubviewsProps> = ({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/admin')}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-semibold transition cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4 text-slate-500" />

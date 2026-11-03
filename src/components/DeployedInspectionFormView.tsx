@@ -18,7 +18,8 @@ import {
   Database, 
   Check, 
   X, 
-  Loader2 
+  Loader2,
+  ChevronDown
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { DeployedInspectionForm } from '../deployedFormsData';
@@ -214,6 +215,19 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
       if (sec.savedData) {
         Object.assign(vals, sec.savedData);
       }
+      sec.elements.forEach(el => {
+        const isRadio = el.type === 'radio' || /cordination/i.test(el.name);
+        const opts = (Array.isArray(el.subItems) && el.subItems.length > 0)
+          ? el.subItems
+          : /cordination/i.test(el.name)
+          ? ['SSO (13 A)', 'SSO - Neon Indicator (13 A)', 'SSO - Twin (With / Without neon)']
+          : [];
+        if (isRadio && opts.length > 0) {
+          if (!vals[el.id] || !opts.includes(vals[el.id])) {
+            vals[el.id] = opts[0];
+          }
+        }
+      });
     });
     // Sanitize dummy data for batch number reference, item code reference, item code
     Object.keys(vals).forEach(k => {
@@ -620,119 +634,187 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                 {/* Non-table elements if present */}
                 {nonTableEls.length > 0 && (
                   <div className={`p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 ${nonTableEls.length >= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4 border-b border-slate-100 bg-slate-50/50`}>
-                    {nonTableEls.map(el => (
-                      <div key={el.id}>
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="text-[11px] font-bold text-slate-600 block">
-                            {el.name}
-                          </label>
-                          {(el.id === 'el-desc' || /product\s*desc/i.test(el.name)) && matchedDbItem && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                              Auto-filled
-                            </span>
-                          )}
-                        </div>
+                    {nonTableEls.map(el => {
+                      const placeholder = (() => {
+                        const n = el.name.trim().toLowerCase();
+                        if (n.includes('batch')) return 'Enter Batch Number Reference';
+                        if (n.includes('product description') || n.includes('desc')) return 'Enter Product Description';
+                        if (n.includes('item code')) return 'Enter Item Code Reference';
+                        return `Enter ${el.name}`;
+                      })();
 
-                        {el.type === 'date_picker' ? (
-                          <input
-                            type="date"
-                            value={fieldValues[el.id] || inspectionDate}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setFieldValues(prev => ({ ...prev, [el.id]: val }));
-                              setInspectionDate(val);
-                            }}
-                            className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                          />
-                        ) : (el.type as string) === 'time_picker' || /time|hour|clock/i.test(el.name) ? (
-                          <div
-                            onClick={() => {
-                              setActiveClockPicker({
-                                isOpen: true,
-                                timeKey: `field-${el.id}`,
-                                headerTitle: el.name,
-                                currentValue: fieldValues[el.id] || auditTime || '08:30 AM',
-                              });
-                            }}
-                            className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-semibold text-blue-700 flex items-center justify-between cursor-pointer hover:border-blue-400 hover:ring-1 hover:ring-blue-400 transition"
-                            title="Click to open 12 hrs round clock time picker"
-                          >
-                            <span className="font-mono">{fieldValues[el.id] || auditTime || 'Select Time'}</span>
-                            <Clock className="w-3.5 h-3.5 text-blue-600" />
-                          </div>
-                        ) : el.id === 'el-item-code' || /item\s*code/i.test(el.name) ? (
-                          <div>
-                            <ItemCodeSmartInput
-                              value={fieldValues[el.id] || itemCode || ''}
-                              itemsList={itemsList}
-                              contextHint={childCard.name}
-                              placeholder="Item Code"
-                              onChange={(code, item) => {
-                                setItemCode(code);
-                                const updated: Record<string, string> = {
-                                  ...fieldValues,
-                                  [el.id]: code,
-                                };
-                                if (item) {
-                                  setProductDesc(item.description);
-                                  setMatchedDbItem(item);
-                                  section.elements.forEach(subEl => {
-                                    if (subEl.id === 'el-desc' || /product\s*desc|description/i.test(subEl.name)) {
-                                      updated[subEl.id] = item.description;
-                                    }
-                                  });
-                                }
-                                setFieldValues(updated);
-                              }}
-                              onSelectDescription={(desc, item) => {
-                                setProductDesc(desc);
-                                setMatchedDbItem(item);
-                                setFieldValues(prev => {
-                                  const next = { ...prev, [el.id]: item.item_code };
-                                  section.elements.forEach(subEl => {
-                                    if (subEl.id === 'el-desc' || /product\s*desc|description/i.test(subEl.name)) {
-                                      next[subEl.id] = desc;
-                                    }
-                                  });
-                                  return next;
-                                });
-                              }}
-                            />
-                            {matchedDbItem && (
-                              <span className="text-[10px] text-emerald-700 font-semibold mt-1 flex items-center gap-1 truncate" title={`${matchedDbItem.series || ''} • ${matchedDbItem.category || ''}`}>
-                                <Database className="w-3 h-3 text-emerald-600 shrink-0" />
-                                <span className="truncate">Database item ({matchedDbItem.series || childCard.name})</span>
+                      return (
+                        <div key={el.id} className="space-y-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[11px] font-bold text-slate-700 block">
+                              {el.name}
+                            </label>
+                            {(el.id === 'el-desc' || /product\s*desc/i.test(el.name)) && matchedDbItem && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                                Auto-filled
                               </span>
                             )}
                           </div>
-                        ) : (
-                          <input
-                            type="text"
-                            value={
-                              fieldValues[el.id] !== undefined
-                                ? fieldValues[el.id]
-                                : el.id === 'el-batch' || /batch/i.test(el.name)
-                                ? batchId
-                                : el.id === 'el-desc' || /product\s*desc/i.test(el.name)
-                                ? productDesc
-                                : ''
-                            }
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setFieldValues(prev => ({ ...prev, [el.id]: val }));
-                              if (el.id === 'el-batch' || /batch/i.test(el.name)) {
-                                setBatchId(val);
+
+                          {el.type === 'date_picker' ? (
+                            <input
+                              type="date"
+                              value={fieldValues[el.id] || inspectionDate}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setFieldValues(prev => ({ ...prev, [el.id]: val }));
+                                setInspectionDate(val);
+                              }}
+                              className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 cursor-pointer"
+                            />
+                          ) : (el.type as string) === 'time_picker' || /time|hour|clock/i.test(el.name) ? (
+                            <div
+                              onClick={() => {
+                                setActiveClockPicker({
+                                  isOpen: true,
+                                  timeKey: `field-${el.id}`,
+                                  headerTitle: el.name,
+                                  currentValue: fieldValues[el.id] || auditTime || '08:30 AM',
+                                });
+                              }}
+                              className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-semibold text-blue-700 flex items-center justify-between cursor-pointer hover:border-blue-400 hover:ring-1 hover:ring-blue-400 transition"
+                              title="Click to open 12 hrs round clock time picker"
+                            >
+                              <span className="font-mono">{fieldValues[el.id] || auditTime || 'Select Time'}</span>
+                              <Clock className="w-3.5 h-3.5 text-blue-600" />
+                            </div>
+                          ) : el.id === 'el-item-code' || /item\s*code/i.test(el.name) ? (
+                            <div>
+                              <ItemCodeSmartInput
+                                value={fieldValues[el.id] || itemCode || ''}
+                                itemsList={itemsList}
+                                contextHint={childCard.name}
+                                placeholder={placeholder}
+                                onChange={(code, item) => {
+                                  setItemCode(code);
+                                  const updated: Record<string, string> = {
+                                    ...fieldValues,
+                                    [el.id]: code,
+                                  };
+                                  if (item) {
+                                    setProductDesc(item.description);
+                                    setMatchedDbItem(item);
+                                    section.elements.forEach(subEl => {
+                                      if (subEl.id === 'el-desc' || /product\s*desc|description/i.test(subEl.name)) {
+                                        updated[subEl.id] = item.description;
+                                      }
+                                    });
+                                  }
+                                  setFieldValues(updated);
+                                }}
+                                onSelectDescription={(desc, item) => {
+                                  setProductDesc(desc);
+                                  setMatchedDbItem(item);
+                                  setFieldValues(prev => {
+                                    const next = { ...prev, [el.id]: item.item_code };
+                                    section.elements.forEach(subEl => {
+                                      if (subEl.id === 'el-desc' || /product\s*desc|description/i.test(subEl.name)) {
+                                        next[subEl.id] = desc;
+                                      }
+                                    });
+                                    return next;
+                                  });
+                                }}
+                              />
+                              {matchedDbItem && (
+                                <span className="text-[10px] text-emerald-700 font-semibold mt-1 flex items-center gap-1 truncate" title={`${matchedDbItem.series || ''} • ${matchedDbItem.category || ''}`}>
+                                  <Database className="w-3 h-3 text-emerald-600 shrink-0" />
+                                  <span className="truncate">Database item ({matchedDbItem.series || childCard.name})</span>
+                                </span>
+                              )}
+                            </div>
+                          ) : (el.type === 'radio' || /cordination/i.test(el.name)) ? (
+                            <div className="flex flex-wrap gap-2 pt-0.5">
+                              {(() => {
+                                const opts = (Array.isArray(el.subItems) && el.subItems.length > 0)
+                                  ? el.subItems
+                                  : /cordination/i.test(el.name)
+                                  ? ['SSO (13 A)', 'SSO - Neon Indicator (13 A)', 'SSO - Twin (With / Without neon)']
+                                  : [];
+                                const currVal = fieldValues[el.id] !== undefined
+                                  ? fieldValues[el.id]
+                                  : (opts[0] || '');
+
+                                return opts.map((opt, i) => {
+                                  const isChecked = currVal === opt;
+                                  return (
+                                    <label
+                                      key={i}
+                                      className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs cursor-pointer transition select-none ${
+                                        isChecked
+                                          ? 'border-blue-500 bg-blue-50 text-blue-800 font-semibold ring-1 ring-blue-500/20'
+                                          : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                                      }`}
+                                    >
+                                      <input
+                                        type="radio"
+                                        name={`deployed-radio-${section.id}-${el.id}`}
+                                        value={opt}
+                                        checked={isChecked}
+                                        onChange={() => {
+                                          setFieldValues(prev => ({ ...prev, [el.id]: opt }));
+                                        }}
+                                        className="text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
+                                      />
+                                      <span>{opt}</span>
+                                    </label>
+                                  );
+                                });
+                              })()}
+                            </div>
+                          ) : el.type === 'dropdown' ? (
+                            <div className="relative">
+                              <select
+                                value={fieldValues[el.id] ?? ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setFieldValues(prev => ({ ...prev, [el.id]: val }));
+                                }}
+                                className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-300 bg-white text-slate-800 appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 shadow-2xs transition cursor-pointer pr-8"
+                              >
+                                <option value="">Select {el.name}</option>
+                                {(Array.isArray(el.subItems) ? el.subItems : []).map((opt, i) => (
+                                  <option key={i} value={opt}>
+                                    {opt}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            </div>
+                          ) : (
+                            <input
+                              type="text"
+                              value={
+                                fieldValues[el.id] !== undefined
+                                  ? fieldValues[el.id]
+                                  : el.id === 'el-batch' || /batch/i.test(el.name)
+                                  ? batchId
+                                  : el.id === 'el-desc' || /product\s*desc/i.test(el.name)
+                                  ? productDesc
+                                  : ''
                               }
-                              if (el.id === 'el-desc' || /product\s*desc/i.test(el.name)) {
-                                setProductDesc(val);
-                              }
-                            }}
-                            placeholder={el.name}
-                            className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                          />
-                        )}
-                      </div>
-                    ))}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setFieldValues(prev => ({ ...prev, [el.id]: val }));
+                                if (el.id === 'el-batch' || /batch/i.test(el.name)) {
+                                  setBatchId(val);
+                                }
+                                if (el.id === 'el-desc' || /product\s*desc/i.test(el.name)) {
+                                  setProductDesc(val);
+                                }
+                              }}
+                              placeholder={placeholder}
+                              className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 

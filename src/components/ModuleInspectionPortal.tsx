@@ -56,7 +56,7 @@ export const ModuleInspectionPortal: React.FC<ModuleInspectionPortalProps> = ({
         <h2 className="text-xl font-bold text-slate-800 mb-2">Module Not Found</h2>
         <p className="text-xs text-slate-500 mb-4">The selected inspection module could not be loaded.</p>
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/inspection')}
           className="px-4 py-2 rounded-xl bg-blue-600 text-white font-semibold text-xs cursor-pointer"
         >
           Return to Dashboard
@@ -170,7 +170,7 @@ export const ModuleInspectionPortal: React.FC<ModuleInspectionPortalProps> = ({
       {/* Return to QA Inspection Button at bottom */}
       <div className="w-full flex justify-center pt-1">
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/inspection')}
           className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-blue-700 font-semibold text-xs shadow-xs border border-slate-200/80 backdrop-blur-md transition-all cursor-pointer group hover:shadow-xs"
           id="btn-return-to-qa-portal-module"
         >

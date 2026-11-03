@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { Check, Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft, ShieldCheck, ClipboardCheck, Loader2, Sparkles } from 'lucide-react';
 import { supabase } from '../backend/supabase';
@@ -74,6 +74,35 @@ export const SignInView: React.FC<SignInViewProps> = ({
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Direct DOM refs to guarantee capture of browser-autofilled credentials
+  const usernameInputRef = useRef<HTMLInputElement | null>(null);
+  const passwordInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Sync browser autofilled credentials into React state (catches Chrome, Edge, Safari, 1Password)
+  useEffect(() => {
+    const syncAutofill = () => {
+      if (usernameInputRef.current?.value && usernameInputRef.current.value !== identity) {
+        setIdentity(usernameInputRef.current.value);
+      }
+      if (passwordInputRef.current?.value && passwordInputRef.current.value !== password) {
+        setPassword(passwordInputRef.current.value);
+      }
+    };
+
+    // Staggered checks to capture early or delayed browser autofill injections
+    const t1 = setTimeout(syncAutofill, 80);
+    const t2 = setTimeout(syncAutofill, 250);
+    const t3 = setTimeout(syncAutofill, 600);
+    const t4 = setTimeout(syncAutofill, 1200);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+    };
+  }, [identity, password]);
+
   // Sync role whenever URL path, route params, or query change
   useEffect(() => {
     const derivedRole = resolveCurrentRole();
@@ -104,20 +133,21 @@ export const SignInView: React.FC<SignInViewProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const rawId = identity.trim();
+
+    // Reliably read DOM input values to ensure browser-autofilled credentials are NEVER missed
+    const rawId = (usernameInputRef.current?.value || identity).trim();
     if (!rawId) {
       setErrorMessage('Please enter your Username / Employee ID');
       return;
     }
-    if (!password.trim()) {
+    const cleanPassword = (passwordInputRef.current?.value || password).trim();
+    if (!cleanPassword) {
       setErrorMessage('Please enter your security password to access this workspace');
       return;
     }
 
     setErrorMessage('');
     setIsLoading(true);
-
-    const cleanPassword = password.trim();
 
     try {
       // 1. Primary path: AuthContext.signIn
@@ -128,6 +158,19 @@ export const SignInView: React.FC<SignInViewProps> = ({
 
       if (result.success && result.profile) {
         setIsLoading(false);
+
+        // Prompt browser password manager (Chrome, Edge, Safari) to save/update password
+        if (typeof window !== 'undefined' && 'PasswordCredential' in window && (navigator as any).credentials?.store) {
+          try {
+            const cred = new (window as any).PasswordCredential({
+              id: rawId,
+              password: cleanPassword,
+              name: result.profile.full_name || rawId,
+            });
+            (navigator as any).credentials.store(cred).catch(() => {});
+          } catch {}
+        }
+
         onSignIn(selectedRole === 'admin' ? 'admin' : 'inspector', result.profile.employee_id || rawId);
         return;
       }
@@ -181,6 +224,19 @@ export const SignInView: React.FC<SignInViewProps> = ({
         });
 
         setIsLoading(false);
+
+        // Prompt browser password manager (Chrome, Edge, Safari) to save/update password
+        if (typeof window !== 'undefined' && 'PasswordCredential' in window && (navigator as any).credentials?.store) {
+          try {
+            const cred = new (window as any).PasswordCredential({
+              id: rawId,
+              password: cleanPassword,
+              name: fullName || rawId,
+            });
+            (navigator as any).credentials.store(cred).catch(() => {});
+          } catch {}
+        }
+
         onSignIn(selectedRole === 'admin' ? 'admin' : 'inspector', empId);
         return;
       }
@@ -199,8 +255,6 @@ export const SignInView: React.FC<SignInViewProps> = ({
   const handleBack = () => {
     if (onBackToSelection) {
       onBackToSelection();
-    } else if (window.history.length > 1) {
-      navigate(-1);
     } else {
       navigate('/');
     }
@@ -303,19 +357,26 @@ export const SignInView: React.FC<SignInViewProps> = ({
           </button>
         </div>
 
-        {/* Sign-in Form */}
-        <form onSubmit={handleSubmit} className="space-y-3" id="form-signin">
+        {/* Sign-in Form with Native Browser Password Autofill Support */}
+        <form 
+          onSubmit={handleSubmit} 
+          method="post"
+          action="#"
+          autoComplete="on"
+          className="space-y-3" 
+          id="form-signin"
+        >
           {errorMessage && (
             <div className="p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
               {errorMessage}
             </div>
           )}
 
-          {/* Username / Employee ID Field */}
+          {/* Username / Employee ID Field (Optimized for Browser Password Managers) */}
           <div>
             <div className="flex items-center justify-between mb-1">
               <label 
-                htmlFor="identity"
+                htmlFor="username"
                 className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider"
               >
                 Username / Employee ID
@@ -329,12 +390,20 @@ export const SignInView: React.FC<SignInViewProps> = ({
                 <Mail className="w-3.5 h-3.5" />
               </div>
               <input
-                id="identity"
-                name="identity"
+                ref={usernameInputRef}
+                id="username"
+                name="username"
                 type="text"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
                 value={identity}
                 onChange={(e) => {
                   setIdentity(e.target.value);
+                  if (errorMessage) setErrorMessage('');
+                }}
+                onInput={(e) => {
+                  setIdentity((e.target as HTMLInputElement).value);
                   if (errorMessage) setErrorMessage('');
                 }}
                 placeholder="e.g. admin or QA-8941"
@@ -348,7 +417,7 @@ export const SignInView: React.FC<SignInViewProps> = ({
             </div>
           </div>
 
-          {/* Password Field */}
+          {/* Password Field (Optimized with current-password for Native Autofill) */}
           <div>
             <label 
               htmlFor="password"
@@ -361,12 +430,18 @@ export const SignInView: React.FC<SignInViewProps> = ({
                 <Lock className="w-3.5 h-3.5" />
               </div>
               <input
+                ref={passwordInputRef}
                 id="password"
                 name="password"
                 type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
+                  if (errorMessage) setErrorMessage('');
+                }}
+                onInput={(e) => {
+                  setPassword((e.target as HTMLInputElement).value);
                   if (errorMessage) setErrorMessage('');
                 }}
                 placeholder="Enter password"

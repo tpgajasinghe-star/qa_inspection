@@ -72,22 +72,73 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
   // Return contextual label based on current route
   const getBackLabel = () => {
     const p = location.pathname;
+    if (p.startsWith('/admin/') && p !== '/admin') return 'Back to QA Admin Dashboard';
+    if (p.startsWith('/inspection/module/') && p.split('/').filter(Boolean).length >= 4) {
+      return 'Back to Categories';
+    }
     if (p.startsWith('/inspection/incoming') || p.startsWith('/inspection/in-process') || p.startsWith('/inspection/module')) {
       return 'Back to QA Inspection';
     }
     if (p.startsWith('/inspection/live')) return 'Back to Inspection Modules';
-    if (p.startsWith('/admin/') && p !== '/admin') return 'Back to QA Admin Dashboard';
     if (p === '/inspection' || p === '/admin') return 'Back to Workspace Selection';
     if (p.startsWith('/sign-in') || p.startsWith('/login')) return 'Back to Workspace Selection';
     return 'Back';
   };
 
-  const handleBackClick = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate('/');
+  // Return contextual destination for 100% reliable single-click back navigation
+  const getBackDestination = (): string => {
+    const p = location.pathname;
+
+    // Subviews under Admin (e.g. /admin/users, /admin/specs, /admin/records, /admin/analytics)
+    if (p.startsWith('/admin/') && p !== '/admin') {
+      return '/admin';
     }
+
+    // Child card level in inspection (e.g. /inspection/module/:moduleId/:childCardId)
+    const moduleChildMatch = p.match(/^\/inspection\/module\/([^/]+)\/([^/]+)/);
+    if (moduleChildMatch) {
+      return `/inspection/module/${moduleChildMatch[1]}`;
+    }
+
+    // Module cards view (/inspection/module/:moduleId)
+    if (p.startsWith('/inspection/module/')) {
+      return '/inspection';
+    }
+
+    // Incoming or In-process child card subroutes
+    const incomingChildMatch = p.match(/^\/inspection\/incoming\/([^/]+)/);
+    if (incomingChildMatch) {
+      return '/inspection/incoming';
+    }
+    const inProcessChildMatch = p.match(/^\/inspection\/in-process\/([^/]+)/);
+    if (inProcessChildMatch) {
+      return '/inspection/in-process';
+    }
+
+    // Any other inspection subroutes (/inspection/incoming, /inspection/in-process, /inspection/live)
+    if (p.startsWith('/inspection/') && p !== '/inspection') {
+      return '/inspection';
+    }
+
+    // Top-level dashboards go to workspace selection
+    if (p === '/admin' || p === '/inspection') {
+      return '/';
+    }
+
+    // Authentication screens go to workspace selection
+    if (p.startsWith('/sign-in') || p.startsWith('/login')) {
+      return '/';
+    }
+
+    return '/';
+  };
+
+  // Direct single-click back navigation - no broken history stack dependency
+  const handleBackClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const destination = getBackDestination();
+    navigate(destination);
   };
 
 

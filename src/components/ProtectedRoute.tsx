@@ -52,7 +52,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
+    // Unauthenticated access from any URL, copied link, or new session always lands on the Home Page ('/')
+    return <Navigate to="/" replace />;
   }
 
   // RBAC checks if route specifies restricted roles
@@ -76,25 +77,18 @@ interface PublicAuthRouteProps {
 
 /**
  * Public-Only Auth Route Wrapper for /login and /sign-in:
- * - If user is already authenticated, redirects them directly to their respective workspace
+ * - If user is already authenticated, redirects them fresh to their respective dashboard
  *   based on their profile role (Admin -> /admin, User/Inspector -> /inspection)
  */
 export const PublicAuthRoute: React.FC<PublicAuthRouteProps> = ({ children }) => {
   const { isAuthenticated, isInitializing, role } = useAuth();
-  const location = useLocation();
 
   if (isInitializing) {
     return <FullScreenAuthLoading />;
   }
 
   if (isAuthenticated) {
-    // If a redirect destination was requested in location state, honor it
-    const from = (location.state as any)?.from;
-    if (from && typeof from === 'string' && !from.startsWith('/login') && !from.startsWith('/sign-in')) {
-      return <Navigate to={from} replace />;
-    }
-
-    // Otherwise redirect based on role in profiles table
+    // Always navigate fresh to respective dashboard without reviving old deep-link paths
     if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
       return <Navigate to="/admin" replace />;
     }

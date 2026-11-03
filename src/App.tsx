@@ -136,14 +136,14 @@ export default function App() {
   // Handle Workspace Selection from Home Screen:
   const handleSelectWorkspace = (workspace: 'inspection' | 'admin') => {
     if (workspace === 'admin') {
-      // Admin Panel requires authentication; show sign-in page
-      navigate('/sign-in/admin', { state: { role: 'admin', from: '/admin' } });
+      // Admin Panel requires authentication; show sign-in page for admin
+      navigate('/sign-in/admin', { state: { role: 'admin' } });
       return;
     }
 
     const destination = '/inspection';
     if (!isAuthenticated || userRole !== 'inspector') {
-      navigate('/sign-in/inspection', { state: { role: 'inspector', from: destination } });
+      navigate('/sign-in/inspection', { state: { role: 'inspector' } });
       return;
     }
 
@@ -153,12 +153,12 @@ export default function App() {
   // Open dedicated Sign-in Screen
   const handleOpenSignIn = (workspace: 'inspection' | 'admin') => {
     const role: 'inspector' | 'admin' = workspace === 'admin' ? 'admin' : 'inspector';
-    navigate(`/sign-in/${role === 'admin' ? 'admin' : 'inspection'}`, { state: { role, from: role === 'admin' ? '/admin' : '/inspection' } });
+    navigate(`/sign-in/${role === 'admin' ? 'admin' : 'inspection'}`, { state: { role } });
   };
 
 
-  // Handle Successful Sign-In
-  const handleSignIn = (role: 'inspector' | 'admin', id: string, redirectTo?: string) => {
+  // Handle Successful Sign-In: routes cleanly to respective root dashboard (no restoring old deep links)
+  const handleSignIn = (role: 'inspector' | 'admin', id: string) => {
     setIsAuthenticated(true);
     setUserRole(role);
     setUserId(id);
@@ -166,12 +166,10 @@ export default function App() {
     sessionStorage.setItem('qc_auth_role', role);
     sessionStorage.setItem('qc_auth_user_id', id);
 
-    if (redirectTo) {
-      navigate(redirectTo);
-    } else if (role === 'inspector') {
-      navigate('/inspection');
+    if (role === 'inspector') {
+      navigate('/inspection', { replace: true });
     } else {
-      navigate('/admin');
+      navigate('/admin', { replace: true });
     }
   };
 
@@ -330,44 +328,18 @@ export default function App() {
               />
             }
           />
-          <Route path="/workspace-selection" element={<Navigate to="/" replace />} />
-
-          {/* 2. Authentication Screens - Public-only route: if already authenticated, redirects to respective dashboard */}
-          <Route
-            path="/login"
-            element={
-              <PublicAuthRoute>
-                <SignInView
-                  onSignIn={(role, id) =>
-                    handleSignIn(role, id, (location.state as any)?.from)
-                  }
-                  onBackToSelection={() => navigate(-1)}
-                />
-              </PublicAuthRoute>
-            }
-          />
+          {/* 2. Authentication Screens:
+              - Bare /login or /sign-in redirects to / (Home Page) where user picks role first
+              - /login/:mode or /sign-in/:mode opens the password entry for that selected role */}
+          <Route path="/login" element={<Navigate to="/" replace />} />
+          <Route path="/sign-in" element={<Navigate to="/" replace />} />
           <Route
             path="/login/:mode"
             element={
               <PublicAuthRoute>
                 <SignInView
-                  onSignIn={(role, id) =>
-                    handleSignIn(role, id, (location.state as any)?.from)
-                  }
-                  onBackToSelection={() => navigate(-1)}
-                />
-              </PublicAuthRoute>
-            }
-          />
-          <Route
-            path="/sign-in"
-            element={
-              <PublicAuthRoute>
-                <SignInView
-                  onSignIn={(role, id) =>
-                    handleSignIn(role, id, (location.state as any)?.from)
-                  }
-                  onBackToSelection={() => navigate(-1)}
+                  onSignIn={(role, id) => handleSignIn(role, id)}
+                  onBackToSelection={() => navigate('/')}
                 />
               </PublicAuthRoute>
             }
@@ -377,10 +349,8 @@ export default function App() {
             element={
               <PublicAuthRoute>
                 <SignInView
-                  onSignIn={(role, id) =>
-                    handleSignIn(role, id, (location.state as any)?.from)
-                  }
-                  onBackToSelection={() => navigate(-1)}
+                  onSignIn={(role, id) => handleSignIn(role, id)}
+                  onBackToSelection={() => navigate('/')}
                 />
               </PublicAuthRoute>
             }
