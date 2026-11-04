@@ -16,6 +16,7 @@ import {
   findMatchingItemCandidates, 
   resolveItemCodeOnEnter, 
   parseItemCode,
+  lookupDatabaseItem,
   SEED_FACTORY_ITEMS 
 } from '../backend/itemService';
 
@@ -232,6 +233,95 @@ export const ItemCodeSmartInput: React.FC<ItemCodeSmartInputProps> = ({
     }
   }, [showPopup]);
 
+  // Unified handler for all input events (user typing, pasting, and browser autofill history clicks)
+  const handleInputChange = (raw: string) => {
+    setTypedValue(raw);
+    setHighlightedIndex(0);
+
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      setIsPickerOpen(false);
+      setMultipleCandidates([]);
+      onChange(raw);
+      return;
+    }
+
+    // Immediately check if this input corresponds to any item in activeCatalog:
+    // 1) Direct exact code match (e.g. "3000000559" from browser autofill)
+    // 2) Suffix / short code resolution (e.g. "559" -> "3000000559")
+    // 3) General lookup via lookupDatabaseItem
+    const matched = lookupDatabaseItem(trimmed, activeCatalog, contextHint);
+
+    if (matched) {
+      const isExactCode = trimmed.toLowerCase() === matched.item_code.toLowerCase();
+      const isFullLength = trimmed.length >= 10;
+      const isShortTail = trimmed === parseItemCode(matched.item_code).tail;
+
+      if (isExactCode || isFullLength || isShortTail) {
+        // Full resolution (browser autofill history click, paste, exact code, or short code tail)
+        onChange(matched.item_code, matched);
+        if (onSelectDescription) {
+          onSelectDescription(matched.description, matched);
+        }
+        setJustResolvedItem(matched);
+        setIsPickerOpen(false);
+        setMultipleCandidates([]);
+      } else {
+        // User typed partial code
+        onChange(raw, matched);
+        if (onSelectDescription) {
+          onSelectDescription(matched.description, matched);
+        }
+      }
+    } else {
+      onChange(raw);
+    }
+  };
+
+  const handleBlur = () => {
+    const trimmed = typedValue.trim();
+    if (trimmed) {
+      const matched = lookupDatabaseItem(trimmed, activeCatalog, contextHint);
+      if (matched) {
+        setTypedValue(matched.item_code);
+        onChange(matched.item_code, matched);
+        if (onSelectDescription) {
+          onSelectDescription(matched.description, matched);
+        }
+        setJustResolvedItem(matched);
+      }
+    }
+    // Small timeout so onMouseDown clicks on popup options register
+    setTimeout(() => setIsFocused(false), 200);
+  };
+
+  // Browser autofill cache/history detector for native input filling
+  useEffect(() => {
+    const inputNode = inputRef.current;
+    if (!inputNode) return;
+
+    const onNativeChange = () => {
+      const currentVal = inputNode.value;
+      if (currentVal && currentVal !== typedValue) {
+        handleInputChange(currentVal);
+      }
+    };
+
+    inputNode.addEventListener('change', onNativeChange);
+    inputNode.addEventListener('input', onNativeChange);
+
+    // Staggered timers to catch delayed browser autofill injections
+    const t1 = setTimeout(onNativeChange, 120);
+    const t2 = setTimeout(onNativeChange, 350);
+
+    return () => {
+      inputNode.removeEventListener('change', onNativeChange);
+      inputNode.removeEventListener('input', onNativeChange);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [typedValue, activeCatalog, contextHint]);
+
   return (
     <div ref={containerRef} className="relative w-full">
       <div className="relative flex items-center">
@@ -243,18 +333,18 @@ export const ItemCodeSmartInput: React.FC<ItemCodeSmartInputProps> = ({
           autoFocus={autoFocus}
           value={typedValue}
           onFocus={() => setIsFocused(true)}
-          onBlur={() => {
-            // Small timeout so onMouseDown clicks on popup options register
-            setTimeout(() => setIsFocused(false), 200);
+          onBlur={handleBlur}
+          onChange={(e) => handleInputChange(e.target.value)}
+          onInput={(e: React.FormEvent<HTMLInputElement>) => {
+            const targetVal = (e.target as HTMLInputElement).value;
+            if (targetVal !== typedValue) {
+              handleInputChange(targetVal);
+            }
           }}
-          onChange={(e) => {
-            const raw = e.target.value;
-            setTypedValue(raw);
-            onChange(raw);
-            setHighlightedIndex(0);
-            if (!raw.trim()) {
-              setIsPickerOpen(false);
-              setMultipleCandidates([]);
+          onPaste={(e: React.ClipboardEvent<HTMLInputElement>) => {
+            const pasted = e.clipboardData.getData('text');
+            if (pasted) {
+              handleInputChange(pasted);
             }
           }}
           onKeyDown={handleKeyDown}

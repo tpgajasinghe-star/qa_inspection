@@ -106,6 +106,8 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
     return () => { isMounted = false; };
   }, [dbItems]);
 
+
+
   // Handle Item Code Reference change with automatic lookup from the database:
   // e.g. entering "559" automatically matches "3000000559" -> "MSFZ 13- 13A S/Socket Outlet -Wh. Series"
   const handleItemCodeChange = (rawInput: string) => {
@@ -249,6 +251,46 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
   // Submission state
   const [submitted, setSubmitted] = useState(false);
   const [submittedRecordId, setSubmittedRecordId] = useState('');
+
+  // Auto-sync Product Description whenever Item Code is filled (via browser autofill/history cache, paste, or select)
+  useEffect(() => {
+    let activeCode = itemCode.trim();
+    let descKeys: string[] = [];
+
+    form.sections.forEach(sec => {
+      sec.elements.forEach(el => {
+        if (el.id === 'el-item-code' || /item\s*code/i.test(el.name)) {
+          if (fieldValues[el.id] && fieldValues[el.id].trim()) {
+            activeCode = fieldValues[el.id].trim();
+          }
+        }
+        if (el.id === 'el-desc' || /product\s*desc|description/i.test(el.name)) {
+          descKeys.push(el.id);
+        }
+      });
+    });
+
+    if (activeCode) {
+      const match = lookupDatabaseItem(activeCode, itemsList, childCard.name);
+      if (match) {
+        setMatchedDbItem(match);
+        if (productDesc !== match.description) {
+          setProductDesc(match.description);
+        }
+        let needsUpdate = false;
+        const updated = { ...fieldValues };
+        descKeys.forEach(k => {
+          if (updated[k] !== match.description) {
+            updated[k] = match.description;
+            needsUpdate = true;
+          }
+        });
+        if (needsUpdate) {
+          setFieldValues(updated);
+        }
+      }
+    }
+  }, [fieldValues, itemCode, itemsList, childCard.name, form.sections, productDesc]);
 
   // Handle cell change
   const handleCellChange = (sectionId: string, rowId: string, colId: string, val: string) => {
@@ -631,17 +673,20 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                 placeholder={placeholder}
                                 onChange={(code, item) => {
                                   setItemCode(code);
+                                  const resolvedItem = item || lookupDatabaseItem(code, itemsList, childCard.name);
                                   const updated: Record<string, string> = {
                                     ...fieldValues,
-                                    [el.id]: code,
+                                    [el.id]: resolvedItem ? resolvedItem.item_code : code,
                                   };
-                                  if (item) {
-                                    setProductDesc(item.description);
-                                    setMatchedDbItem(item);
-                                    section.elements.forEach(subEl => {
-                                      if (subEl.id === 'el-desc' || /product\s*desc|description/i.test(subEl.name)) {
-                                        updated[subEl.id] = item.description;
-                                      }
+                                  if (resolvedItem) {
+                                    setProductDesc(resolvedItem.description);
+                                    setMatchedDbItem(resolvedItem);
+                                    form.sections.forEach(sec => {
+                                      sec.elements.forEach(subEl => {
+                                        if (subEl.id === 'el-desc' || /product\s*desc|description/i.test(subEl.name)) {
+                                          updated[subEl.id] = resolvedItem.description;
+                                        }
+                                      });
                                     });
                                   }
                                   setFieldValues(updated);
@@ -651,10 +696,12 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                   setMatchedDbItem(item);
                                   setFieldValues(prev => {
                                     const next = { ...prev, [el.id]: item.item_code };
-                                    section.elements.forEach(subEl => {
-                                      if (subEl.id === 'el-desc' || /product\s*desc|description/i.test(subEl.name)) {
-                                        next[subEl.id] = desc;
-                                      }
+                                    form.sections.forEach(sec => {
+                                      sec.elements.forEach(subEl => {
+                                        if (subEl.id === 'el-desc' || /product\s*desc|description/i.test(subEl.name)) {
+                                          next[subEl.id] = desc;
+                                        }
+                                      });
                                     });
                                     return next;
                                   });

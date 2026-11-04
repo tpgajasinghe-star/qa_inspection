@@ -46,6 +46,7 @@ import { getMainCards, getChildCards, InspectionHierarchyCard } from '../inspect
 import { deployInspectionForm } from '../deployedFormsData';
 import { RoundClockTimePickerModal } from './RoundClockTimePickerModal';
 import { ItemCodeSmartInput } from './ItemCodeSmartInput';
+import { lookupDatabaseItem, fetchItems, DbItem, SEED_FACTORY_ITEMS } from '../backend/itemService';
 
 // Footer Section Block Data Model (matching user's reference image)
 export interface FormFooterAttachment {
@@ -670,6 +671,14 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
       refStandard: 'SLS 734'
     };
   });
+
+  // Database items catalog for smart autofill in live preview
+  const [studioDbItems, setStudioDbItems] = useState<DbItem[]>(SEED_FACTORY_ITEMS);
+  useEffect(() => {
+    fetchItems().then((items) => {
+      if (items && items.length > 0) setStudioDbItems(items);
+    });
+  }, []);
 
   // State for all section blocks initialized from active form
   const [sections, setSections] = useState<SectionBlockSchema[]>(() => {
@@ -3244,19 +3253,21 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                                     <ItemCodeSmartInput
                                       value={currVal}
                                       placeholder={placeholder}
+                                      itemsList={studioDbItems}
                                       onChange={(code, item) => {
                                         handlePreviewFieldChange(savedSection.id, element.id, code);
-                                        if (item) {
+                                        const resolvedItem = item || lookupDatabaseItem(code, studioDbItems);
+                                        if (resolvedItem) {
                                           const descEl = savedSection.elements.find(
                                             (el) => el.id === 'el-desc' || /product\s*desc|description/i.test(el.name)
                                           );
                                           if (descEl) {
-                                            handlePreviewFieldChange(savedSection.id, descEl.id, item.description);
+                                            handlePreviewFieldChange(savedSection.id, descEl.id, resolvedItem.description);
                                           }
-                                          handleUpdateHeaderField('productType', item.description);
+                                          handleUpdateHeaderField('productType', resolvedItem.description);
                                         }
                                       }}
-                                      onSelectDescription={(desc, item) => {
+                                      onSelectDescription={(desc) => {
                                         const descEl = savedSection.elements.find(
                                           (el) => el.id === 'el-desc' || /product\s*desc|description/i.test(el.name)
                                         );
