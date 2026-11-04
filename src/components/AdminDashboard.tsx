@@ -113,7 +113,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               Specification Controls
             </h2>
             <p className="text-slate-500 text-xs leading-relaxed mb-3.5 flex-grow line-clamp-2">
-              Add/Remove inspection parameters, configure component tolerances, and calibrate benchmarks.
+              Configure QA inspection forms, register test specifications, and customize operational inspection cards.
             </p>
 
             <button
@@ -125,7 +125,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm shadow-xs shadow-blue-500/25 transition-all duration-200 cursor-pointer"
               id="btn-admin-manage-specs"
             >
-              <span>Add / Remove Specs</span>
+              <span>Specification Controls</span>
               <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
             </button>
           </div>

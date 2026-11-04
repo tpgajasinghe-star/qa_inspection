@@ -29,6 +29,7 @@ import { SplashScreen } from './components/SplashScreen';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
 import { ProtectedRoute, PublicAuthRoute } from './components/ProtectedRoute';
+import { VersionUpdateBanner } from './components/VersionUpdateBanner';
 
 
 // Wrapper to extract moduleId and childCardId from URL route parameters
@@ -250,6 +251,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen text-slate-800 font-sans flex flex-col justify-between selection:bg-blue-500 selection:text-white relative overflow-x-hidden">
+      {/* Vercel Live Deployment Auto-Update Detector Banner */}
+      <VersionUpdateBanner />
+
       {/* Global Toast Notifications Provider */}
       <Toaster
         position="top-right"
@@ -519,7 +523,18 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
                 <AddRemoveInspectionPortal
-                  onBack={() => navigate(-1)}
+                  onBack={() => navigate('/admin')}
+                  userId={effectiveUserId}
+                />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/specs/:subtab"
+            element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
+                <AddRemoveInspectionPortal
+                  onBack={() => navigate('/admin')}
                   userId={effectiveUserId}
                 />
               </ProtectedRoute>

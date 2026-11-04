@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { 
   Sliders, 
   Plus, 
@@ -285,7 +286,13 @@ export const AddRemoveInspectionPortal: React.FC<AddRemoveInspectionPortalProps>
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedSeriesFilter, setSelectedSeriesFilter] = useState<string>('All');
   const [selectedStageFilter, setSelectedStageFilter] = useState<string>('All');
-  const [activeTab, setActiveTab] = useState<'cards' | 'form' | 'editor'>('cards');
+  const navigate = useNavigate();
+  const { subtab } = useParams<{ subtab?: string }>();
+  // Derive activeTab from route parameter:
+  // /admin/specs -> 'cards'
+  // /admin/specs/form -> 'form'
+  // /admin/specs/editor -> 'editor'
+  const activeTab: 'cards' | 'form' | 'editor' = subtab === 'form' ? 'form' : subtab === 'editor' ? 'editor' : 'cards';
 
   // Modal States
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
@@ -473,7 +480,7 @@ export const AddRemoveInspectionPortal: React.FC<AddRemoveInspectionPortalProps>
 
   // Helper to open Form Generator directly without popup and immediately scroll to page top
   const handleOpenAddModal = (category?: CategoryCardConfig) => {
-    setActiveTab('form');
+    navigate('/admin/specs/form');
     // Scroll page and window to the top immediately so the top of Form Generator appears first
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
     document.documentElement.scrollTop = 0;
@@ -673,18 +680,22 @@ export const AddRemoveInspectionPortal: React.FC<AddRemoveInspectionPortalProps>
       {activeTab !== 'form' && activeTab !== 'editor' && (
       <div className="w-full flex flex-col items-center">
 
-        {/* Main Portal Title & Icon matching conditions of before pages */}
+        {/* Main Portal Title & Icon */}
         <div className="text-center mb-6 sm:mb-8">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200/80 text-blue-700 text-xs font-bold uppercase tracking-wider mb-3">
+            <Sliders className="w-3.5 h-3.5" />
+            <span>Specification Controls &amp; Form Generator</span>
+          </div>
           <div className="flex items-center justify-center gap-3.5 mb-3">
             <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 ring-4 ring-white">
               <Sliders className="w-7 h-7 sm:w-8 sm:h-8 stroke-[2]" />
             </div>
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
-              Add/Remove Inspection
+              Specification Controls
             </h1>
           </div>
           <p className="text-slate-500 text-base sm:text-lg max-w-2xl mx-auto font-medium">
-            Configure QA specifications, register new test benchmarks, and remove or calibrate active quality parameters
+            Configure QA specifications, form generator templates, and inspection hierarchy
           </p>
         </div>
       </div>
@@ -743,7 +754,7 @@ export const AddRemoveInspectionPortal: React.FC<AddRemoveInspectionPortalProps>
           {/* Card 2: Inspection Editor (User Requested) */}
           <div
             onClick={() => {
-              setActiveTab('editor');
+              navigate('/admin/specs/editor');
               window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
             }}
             role="button"
@@ -751,7 +762,7 @@ export const AddRemoveInspectionPortal: React.FC<AddRemoveInspectionPortalProps>
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                setActiveTab('editor');
+                navigate('/admin/specs/editor');
                 window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
               }
             }}
@@ -780,7 +791,7 @@ export const AddRemoveInspectionPortal: React.FC<AddRemoveInspectionPortalProps>
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                setActiveTab('editor');
+                navigate('/admin/specs/editor');
                 window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
               }}
               className="w-full py-2.5 px-5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 active:from-indigo-800 active:to-blue-800 text-white font-semibold text-xs sm:text-sm transition-all duration-200 shadow-sm shadow-indigo-500/25 flex items-center justify-center gap-2 group-hover:shadow-md group-hover:shadow-indigo-500/30 cursor-pointer transform active:scale-[0.98]"
@@ -795,7 +806,10 @@ export const AddRemoveInspectionPortal: React.FC<AddRemoveInspectionPortalProps>
         /* Inspection Hierarchy & Cards Editor */
         <div className="w-full my-auto mb-8 animate-in fade-in duration-200">
           <InspectionEditor
-            onBack={() => setActiveTab('cards')}
+            onBack={() => {
+              navigate('/admin/specs');
+              window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+            }}
             userId={userId}
           />
         </div>
@@ -803,7 +817,10 @@ export const AddRemoveInspectionPortal: React.FC<AddRemoveInspectionPortalProps>
         /* Form Editor Studio matching user requested form editor designs */
         <div className="w-full my-auto mb-8 animate-in fade-in duration-200">
           <FormEditorStudio
-            onBack={() => setActiveTab('cards')}
+            onBack={() => {
+              navigate('/admin/specs');
+              window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+            }}
             userId={userId}
             existingSpecsCount={specs.length}
             documentHeader={docHeaderData}

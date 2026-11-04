@@ -69,19 +69,49 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
 
   const isRoot = location.pathname === '/' || location.pathname === '/workspace-selection';
 
-  // Return contextual label based on current route
+  // Return contextual label based on current route - strictly goes to immediately preceding step
   const getBackLabel = () => {
     const p = location.pathname;
-    if (p.startsWith('/admin/') && p !== '/admin') return 'Back to QA Admin Dashboard';
-    if (p.startsWith('/inspection/module/') && p.split('/').filter(Boolean).length >= 4) {
+
+    // 1. Sub-level views inside Specification Controls (Form Generator or Inspection Editor)
+    if (p.startsWith('/admin/specs/')) {
+      return 'Back to Specification Controls';
+    }
+
+    // 2. Child card level under Inspection modules (e.g. /inspection/module/:moduleId/:childCardId)
+    const moduleChildMatch = p.match(/^\/inspection\/module\/([^/]+)\/([^/]+)/);
+    if (moduleChildMatch) {
       return 'Back to Categories';
     }
-    if (p.startsWith('/inspection/incoming') || p.startsWith('/inspection/in-process') || p.startsWith('/inspection/module')) {
+    const incomingChildMatch = p.match(/^\/inspection\/incoming\/([^/]+)/);
+    if (incomingChildMatch) {
+      return 'Back to Categories';
+    }
+    const inProcessChildMatch = p.match(/^\/inspection\/in-process\/([^/]+)/);
+    if (inProcessChildMatch) {
+      return 'Back to Categories';
+    }
+
+    // 3. Category level views (e.g. /inspection/incoming, /inspection/in-process, /inspection/module/:moduleId, /inspection/live)
+    if (p.startsWith('/inspection/module/') || p === '/inspection/incoming' || p === '/inspection/in-process' || p.startsWith('/inspection/live')) {
       return 'Back to QA Inspection';
     }
-    if (p.startsWith('/inspection/live')) return 'Back to Inspection Modules';
-    if (p === '/inspection' || p === '/admin') return 'Back to Workspace Selection';
-    if (p.startsWith('/sign-in') || p.startsWith('/login')) return 'Back to Workspace Selection';
+
+    // 4. Admin top subviews (e.g. /admin/specs, /admin/users, /admin/records, /admin/analytics)
+    if (p.startsWith('/admin/') && p !== '/admin') {
+      return 'Back to QA Admin Dashboard';
+    }
+
+    // 5. Top-level dashboards go to workspace selection
+    if (p === '/inspection' || p === '/admin') {
+      return 'Back to Workspace Selection';
+    }
+
+    // 6. Sign in / login screens go to workspace selection
+    if (p.startsWith('/sign-in') || p.startsWith('/login')) {
+      return 'Back to Workspace Selection';
+    }
+
     return 'Back';
   };
 
@@ -89,23 +119,16 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
   const getBackDestination = (): string => {
     const p = location.pathname;
 
-    // Subviews under Admin (e.g. /admin/users, /admin/specs, /admin/records, /admin/analytics)
-    if (p.startsWith('/admin/') && p !== '/admin') {
-      return '/admin';
+    // 1. Sub-level views inside Specification Controls return to /admin/specs
+    if (p.startsWith('/admin/specs/')) {
+      return '/admin/specs';
     }
 
-    // Child card level in inspection (e.g. /inspection/module/:moduleId/:childCardId)
+    // 2. Child card level in inspection returns to category level
     const moduleChildMatch = p.match(/^\/inspection\/module\/([^/]+)\/([^/]+)/);
     if (moduleChildMatch) {
       return `/inspection/module/${moduleChildMatch[1]}`;
     }
-
-    // Module cards view (/inspection/module/:moduleId)
-    if (p.startsWith('/inspection/module/')) {
-      return '/inspection';
-    }
-
-    // Incoming or In-process child card subroutes
     const incomingChildMatch = p.match(/^\/inspection\/incoming\/([^/]+)/);
     if (incomingChildMatch) {
       return '/inspection/incoming';
@@ -115,17 +138,25 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
       return '/inspection/in-process';
     }
 
-    // Any other inspection subroutes (/inspection/incoming, /inspection/in-process, /inspection/live)
+    // 3. Category level views return to QA Inspection dashboard
+    if (p.startsWith('/inspection/module/')) {
+      return '/inspection';
+    }
     if (p.startsWith('/inspection/') && p !== '/inspection') {
       return '/inspection';
     }
 
-    // Top-level dashboards go to workspace selection
+    // 4. Admin top subviews return to QA Admin dashboard
+    if (p.startsWith('/admin/') && p !== '/admin') {
+      return '/admin';
+    }
+
+    // 5. Top-level dashboards go to workspace selection
     if (p === '/admin' || p === '/inspection') {
       return '/';
     }
 
-    // Authentication screens go to workspace selection
+    // 6. Authentication screens go to workspace selection
     if (p.startsWith('/sign-in') || p.startsWith('/login')) {
       return '/';
     }

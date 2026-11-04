@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
   ArrowLeft, 
@@ -19,8 +19,24 @@ import {
   Star,
   CheckCircle2,
   FolderPlus,
-  AlertCircle
+  AlertCircle,
+  Lock,
+  Key,
+  Eye,
+  EyeOff,
+  ShieldAlert,
+  Loader2,
+  MapPin
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { verifyCurrentAdminPassword } from '../backend/adminUserService';
+import { 
+  getStoredDeployedForms, 
+  deleteDeployedForm, 
+  DeployedInspectionForm, 
+  DEPLOYED_FORMS_UPDATED_EVENT 
+} from '../deployedFormsData';
+import toast from 'react-hot-toast';
 import { DocumentHeaderData, SectionBlockSchema, FormFooterData } from './FormEditorStudio';
 
 export interface InspectionFormCardData {
@@ -58,6 +74,7 @@ export const FormCardsGallery: React.FC<FormCardsGalleryProps> = ({
   onDeleteForm,
   onBackToPortal,
 }) => {
+  const { employeeId, user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Draft' | 'Active'>('All');
   
@@ -70,8 +87,84 @@ export const FormCardsGallery: React.FC<FormCardsGalleryProps> = ({
   const [renamingForm, setRenamingForm] = useState<InspectionFormCardData | null>(null);
   const [renameValue, setRenameValue] = useState('');
 
-  // Delete Confirm Modal State
+  // Delete Template Confirm Modal State (Form Directory template)
   const [deletingForm, setDeletingForm] = useState<InspectionFormCardData | null>(null);
+
+  // Deployed Forms Management State (Deleting forms deployed to operations, protected by Admin Password)
+  const [deployedForms, setDeployedForms] = useState<DeployedInspectionForm[]>(() => getStoredDeployedForms());
+  const [isDeleteDeployedModalOpen, setIsDeleteDeployedModalOpen] = useState(false);
+  const [deployedSearchQuery, setDeployedSearchQuery] = useState('');
+  const [deletingDeployedForm, setDeletingDeployedForm] = useState<DeployedInspectionForm | null>(null);
+  const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
+  const [isVerifyingDelete, setIsVerifyingDelete] = useState(false);
+  const [deletePasswordError, setDeletePasswordError] = useState('');
+
+  // Sync deployed forms from localStorage events
+  useEffect(() => {
+    const handleUpdate = () => {
+      setDeployedForms(getStoredDeployedForms());
+    };
+    window.addEventListener(DEPLOYED_FORMS_UPDATED_EVENT, handleUpdate);
+    return () => {
+      window.removeEventListener(DEPLOYED_FORMS_UPDATED_EVENT, handleUpdate);
+    };
+  }, []);
+
+  const filteredDeployedForms = deployedForms.filter(f => {
+    const q = deployedSearchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      f.name.toLowerCase().includes(q) ||
+      f.targetMainCardName.toLowerCase().includes(q) ||
+      f.targetChildCardName.toLowerCase().includes(q) ||
+      (f.documentHeader?.documentNo && f.documentHeader.documentNo.toLowerCase().includes(q)) ||
+      (f.productType && f.productType.toLowerCase().includes(q))
+    );
+  });
+
+  const handleConfirmDeleteDeployed = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deletingDeployedForm) return;
+
+    const trimmedPass = adminPasswordInput.trim();
+    if (!trimmedPass) {
+      setDeletePasswordError('Admin login password is required to delete deployed forms.');
+      return;
+    }
+
+    setIsVerifyingDelete(true);
+    setDeletePasswordError('');
+
+    try {
+      const currentAdminId = employeeId || user?.email || 'admin';
+      const checkResult = await verifyCurrentAdminPassword(currentAdminId, trimmedPass, user?.email);
+
+      if (!checkResult.success) {
+        setDeletePasswordError(checkResult.error || 'Incorrect admin password. Authorization denied.');
+        return;
+      }
+
+      // Authorization succeeded: Delete deployed form from operational location
+      const remaining = deleteDeployedForm(deletingDeployedForm.id);
+      setDeployedForms(remaining);
+      const deletedName = deletingDeployedForm.name;
+      const targetLocation = `${deletingDeployedForm.targetMainCardName} > ${deletingDeployedForm.targetChildCardName}`;
+
+      setDeletingDeployedForm(null);
+      setAdminPasswordInput('');
+      setDeletePasswordError('');
+      toast.success(`Form "${deletedName}" was successfully removed from ${targetLocation}!`, {
+        duration: 4000,
+        icon: '🗑️',
+      });
+    } catch (err: any) {
+      console.error('[DeleteDeployedForm] Error:', err);
+      setDeletePasswordError(err.message || 'Verification failed. Please try again.');
+    } finally {
+      setIsVerifyingDelete(false);
+    }
+  };
 
   // Filter forms
   const filteredForms = forms.filter(f => {
@@ -170,8 +263,24 @@ export const FormCardsGallery: React.FC<FormCardsGalleryProps> = ({
             </h1>
           </div>
 
-          {/* Primary Action: + New Form */}
-          <div className="flex items-center gap-3 shrink-0">
+          {/* Primary Action: Delete Form & + New Form */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            {/* Delete Deployed Form Action (Requested by User) */}
+            <button
+              type="button"
+              onClick={() => {
+                setDeployedForms(getStoredDeployedForms());
+                setDeployedSearchQuery('');
+                setIsDeleteDeployedModalOpen(true);
+              }}
+              id="btn-delete-deployed-form-primary"
+              className="px-4 py-2.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 text-rose-700 font-bold text-sm shadow-xs flex items-center gap-2 transition-all duration-200 cursor-pointer"
+              title="Delete forms from deployed inspection operations"
+            >
+              <Trash2 className="w-4 h-4 text-rose-600 stroke-[2.2]" />
+              <span>Delete Form</span>
+            </button>
+
             <button
               type="button"
               onClick={handleOpenNewModal}
@@ -561,6 +670,303 @@ export const FormCardsGallery: React.FC<FormCardsGalleryProps> = ({
                 Delete Form
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 1: Manage & Delete Deployed Forms from Operational Locations */}
+      {isDeleteDeployedModalOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !deletingDeployedForm) setIsDeleteDeployedModalOpen(false);
+          }}
+        >
+          <div className="w-full max-w-4xl max-h-[90vh] bg-white rounded-3xl shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="px-6 py-4.5 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5 stroke-[2.2]" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                      Delete Deployed Form from Location
+                    </h3>
+                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                      Operations Management
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300">
+                    Remove active inspection forms from operational cards. Templates in Form Directory remain safe and untouched.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDeleteDeployedModalOpen(false)}
+                className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Toolbar: Search and Counters */}
+            <div className="px-6 py-3.5 bg-slate-50 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={deployedSearchQuery}
+                  onChange={(e) => setDeployedSearchQuery(e.target.value)}
+                  placeholder="Search by deployed location, form name, or doc no..."
+                  className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition shadow-2xs"
+                />
+                {deployedSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setDeployedSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                <span className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 shadow-2xs">
+                  Showing <strong className="text-rose-600 font-bold">{filteredDeployedForms.length}</strong> of {deployedForms.length} Deployed
+                </span>
+              </div>
+            </div>
+
+            {/* List of Deployed Forms */}
+            <div className="p-6 overflow-y-auto space-y-4 flex-1">
+              {filteredDeployedForms.length === 0 ? (
+                <div className="py-12 text-center border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center p-6">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-800 mb-1">
+                    {deployedSearchQuery ? 'No matching deployed forms found' : 'No forms currently deployed'}
+                  </h4>
+                  <p className="text-xs text-slate-500 max-w-sm">
+                    {deployedSearchQuery 
+                      ? 'Try clearing the search box to view all active deployed forms.' 
+                      : 'When inspection forms are deployed from Form Generator, they will appear here with option to delete from location.'}
+                  </p>
+                </div>
+              ) : (
+                filteredDeployedForms.map((deployedForm) => (
+                  <div
+                    key={deployedForm.id}
+                    className="p-4 sm:p-5 rounded-2xl border border-slate-200 hover:border-slate-300 bg-white hover:shadow-sm transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 group"
+                  >
+                    <div className="space-y-2 flex-1 min-w-0">
+                      {/* Prominent Deployed Location Badge (User Requested: "issarawelama deployee karala thiyana location eka") */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs font-bold shadow-2xs">
+                          <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span className="text-[10px] uppercase text-blue-600 tracking-wider">DEPLOYED LOCATION:</span>
+                          <span className="text-slate-800">{deployedForm.targetMainCardName}</span>
+                          <span className="text-blue-300 font-normal">›</span>
+                          <span className="text-blue-700 font-extrabold">{deployedForm.targetChildCardName}</span>
+                        </div>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span>Active in Operations</span>
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-mono font-semibold">
+                          {deployedForm.version || deployedForm.documentHeader?.revisionNo || 'Rev 01'}
+                        </span>
+                      </div>
+
+                      {/* Form Title & Document Details */}
+                      <div>
+                        <h4 className="text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                          {deployedForm.name}
+                        </h4>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 font-medium mt-1">
+                          <span>
+                            Doc No: <strong className="text-slate-800 font-bold font-mono">{deployedForm.documentHeader?.documentNo || 'N/A'}</strong>
+                          </span>
+                          <span>•</span>
+                          <span>
+                            Product: <strong className="text-slate-700">{deployedForm.productType || 'Factory Standard'}</strong>
+                          </span>
+                          <span>•</span>
+                          <span>
+                            Deployed: <strong className="text-slate-700">{deployedForm.deployedAt || 'Recent'}</strong>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Sections Count & Metadata */}
+                      <div className="flex flex-wrap items-center gap-2 pt-0.5 text-[11px] text-slate-500">
+                        <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600">
+                          {deployedForm.sections?.length || 0} Sections Block
+                        </span>
+                        <span>Source Template: <code className="font-mono text-slate-700">{deployedForm.sourceFormId}</code> (Protected)</span>
+                      </div>
+                    </div>
+
+                    {/* Delete Action Button */}
+                    <div className="shrink-0 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeletingDeployedForm(deployedForm);
+                          setAdminPasswordInput('');
+                          setDeletePasswordError('');
+                          setShowDeletePassword(false);
+                        }}
+                        className="w-full md:w-auto px-4 py-2.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-700 text-xs sm:text-sm font-bold shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer group-hover:border-rose-300"
+                        title={`Delete this deployed form from ${deployedForm.targetChildCardName}`}
+                      >
+                        <Trash2 className="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" />
+                        <span>Delete from Location</span>
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Modal Footer Note */}
+            <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shrink-0">
+              <span className="flex items-center gap-1.5">
+                <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0" />
+                <span>Admin password verification is strictly required before any deployed form is deleted.</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsDeleteDeployedModalOpen(false)}
+                className="px-4 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-semibold text-xs hover:bg-slate-100 transition cursor-pointer self-end sm:self-auto"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: Admin Password Verification for Deleting Deployed Form */}
+      {deletingDeployedForm && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 sm:p-7 overflow-hidden animate-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="flex items-center gap-3.5 mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 border border-rose-200 flex items-center justify-center shrink-0">
+                <Lock className="w-6 h-6 stroke-[2]" />
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-extrabold text-slate-900 leading-snug">
+                  Admin Authorization Required
+                </h3>
+                <p className="text-xs text-slate-500 font-medium">
+                  Confirm deletion of deployed inspection form
+                </p>
+              </div>
+            </div>
+
+            {/* Target Details Box */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/90 text-xs space-y-1.5 mb-4">
+              <div className="flex items-start gap-1.5">
+                <span className="text-slate-400 font-semibold shrink-0">Deployed Location:</span>
+                <span className="font-bold text-blue-700 truncate">
+                  {deletingDeployedForm.targetMainCardName} › {deletingDeployedForm.targetChildCardName}
+                </span>
+              </div>
+              <div className="flex items-start gap-1.5">
+                <span className="text-slate-400 font-semibold shrink-0">Form:</span>
+                <span className="font-bold text-slate-800 truncate">{deletingDeployedForm.name}</span>
+              </div>
+              <div className="flex items-start gap-1.5">
+                <span className="text-slate-400 font-semibold shrink-0">Doc No:</span>
+                <span className="font-mono font-bold text-slate-700">
+                  {deletingDeployedForm.documentHeader?.documentNo || 'N/A'}
+                </span>
+              </div>
+              <div className="pt-1.5 border-t border-slate-200/70 text-[11px] text-emerald-700 flex items-center gap-1 font-semibold">
+                <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>Form Directory source template will remain protected &amp; safe.</span>
+              </div>
+            </div>
+
+            {/* Password Verification Form */}
+            <form onSubmit={handleConfirmDeleteDeployed} className="space-y-4">
+              {deletePasswordError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700 flex items-center gap-2 animate-in shake duration-150">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{deletePasswordError}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
+                  Admin Login Password <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <Key className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <input
+                    type={showDeletePassword ? 'text' : 'password'}
+                    autoFocus
+                    required
+                    value={adminPasswordInput}
+                    onChange={(e) => {
+                      setAdminPasswordInput(e.target.value);
+                      setDeletePasswordError('');
+                    }}
+                    placeholder="Enter your administrator password"
+                    className="w-full pl-9 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowDeletePassword(prev => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                  >
+                    {showDeletePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Enter the login password for Admin account ({employeeId || user?.email || 'admin'}).
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  disabled={isVerifyingDelete}
+                  onClick={() => {
+                    setDeletingDeployedForm(null);
+                    setAdminPasswordInput('');
+                    setDeletePasswordError('');
+                  }}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isVerifyingDelete}
+                  className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 disabled:opacity-60 text-white text-xs font-bold shadow-md shadow-rose-500/20 transition flex items-center gap-2 cursor-pointer"
+                  id="btn-confirm-delete-deployed-auth"
+                >
+                  {isVerifyingDelete ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Confirm &amp; Delete Form</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

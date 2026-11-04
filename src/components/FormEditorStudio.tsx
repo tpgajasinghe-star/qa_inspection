@@ -3734,6 +3734,23 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
             <span>+ New Form</span>
           </button>
 
+          {/* Quick Delete Deployed Form button (Requested by User) */}
+          <button
+            type="button"
+            onClick={() => {
+              setViewMode('cards');
+              window.setTimeout(() => {
+                const btn = document.getElementById('btn-delete-deployed-form-primary');
+                btn?.click();
+              }, 60);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs border border-rose-200 transition cursor-pointer"
+            title="Delete forms from deployed operational locations"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+            <span>Delete Form</span>
+          </button>
+
           <button
             type="button"
             onClick={handleResetToTemplate}

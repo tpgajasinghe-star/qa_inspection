@@ -3,9 +3,30 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig } from 'vite';
 
+const buildTimestamp = Date.now();
+
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss()],
+    define: {
+      __APP_BUILD_TIMESTAMP__: JSON.stringify(buildTimestamp),
+    },
+    plugins: [
+      react(), 
+      tailwindcss(),
+      {
+        name: 'generate-version-file',
+        generateBundle() {
+          this.emitFile({
+            type: 'asset',
+            fileName: 'version.json',
+            source: JSON.stringify({
+              version: buildTimestamp,
+              buildTime: new Date(buildTimestamp).toISOString()
+            }, null, 2)
+          });
+        }
+      }
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
