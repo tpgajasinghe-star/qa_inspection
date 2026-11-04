@@ -263,20 +263,6 @@ export const SignInView: React.FC<SignInViewProps> = ({
 
   return (
     <div className="w-full flex-1 flex flex-col items-center justify-center px-4 py-3 z-10 my-auto">
-      {/* Return to workspace button */}
-      <div className="w-full max-w-[390px] mb-2 flex items-center justify-start">
-        <button
-          type="button"
-          onClick={handleBack}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-blue-700 bg-white/85 hover:bg-white px-2.5 py-1 rounded-lg border border-slate-200/80 shadow-2xs backdrop-blur-xs transition-all cursor-pointer"
-          id="btn-back-to-workspaces"
-          title="Return to previous screen"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Change Workspace</span>
-        </button>
-      </div>
-
       {/* Central Auth Card Container - Fits 100% in viewport without scrolling */}
       <div 
         className="w-full max-w-[390px] bg-white/95 backdrop-blur-md rounded-2xl p-5 sm:p-6 shadow-lg border border-slate-100 relative transition-all duration-300"

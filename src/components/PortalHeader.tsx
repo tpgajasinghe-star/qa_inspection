@@ -72,23 +72,31 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
   // Return contextual label based on current route - strictly goes to immediately preceding step
   const getBackLabel = () => {
     const p = location.pathname;
+    const search = location.search;
 
     // 1. Sub-level views inside Specification Controls (Form Generator or Inspection Editor)
     if (p.startsWith('/admin/specs/')) {
+      if (p.includes('/admin/specs/form') && search.includes('mode=editor')) {
+        return 'Back to Form Directory';
+      }
       return 'Back to Specification Controls';
     }
 
     // 2. Child card level under Inspection modules (e.g. /inspection/module/:moduleId/:childCardId)
     const moduleChildMatch = p.match(/^\/inspection\/module\/([^/]+)\/([^/]+)/);
-    if (moduleChildMatch) {
-      return 'Back to Categories';
-    }
     const incomingChildMatch = p.match(/^\/inspection\/incoming\/([^/]+)/);
-    if (incomingChildMatch) {
-      return 'Back to Categories';
-    }
     const inProcessChildMatch = p.match(/^\/inspection\/in-process\/([^/]+)/);
-    if (inProcessChildMatch) {
+
+    if (moduleChildMatch || incomingChildMatch || inProcessChildMatch) {
+      if (search.includes('form=') || search.includes('standard=true')) {
+        return 'Back to Forms List';
+      }
+      if (search.includes('recordId=')) {
+        return 'Back to Past Records List';
+      }
+      if (search.includes('view=new-inspection') || search.includes('view=past-records')) {
+        return 'Back to Operations';
+      }
       return 'Back to Categories';
     }
 
@@ -99,6 +107,12 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
 
     // 4. Admin top subviews (e.g. /admin/specs, /admin/users, /admin/records, /admin/analytics)
     if (p.startsWith('/admin/') && p !== '/admin') {
+      if (p.includes('/admin/users') && (search.includes('view=') || search.includes('sub='))) {
+        return 'Back to User Management Cards';
+      }
+      if (p.includes('/admin/records') && search.includes('recordId=')) {
+        return 'Back to Past Records List';
+      }
       return 'Back to QA Admin Dashboard';
     }
 
@@ -118,24 +132,40 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
   // Return contextual destination for 100% reliable single-click back navigation
   const getBackDestination = (): string => {
     const p = location.pathname;
+    const search = location.search;
 
-    // 1. Sub-level views inside Specification Controls return to /admin/specs
+    // 1. Sub-level views inside Specification Controls
     if (p.startsWith('/admin/specs/')) {
-      return '/admin/specs';
+      if (p.includes('/admin/specs/form') && search.includes('mode=editor')) {
+        return '/admin/specs/form'; // Return to Form Directory cards gallery
+      }
+      return '/admin/specs'; // Return to Specification Controls
     }
 
-    // 2. Child card level in inspection returns to category level
+    // 2. Child card level in inspection returns to category level or operations base
     const moduleChildMatch = p.match(/^\/inspection\/module\/([^/]+)\/([^/]+)/);
-    if (moduleChildMatch) {
-      return `/inspection/module/${moduleChildMatch[1]}`;
-    }
     const incomingChildMatch = p.match(/^\/inspection\/incoming\/([^/]+)/);
-    if (incomingChildMatch) {
-      return '/inspection/incoming';
-    }
     const inProcessChildMatch = p.match(/^\/inspection\/in-process\/([^/]+)/);
-    if (inProcessChildMatch) {
-      return '/inspection/in-process';
+
+    if (moduleChildMatch || incomingChildMatch || inProcessChildMatch) {
+      if (search.includes('form=') || search.includes('standard=true')) {
+        return `${p}?view=new-inspection`; // Return to Forms list
+      }
+      if (search.includes('recordId=')) {
+        return `${p}?view=past-records`; // Return to Past Records list
+      }
+      if (search.includes('view=')) {
+        return p; // Strips search parameters, returning to child card operations base view
+      }
+      if (moduleChildMatch) {
+        return `/inspection/module/${moduleChildMatch[1]}`;
+      }
+      if (incomingChildMatch) {
+        return '/inspection/incoming';
+      }
+      if (inProcessChildMatch) {
+        return '/inspection/in-process';
+      }
     }
 
     // 3. Category level views return to QA Inspection dashboard
@@ -146,8 +176,14 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
       return '/inspection';
     }
 
-    // 4. Admin top subviews return to QA Admin dashboard
+    // 4. Admin top subviews return to QA Admin dashboard or base subview
     if (p.startsWith('/admin/') && p !== '/admin') {
+      if (p.includes('/admin/users') && (search.includes('view=') || search.includes('sub='))) {
+        return '/admin/users';
+      }
+      if (p.includes('/admin/records') && search.includes('recordId=')) {
+        return '/admin/records';
+      }
       return '/admin';
     }
 

@@ -286,16 +286,6 @@ export const InspectionEditor: React.FC<InspectionEditorProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200/80">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <button
-                type="button"
-                onClick={onBack}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-xs font-semibold shadow-2xs transition-all cursor-pointer"
-                title="Return to Specification Controls"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Specification Controls</span>
-              </button>
-              <span className="text-slate-300">/</span>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-200/70 text-indigo-700 text-xs font-bold">
                 <SlidersHorizontal className="w-3.5 h-3.5" />
                 <span>Inspection Editor</span>

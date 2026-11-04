@@ -37,6 +37,7 @@ import {
   getStoredUserPassword,
   verifyCurrentAdminPassword
 } from '../backend/adminUserService';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 interface UserManagementProps {
@@ -48,6 +49,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   onBack, 
   currentUserRole: propRole 
 }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { role: authRole, employeeId, user } = useAuth();
 
   // Current logged in user's profile role (SUPER_ADMIN or ADMIN)
@@ -81,8 +83,27 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     message: '',
   });
 
-  // Navigation within User Management: 'cards' | 'create-user' | 'view-all-users'
-  const [activeView, setActiveView] = useState<'cards' | 'create-user' | 'view-all-users'>('cards');
+  // Navigation within User Management: 'cards' | 'create-user' | 'view-all-users' (Synced with URL)
+  const subParam = searchParams.get('sub') || searchParams.get('view');
+  const activeView: 'cards' | 'create-user' | 'view-all-users' = 
+    subParam === 'create-user' || subParam === 'create'
+      ? 'create-user'
+      : subParam === 'view-all-users' || subParam === 'all' || subParam === 'view-all'
+      ? 'view-all-users'
+      : 'cards';
+
+  const setActiveView = (view: 'cards' | 'create-user' | 'view-all-users') => {
+    if (view === 'cards') {
+      const next = new URLSearchParams(searchParams);
+      next.delete('sub');
+      next.delete('view');
+      setSearchParams(next, { replace: true });
+    } else {
+      const next = new URLSearchParams(searchParams);
+      next.set('sub', view);
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   // Create Form State
   const [createRoleType, setCreateRoleType] = useState<'ADMIN' | 'USER'>('USER');
@@ -510,19 +531,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             </div>
 
           </div>
-
-          {/* Bottom Back Button to QA Admin Dashboard */}
-          <div className="w-full flex justify-center pt-2">
-            <button
-              type="button"
-              onClick={onBack}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-blue-700 font-semibold text-xs sm:text-sm shadow-sm border border-slate-200/80 backdrop-blur-md transition-all cursor-pointer group hover:shadow-md"
-              id="btn-back-to-admin-dashboard"
-            >
-              <ArrowLeft className="w-4 h-4 text-slate-500 group-hover:text-blue-600 transition-transform group-hover:-translate-x-0.5" />
-              <span>Back to QA Admin Dashboard</span>
-            </button>
-          </div>
         </div>
       )}
 
@@ -536,14 +544,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         <div className="w-full max-w-2xl mx-auto my-auto animate-in fade-in duration-300">
           
           <div className="w-full flex items-center justify-between mb-5 pb-3 border-b border-slate-200/70">
-            <button
-              type="button"
-              onClick={() => setActiveView('cards')}
-              className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-blue-600 transition-colors cursor-pointer"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back to User Cards</span>
-            </button>
+            <div>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                User Provisioning
+              </span>
+            </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -760,15 +765,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         <div className="w-full max-w-6xl mx-auto my-auto animate-in fade-in duration-300">
           
           <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-3 border-b border-slate-200/70">
-            <button
-              type="button"
-              onClick={() => setActiveView('cards')}
-              className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-blue-600 transition-colors cursor-pointer"
-              id="btn-back-to-cards"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back to User Management Cards</span>
-            </button>
+            <div>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Registered Accounts Directory
+              </span>
+            </div>
 
             <div className="flex items-center gap-2">
               <button

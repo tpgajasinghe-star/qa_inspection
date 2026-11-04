@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, ErrorInfo, ReactNode } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
   Search, 
   Layers, 
@@ -177,7 +178,9 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
   const [viewMode, setViewMode] = useState<'tiles' | 'list'>('tiles');
 
   // 2. Full Sheet View State (NO POPUP MODAL! Opens full in-place inspection sheet)
-  const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const recordIdParam = searchParams.get('recordId');
+  const [selectedRecordId, setSelectedRecordId] = useState<string | null>(recordIdParam || null);
   const [fullRecordData, setFullRecordData] = useState<InspectionRecordResponse | null>(null);
   const [isLoadingFullRecord, setIsLoadingFullRecord] = useState<boolean>(false);
   const [fullRecordError, setFullRecordError] = useState<string | null>(null);
@@ -301,6 +304,9 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
   const handleOpenFullSheet = async (summary: InspectionSummary) => {
     const sumId = String(summary?.id || '');
     setSelectedRecordId(sumId);
+    const next = new URLSearchParams(searchParams);
+    next.set('recordId', sumId);
+    setSearchParams(next, { replace: true });
     setIsLoadingFullRecord(true);
     setFullRecordError(null);
     setFullRecordData(null);
@@ -371,7 +377,24 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
     setSelectedRecordId(null);
     setFullRecordData(null);
     setFullRecordError(null);
+    const next = new URLSearchParams(searchParams);
+    next.delete('recordId');
+    setSearchParams(next, { replace: true });
   };
+
+  // Sync state if recordId query param is changed externally or via back button
+  useEffect(() => {
+    if (!recordIdParam && selectedRecordId) {
+      setSelectedRecordId(null);
+      setFullRecordData(null);
+      setFullRecordError(null);
+    } else if (recordIdParam && recordIdParam !== selectedRecordId && summaries.length > 0) {
+      const target = summaries.find(s => String(s.id) === recordIdParam);
+      if (target) {
+        handleOpenFullSheet(target);
+      }
+    }
+  }, [recordIdParam, summaries]);
 
   // 7. Grouping by Inspection Category & Item Code
   // CRITICAL REQUIREMENT: If accessed from an inspection child card (categoryName provided and !isAdmin),
@@ -511,14 +534,9 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
         {/* Top Navigation & Action Header (Hidden in Print) */}
         <div className="w-full no-print print:hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-200/80">
           <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={handleBackToList}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-semibold transition cursor-pointer"
-            >
-              <ArrowLeft className="w-4 h-4 text-slate-500" />
-              <span>Back to Past Records List</span>
-            </button>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              Quality Inspection Certificate
+            </span>
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0">
@@ -673,92 +691,8 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
               </div>
             </div>
 
-            {/* Document Control Meta-Data Table Grid (7 columns - Exactly like New Inspection Sheet) */}
-            <div className="bg-slate-50 border-b border-slate-200 px-6 py-4 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 text-xs text-center items-center justify-center">
-              <div className="flex flex-col items-center justify-center text-center">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Doc Number</span>
-                <span className="font-mono font-bold text-slate-800">
-                  {fullRecordData.form_data?.documentHeader?.documentNo || 'F 17/3-2.1'}
-                </span>
-              </div>
-              <div className="flex flex-col items-center justify-center text-center">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Date of Issue</span>
-                <span className="font-medium text-slate-800">
-                  {fullRecordData.form_data?.documentHeader?.dateOfIssue || '2024-03-20'}
-                </span>
-              </div>
-              <div className="flex flex-col items-center justify-center text-center">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Revision</span>
-                <span className="font-mono font-bold text-slate-800">
-                  {fullRecordData.form_data?.documentHeader?.revisionNo || '04'}
-                </span>
-              </div>
-              <div className="flex flex-col items-center justify-center text-center">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Standard</span>
-                <span className="font-mono font-bold text-slate-800">
-                  {fullRecordData.form_data?.documentHeader?.refStandard || 'SLS 734'}
-                </span>
-              </div>
-              <div className="flex flex-col items-center justify-center text-center">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Inspection Lot</span>
-                <span className="font-mono font-bold text-blue-700">
-                  {fullRecordData.form_data?.auditMetadata?.lotNumber || 'LOT-PROD-2026'}
-                </span>
-              </div>
-              <div className="flex flex-col items-center justify-center text-center">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Audit Date</span>
-                <span className="font-mono font-bold text-slate-800">
-                  {fullRecordData.form_data?.auditMetadata?.auditDate || formatDateSafe(fullRecordData.created_at)}
-                </span>
-              </div>
-              <div className="flex flex-col items-center justify-center text-center">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Audit Time</span>
-                <span className="font-mono font-bold text-blue-700">
-                  {fullRecordData.form_data?.auditMetadata?.auditTime || formatTimeSafe(fullRecordData.created_at)}
-                </span>
-              </div>
-            </div>
-
             {/* Sheet Body */}
             <div className="p-6 sm:p-8 space-y-8">
-              
-              {/* Target Item Identification Box */}
-              <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center shrink-0">
-                    <Tag className="w-6 h-6 text-indigo-600" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                      Audited Component Reference
-                    </span>
-                    <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                      <span className="font-mono font-extrabold text-base sm:text-lg text-slate-900 bg-white px-3 py-0.5 rounded-lg border border-slate-300">
-                        {fullRecordData.item_code}
-                      </span>
-                      <span className="text-sm font-bold text-slate-800">
-                        {fullRecordData.form_data?.auditMetadata?.productDescription ||
-                          lookupDatabaseItem(fullRecordData.item_code, itemsList)?.description ||
-                          'Factory Part'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <span className="text-[10px] font-semibold text-slate-400 block uppercase">Batch ID</span>
-                    <span className="font-mono font-bold text-slate-800 text-xs sm:text-sm">
-                      {fullRecordData.form_data?.auditMetadata?.batchId || 'BATCH-01'}
-                    </span>
-                  </div>
-                  <div className="px-3.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 font-bold text-xs uppercase flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>Certified (PASS)</span>
-                  </div>
-                </div>
-              </div>
-
               {/* DYNAMIC SECTIONS & TABLE GRIDS (READ-ONLY SECTION BLOCKS) */}
               <div className="space-y-6">
                 {formSchema.sections.map((section, sIdx) => {
@@ -1091,17 +1025,6 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {onBack && (
-            <button
-              type="button"
-              onClick={onBack}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-semibold transition cursor-pointer"
-            >
-              <ArrowLeft className="w-4 h-4 text-slate-500" />
-              <span>Back</span>
-            </button>
-          )}
-
           <button
             type="button"
             onClick={() => fetchSummaries(selectedItemFilter)}

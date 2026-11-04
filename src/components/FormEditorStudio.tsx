@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Plus, 
@@ -578,8 +579,11 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
   documentHeader,
   onUpdateDocumentHeader,
 }) => {
-  // Multi-Form View Mode: 'cards' (Cards directory of pending forms) vs 'editor' (Form Generator editor)
-  const [viewMode, setViewMode] = useState<'cards' | 'editor'>('cards');
+  // Multi-Form View Mode synchronized with URL search params (?mode=editor&formId=...)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const modeParam = searchParams.get('mode');
+  const viewMode: 'cards' | 'editor' = modeParam === 'editor' ? 'editor' : 'cards';
+  const formIdParam = searchParams.get('formId');
 
   // Multi-Form collection: Ongoing form is explicitly named and saved as card "Testing_1"
   const [forms, setForms] = useState<InspectionFormCardData[]>(() => {
@@ -857,10 +861,11 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
     setActiveFormId(formId);
     setHeaderData(target.documentHeader);
     setSections(target.sections);
+    if (target.footer) setFooterData(target.footer);
     if (onUpdateDocumentHeader) {
       onUpdateDocumentHeader(target.documentHeader);
     }
-    setViewMode('editor');
+    setSearchParams({ mode: 'editor', formId });
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
     showToast(`Opened "${target.name}" in Form Generator Studio!`);
   };
@@ -983,7 +988,7 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
     if (onUpdateDocumentHeader) {
       onUpdateDocumentHeader(newHeader);
     }
-    setViewMode('editor');
+    setSearchParams({ mode: 'editor', formId: newFormId });
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
     showToast(`Created new form "${name}" and opened Form Generator!`);
   };
@@ -1062,6 +1067,7 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
     if (onUpdateDocumentHeader) {
       onUpdateDocumentHeader(target.documentHeader);
     }
+    setSearchParams({ mode: 'editor', formId: newFormId });
     showToast(`Switched active form to "${target.name}".`);
   };
 
@@ -3652,18 +3658,6 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
         className="w-full flex flex-wrap items-center justify-between gap-3 bg-white px-5 py-4 rounded-2xl border border-slate-200/80 shadow-xs no-print print:hidden"
       >
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              setViewMode('cards');
-              window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
-            }}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
-            title="Return to Form Directory"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Form Directory</span>
-          </button>
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-bold text-slate-800 leading-tight">
@@ -3738,7 +3732,7 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
           <button
             type="button"
             onClick={() => {
-              setViewMode('cards');
+              setSearchParams({});
               window.setTimeout(() => {
                 const btn = document.getElementById('btn-delete-deployed-form-primary');
                 btn?.click();

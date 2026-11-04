@@ -93,14 +93,6 @@ export const AdminSubviews: React.FC<AdminSubviewsProps> = ({
 
           <div className="flex items-center gap-2">
             <button
-              type="button"
-              onClick={() => navigate('/admin')}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-semibold transition cursor-pointer"
-            >
-              <ArrowLeft className="w-4 h-4 text-slate-500" />
-              <span>Back to Admin</span>
-            </button>
-            <button
               onClick={() => alert('Add Specification Modal: Opens CAD revision parameter mapping.')}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold shadow-sm transition cursor-pointer"
             >
@@ -190,14 +182,6 @@ export const AdminSubviews: React.FC<AdminSubviewsProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => navigate('/admin')}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-semibold transition cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4 text-slate-500" />
-            <span>Back to Admin</span>
-          </button>
           <span className="text-xs font-bold text-slate-600 hidden sm:inline">Period: Current Production Shift</span>
         </div>
       </div>

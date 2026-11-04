@@ -434,14 +434,6 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={onBackToList}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition cursor-pointer"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
-            <span>Back to Deployed Forms List</span>
-          </button>
-          <button
-            type="button"
             onClick={() => window.print()}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold shadow-2xs transition cursor-pointer"
             title="Print or Save Form as PDF"
@@ -553,60 +545,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
           </div>
         </div>
 
-        {/* Form Document Control Meta-Data Table Bar - Centered items */}
-        <div className="bg-slate-50 border-b border-slate-200 px-6 py-4 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 text-xs text-center items-center justify-center">
-          <div className="flex flex-col items-center justify-center text-center">
-            <span className="text-[10px] uppercase font-bold text-slate-500 block">Doc Number</span>
-            <span className="font-mono font-bold text-slate-800">{form.documentHeader.documentNo || 'F 17/3-2.1'}</span>
-          </div>
-          <div className="flex flex-col items-center justify-center text-center">
-            <span className="text-[10px] uppercase font-bold text-slate-500 block">Date of Issue</span>
-            <span className="font-medium text-slate-800">{form.documentHeader.dateOfIssue || '2024-03-20'}</span>
-          </div>
-          <div className="flex flex-col items-center justify-center text-center">
-            <span className="text-[10px] uppercase font-bold text-slate-500 block">Revision</span>
-            <span className="font-mono font-bold text-slate-800">{form.documentHeader.revisionNo || '04'}</span>
-          </div>
-          <div className="flex flex-col items-center justify-center text-center">
-            <span className="text-[10px] uppercase font-bold text-slate-500 block">Standard</span>
-            <span className="font-mono font-bold text-slate-800">{form.documentHeader.refStandard || 'SLS 734'}</span>
-          </div>
-          <div className="flex flex-col items-center justify-center text-center">
-            <span className="text-[10px] uppercase font-bold text-slate-500 block">Inspection Lot</span>
-            <span className="font-mono font-bold text-blue-700">{lotNumber}</span>
-          </div>
-          <div className="flex flex-col items-center justify-center text-center">
-            <span className="text-[10px] uppercase font-bold text-slate-500 block">Audit Date</span>
-            <input
-              type="date"
-              value={inspectionDate}
-              onChange={(e) => setInspectionDate(e.target.value)}
-              className="bg-white border border-slate-300 rounded px-1.5 py-0.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer text-center"
-            />
-          </div>
-          <div className="flex flex-col items-center justify-center text-center">
-            <span className="text-[10px] uppercase font-bold text-slate-500 block">Inspection Time</span>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveClockPicker({
-                  isOpen: true,
-                  timeKey: 'meta-audit-time',
-                  headerTitle: 'Inspection Audit Time',
-                  currentValue: auditTime,
-                });
-              }}
-              className="mt-0.5 inline-flex items-center gap-1.5 bg-white border border-slate-300 rounded px-2 py-0.5 text-xs font-mono font-bold text-blue-700 hover:border-blue-500 hover:ring-1 hover:ring-blue-500 cursor-pointer shadow-2xs transition select-none group"
-              title="Click to open 12 hrs round clock time picker"
-            >
-              <Clock className="w-3.5 h-3.5 text-blue-600 group-hover:scale-110 transition shrink-0" />
-              <span>{auditTime || 'Select Time'}</span>
-            </button>
-          </div>
-        </div>
-
         <div className="p-6 sm:p-8 space-y-8">
-          
           {/* DYNAMIC SECTIONS & TABLE GRIDS */}
           {form.sections.map((section, sIdx) => {
             // Find table element in section if any
