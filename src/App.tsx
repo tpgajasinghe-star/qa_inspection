@@ -136,19 +136,31 @@ export default function App() {
 
   // Handle Workspace Selection from Home Screen:
   const handleSelectWorkspace = (workspace: 'inspection' | 'admin') => {
+    if (workspace === 'inspection') {
+      // Inspection workspace: If authenticated, navigate straight to /inspection.
+      // Admins, Super Admins, and Inspectors all have full access to view and conduct inspections.
+      if (isAuthenticated) {
+        navigate('/inspection');
+      } else {
+        navigate('/sign-in/inspection', { state: { role: 'inspector' } });
+      }
+      return;
+    }
+
     if (workspace === 'admin') {
-      // Admin Panel requires authentication; show sign-in page for admin
-      navigate('/sign-in/admin', { state: { role: 'admin' } });
+      // Admin Panel: If already authenticated with administrative privileges, navigate directly to /admin
+      const hasAdminPrivileges =
+        authProfileRole === 'ADMIN' ||
+        authProfileRole === 'SUPER_ADMIN' ||
+        userRole === 'admin';
+
+      if (isAuthenticated && hasAdminPrivileges) {
+        navigate('/admin');
+      } else {
+        navigate('/sign-in/admin', { state: { role: 'admin' } });
+      }
       return;
     }
-
-    const destination = '/inspection';
-    if (!isAuthenticated || userRole !== 'inspector') {
-      navigate('/sign-in/inspection', { state: { role: 'inspector' } });
-      return;
-    }
-
-    navigate(destination);
   };
 
   // Open dedicated Sign-in Screen

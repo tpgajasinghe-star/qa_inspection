@@ -82,13 +82,36 @@ interface PublicAuthRouteProps {
  */
 export const PublicAuthRoute: React.FC<PublicAuthRouteProps> = ({ children }) => {
   const { isAuthenticated, isInitializing, role } = useAuth();
+  const location = useLocation();
 
   if (isInitializing) {
     return <FullScreenAuthLoading />;
   }
 
   if (isAuthenticated) {
-    // Always navigate fresh to respective dashboard without reviving old deep-link paths
+    // If the user is navigating to an inspection sign-in path or requested inspection role,
+    // route directly to /inspection regardless of whether they have admin rights
+    const isInspectionTarget =
+      location.pathname.includes('/inspection') ||
+      (location.state as any)?.role === 'inspector';
+
+    if (isInspectionTarget) {
+      return <Navigate to="/inspection" replace />;
+    }
+
+    const isAdminTarget =
+      location.pathname.includes('/admin') ||
+      (location.state as any)?.role === 'admin';
+
+    if (isAdminTarget) {
+      if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
+        return <Navigate to="/admin" replace />;
+      }
+      // If a USER role is attempting to authenticate as an ADMIN, allow the sign-in form to render
+      return <>{children}</>;
+    }
+
+    // Default fallback based on profile role
     if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
       return <Navigate to="/admin" replace />;
     }
@@ -97,3 +120,4 @@ export const PublicAuthRoute: React.FC<PublicAuthRouteProps> = ({ children }) =>
 
   return <>{children}</>;
 };
+
