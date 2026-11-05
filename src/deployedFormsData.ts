@@ -175,10 +175,10 @@ export function getStoredDeployedForms(): DeployedInspectionForm[] {
       // and ensure Section 1 elements follow the requested order: Date -> Item Code -> Product Description -> Batch Number
       parsed.forEach((f: DeployedInspectionForm) => {
         if (f.footer) {
-          if (f.footer.onlineInspectorName === 'H. P. Karunaratne' || f.footer.onlineInspectorName?.includes('Karunaratne')) f.footer.onlineInspectorName = '';
-          if (f.footer.onlineEmpNo === 'EMP-4102' || f.footer.onlineEmpNo?.includes('4102')) f.footer.onlineEmpNo = '';
-          if (f.footer.finalInspectorName === 'M. Vigneshwaran' || f.footer.finalInspectorName?.includes('Vigneshwaran')) f.footer.finalInspectorName = '';
-          if (f.footer.finalEmpNo === 'QC-Lead-09' || f.footer.finalEmpNo?.includes('Lead-09')) f.footer.finalEmpNo = '';
+          if (f.footer.onlineInspectorName === 'H. P. Karunaratne' || f.footer.onlineInspectorName?.includes('Karunaratne') || f.footer.onlineInspectorName === 'admin') f.footer.onlineInspectorName = '';
+          if (f.footer.onlineEmpNo === 'EMP-4102' || f.footer.onlineEmpNo?.includes('4102') || f.footer.onlineEmpNo === 'admin') f.footer.onlineEmpNo = '';
+          if (f.footer.finalInspectorName === 'M. Vigneshwaran' || f.footer.finalInspectorName?.includes('Vigneshwaran') || f.footer.finalInspectorName === 'admin') f.footer.finalInspectorName = '';
+          if (f.footer.finalEmpNo === 'QC-Lead-09' || f.footer.finalEmpNo?.includes('Lead-09') || f.footer.finalEmpNo === 'admin') f.footer.finalEmpNo = '';
         }
         f.sections?.forEach((sec) => {
           if (sec.title) {

@@ -690,10 +690,10 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
     const raw = activeForm?.footer || DEFAULT_FORM_FOOTER;
     return {
       ...raw,
-      onlineInspectorName: (raw.onlineInspectorName === 'H. P. Karunaratne' ? '' : raw.onlineInspectorName) || '',
-      onlineEmpNo: (raw.onlineEmpNo === 'EMP-4102' ? '' : raw.onlineEmpNo) || '',
-      finalInspectorName: (raw.finalInspectorName === 'M. Vigneshwaran' ? '' : raw.finalInspectorName) || '',
-      finalEmpNo: (raw.finalEmpNo === 'QC-Lead-09' ? '' : raw.finalEmpNo) || '',
+      onlineInspectorName: (raw.onlineInspectorName === 'H. P. Karunaratne' || raw.onlineInspectorName === 'admin' ? '' : raw.onlineInspectorName) || '',
+      onlineEmpNo: (raw.onlineEmpNo === 'EMP-4102' || raw.onlineEmpNo === 'admin' ? '' : raw.onlineEmpNo) || '',
+      finalInspectorName: (raw.finalInspectorName === 'M. Vigneshwaran' || raw.finalInspectorName === 'admin' ? '' : raw.finalInspectorName) || '',
+      finalEmpNo: (raw.finalEmpNo === 'QC-Lead-09' || raw.finalEmpNo === 'admin' ? '' : raw.finalEmpNo) || '',
     };
   });
   const editableFooterFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -1068,10 +1068,10 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
     const rawFooter = target.footer || DEFAULT_FORM_FOOTER;
     setFooterData({
       ...rawFooter,
-      onlineInspectorName: (rawFooter.onlineInspectorName === 'H. P. Karunaratne' ? '' : rawFooter.onlineInspectorName) || '',
-      onlineEmpNo: (rawFooter.onlineEmpNo === 'EMP-4102' ? '' : rawFooter.onlineEmpNo) || '',
-      finalInspectorName: (rawFooter.finalInspectorName === 'M. Vigneshwaran' ? '' : rawFooter.finalInspectorName) || '',
-      finalEmpNo: (rawFooter.finalEmpNo === 'QC-Lead-09' ? '' : rawFooter.finalEmpNo) || '',
+      onlineInspectorName: (rawFooter.onlineInspectorName === 'H. P. Karunaratne' || rawFooter.onlineInspectorName === 'admin' ? '' : rawFooter.onlineInspectorName) || '',
+      onlineEmpNo: (rawFooter.onlineEmpNo === 'EMP-4102' || rawFooter.onlineEmpNo === 'admin' ? '' : rawFooter.onlineEmpNo) || '',
+      finalInspectorName: (rawFooter.finalInspectorName === 'M. Vigneshwaran' || rawFooter.finalInspectorName === 'admin' ? '' : rawFooter.finalInspectorName) || '',
+      finalEmpNo: (rawFooter.finalEmpNo === 'QC-Lead-09' || rawFooter.finalEmpNo === 'admin' ? '' : rawFooter.finalEmpNo) || '',
     });
     if (onUpdateDocumentHeader) {
       onUpdateDocumentHeader(target.documentHeader);

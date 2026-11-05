@@ -19,7 +19,9 @@ import {
   Check, 
   X, 
   Loader2,
-  ChevronDown
+  ChevronDown,
+  AlertCircle,
+  ArrowRight
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { DeployedInspectionForm } from '../deployedFormsData';
@@ -72,7 +74,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
     return `${String(h).padStart(2, '0')}:${String(m >= 60 ? 55 : m).padStart(2, '0')} ${ampm}`;
   });
   const [itemCode, setItemCode] = useState('');
-  const [productDesc, setProductDesc] = useState(form.documentHeader.productType || childCard.name);
+  const [productDesc, setProductDesc] = useState('');
 
   // Database items from Supabase with instant fallback catalog (guarantees 559 -> 3000000559 is ready at all times)
   const [itemsList, setItemsList] = useState<DbItem[]>(() => {
@@ -138,11 +140,24 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
     return val;
   };
 
-  const [onlineInspectorName, setOnlineInspectorName] = useState(sanitizeName(form.footer?.onlineInspectorName));
-  const [onlineEmpNo, setOnlineEmpNo] = useState(sanitizeEmp(form.footer?.onlineEmpNo) || sanitizeEmp(userId) || '');
-  const [finalInspectorName, setFinalInspectorName] = useState(sanitizeName(form.footer?.finalInspectorName));
-  const [finalEmpNo, setFinalEmpNo] = useState(sanitizeEmp(form.footer?.finalEmpNo));
-  const [remarks, setRemarks] = useState(form.footer?.remarks || '');
+  const [onlineInspectorName, setOnlineInspectorName] = useState('');
+  const [onlineEmpNo, setOnlineEmpNo] = useState('');
+  const [finalInspectorName, setFinalInspectorName] = useState('');
+  const [finalEmpNo, setFinalEmpNo] = useState('');
+  const [remarks, setRemarks] = useState('');
+
+  // Validation state: tracks unfilled mandatory fields in Section 1 (INSPECTION LOG) and Footer
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [submissionWarning, setSubmissionWarning] = useState<string | null>(null);
+
+  const clearFieldError = (fieldId: string) => {
+    setValidationErrors(prev => {
+      if (!prev[fieldId]) return prev;
+      const next = { ...prev };
+      delete next[fieldId];
+      return next;
+    });
+  };
   
   // Attachments
   const [attachedFiles, setAttachedFiles] = useState<Array<{ id: string; name: string; size: string }>>(
@@ -240,7 +255,8 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
         v.startsWith('LOT-LED-') ||
         v.startsWith('ITEM-') ||
         k === 'el-batch' ||
-        k === 'el-item-code'
+        k === 'el-item-code' ||
+        k === 'el-desc'
       ) {
         vals[k] = '';
       }
@@ -327,6 +343,79 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
     e.preventDefault();
     if (isSubmitting) return;
 
+    // --- MANDATORY FIELD VALIDATION ---
+    // User requirement: Do NOT submit without filling data in INSPECTION LOG and signoff.
+    // Instead of inserting random autofill strings, scroll to the unfilled field with red popup highlights!
+    const errors: Record<string, string> = {};
+    let firstErrorId: string | null = null;
+
+    // 1. Validate INSPECTION LOG (Section 1 data fields)
+    const logSection = form.sections.find(s => /log/i.test(s.title)) || form.sections[0];
+    if (logSection) {
+      logSection.elements.forEach(el => {
+        if (el.tableConfig) return; // Grid tables validated in their respective modules
+
+        let val = '';
+        if (el.id === 'el-batch' || /batch/i.test(el.name)) {
+          val = (fieldValues[el.id] || batchId || '').trim();
+        } else if (el.id === 'el-item-code' || /item\s*code/i.test(el.name)) {
+          val = (fieldValues[el.id] || itemCode || '').trim();
+        } else if (el.id === 'el-desc' || /product\s*desc/i.test(el.name)) {
+          val = (fieldValues[el.id] || productDesc || '').trim();
+        } else {
+          val = (fieldValues[el.id] !== undefined ? fieldValues[el.id] : '').trim();
+        }
+
+        if (!val) {
+          errors[el.id] = `Mandatory: Please enter ${el.name}`;
+          if (!firstErrorId) {
+            firstErrorId = `field-container-${el.id}`;
+          }
+        }
+      });
+    }
+
+    // 2. Validate Footer Sign-off (Online Inspector Name & EMP No.)
+    if (!onlineInspectorName.trim()) {
+      errors['onlineInspectorName'] = 'Mandatory: Inspector Name is required';
+      if (!firstErrorId) {
+        firstErrorId = 'footer-online-inspector-name';
+      }
+    }
+    if (!onlineEmpNo.trim()) {
+      errors['onlineEmpNo'] = 'Mandatory: EMP No. is required';
+      if (!firstErrorId) {
+        firstErrorId = 'footer-online-emp-no';
+      }
+    }
+
+    // If any mandatory field is missing, block submission and scroll directly to the first unfilled field!
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      setSubmissionWarning('⚠️ Submission blocked: Please fill all mandatory fields in the INSPECTION LOG and Sign-off marked in red.');
+      toast.error('Submission blocked: Please fill all mandatory fields in INSPECTION LOG and Sign-off!');
+
+      if (firstErrorId) {
+        setTimeout(() => {
+          const domElem = document.getElementById(firstErrorId!);
+          if (domElem) {
+            domElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const inputInside = domElem.querySelector('input, select, textarea') as HTMLElement | null;
+            if (inputInside && typeof inputInside.focus === 'function') {
+              inputInside.focus();
+            } else if (typeof domElem.focus === 'function') {
+              domElem.focus();
+            }
+          }
+        }, 80);
+      }
+      return;
+    }
+
+    // Clear any previous validation errors
+    setValidationErrors({});
+    setSubmissionWarning(null);
+
     // Check overall pass/fail status based on any 'Fail' values in dropdown cells
     let hasFailures = false;
     Object.values(cellValues).forEach(v => {
@@ -336,10 +425,12 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
     const status: QAStatus = hasFailures ? 'fail' : 'pass';
     const recId = `REC-${categoryPrefix}-${Date.now().toString().slice(-6)}`;
 
-    const finalBatch = fieldValues['el-batch'] || batchId || `BATCH-${Date.now().toString().slice(-4)}`;
-    const finalItemCode = fieldValues['el-item-code'] || itemCode || (matchedDbItem?.item_code) || `ITEM-${categoryPrefix}-01`;
-    const finalProductDesc = fieldValues['el-desc'] || productDesc || form.productType || form.documentHeader.productType || childCard.name;
-    const finalInspector = onlineInspectorName?.trim() || 'Certified QC Inspector';
+    // Genuine user-entered data ONLY (NO random generated fallbacks!)
+    const finalBatch = (fieldValues['el-batch'] || batchId || '').trim();
+    const finalItemCode = (fieldValues['el-item-code'] || itemCode || (matchedDbItem?.item_code) || '').trim();
+    const finalProductDesc = (fieldValues['el-desc'] || productDesc || form.productType || form.documentHeader.productType || childCard.name).trim();
+    const finalInspector = onlineInspectorName.trim();
+    const finalOnlineEmp = onlineEmpNo.trim();
 
     // 1. Core Data (mapped to item_code & inspector_name columns)
     const coreData: InspectionCoreData = {
@@ -372,9 +463,9 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
         lotNumber,
         batchId: finalBatch,
         productDescription: finalProductDesc,
-        onlineEmpNo: onlineEmpNo || userId || 'QA-INSP',
-        finalInspectorName,
-        finalEmpNo,
+        onlineEmpNo: finalOnlineEmp,
+        finalInspectorName: finalInspectorName.trim(),
+        finalEmpNo: finalEmpNo.trim(),
       },
       // Dynamic table cell inputs across all sections
       cellValues,
@@ -415,7 +506,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
         status,
         defectSeverity: hasFailures ? 'major' : 'none',
         defectType: hasFailures ? 'Tolerance / Dimensional Deviation' : undefined,
-        inspectorId: onlineEmpNo || userId || 'QA Inspector',
+        inspectorId: finalOnlineEmp,
         inspectorName: finalInspector,
         timestamp: new Date().toISOString(),
         notes: remarks || `Verified against standard ${form.documentHeader.refStandard || 'SLS 734'} for ${finalProductDesc}.`,
@@ -512,6 +603,44 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
               Done • Return to Forms List &rarr;
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Mandatory Validation Error Banner */}
+      {submissionWarning && Object.keys(validationErrors).length > 0 && (
+        <div className="w-full mb-6 p-4 sm:p-5 rounded-2xl bg-rose-50 border-2 border-rose-500 text-rose-950 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div>
+              <h5 className="text-sm font-extrabold text-rose-900">
+                Submission Blocked: Mandatory Fields Required ({Object.keys(validationErrors).length} missing)
+              </h5>
+              <p className="text-xs text-rose-700 font-medium mt-0.5">
+                System cannot auto-fill random data. Please complete all highlighted fields in the INSPECTION LOG and Sign-off before submitting.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const firstKey = Object.keys(validationErrors)[0];
+              const targetId = firstKey === 'onlineInspectorName' ? 'footer-online-inspector-name' : firstKey === 'onlineEmpNo' ? 'footer-online-emp-no' : `field-container-${firstKey}`;
+              const target = document.getElementById(targetId);
+              if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const inputInside = target.querySelector('input, select, textarea') as HTMLElement | null;
+                if (inputInside && typeof inputInside.focus === 'function') {
+                  inputInside.focus();
+                }
+              }
+            }}
+            className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-sm cursor-pointer shrink-0 flex items-center gap-2"
+          >
+            <span>Scroll to Unfilled Field</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
       )}
 
@@ -624,11 +753,22 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                         return `Enter ${el.name}`;
                       })();
 
+                      const hasError = Boolean(validationErrors[el.id]);
+
                       return (
-                        <div key={el.id} className="space-y-1">
+                        <div 
+                          key={el.id} 
+                          id={`field-container-${el.id}`}
+                          className={`space-y-1 p-2 rounded-xl transition-all duration-200 ${
+                            hasError ? 'bg-rose-50/80 border-2 border-rose-400 ring-2 ring-rose-200 shadow-sm' : ''
+                          }`}
+                        >
                           <div className="flex items-center justify-between mb-1">
-                            <label className="text-[11px] font-bold text-slate-700 block">
-                              {el.name}
+                            <label className={`text-[11px] font-bold block flex items-center gap-1 ${
+                              hasError ? 'text-rose-700 font-extrabold' : 'text-slate-700'
+                            }`}>
+                              <span>{el.name}</span>
+                              <span className="text-rose-500 font-bold">*</span>
                             </label>
                             {(el.id === 'el-desc' || /product\s*desc/i.test(el.name)) && matchedDbItem && (
                               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
@@ -645,8 +785,11 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                 const val = e.target.value;
                                 setFieldValues(prev => ({ ...prev, [el.id]: val }));
                                 setInspectionDate(val);
+                                clearFieldError(el.id);
                               }}
-                              className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 cursor-pointer"
+                              className={`w-full px-3 py-2 bg-white rounded-xl border text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 cursor-pointer transition ${
+                                hasError ? 'border-rose-500 ring-2 ring-rose-300' : 'border-slate-200 focus:ring-blue-500/30'
+                              }`}
                             />
                           ) : (el.type as string) === 'time_picker' || /time|hour|clock/i.test(el.name) ? (
                             <div
@@ -657,8 +800,11 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                   headerTitle: el.name,
                                   currentValue: fieldValues[el.id] || auditTime || '08:30 AM',
                                 });
+                                clearFieldError(el.id);
                               }}
-                              className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-semibold text-blue-700 flex items-center justify-between cursor-pointer hover:border-blue-400 hover:ring-1 hover:ring-blue-400 transition"
+                              className={`w-full px-3 py-2 bg-white rounded-xl border text-xs font-semibold text-blue-700 flex items-center justify-between cursor-pointer hover:border-blue-400 hover:ring-1 hover:ring-blue-400 transition ${
+                                hasError ? 'border-rose-500 ring-2 ring-rose-300' : 'border-slate-200'
+                              }`}
                               title="Click to open 12 hrs round clock time picker"
                             >
                               <span className="font-mono">{fieldValues[el.id] || auditTime || 'Select Time'}</span>
@@ -666,47 +812,53 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                             </div>
                           ) : el.id === 'el-item-code' || /item\s*code/i.test(el.name) ? (
                             <div>
-                              <ItemCodeSmartInput
-                                value={fieldValues[el.id] || itemCode || ''}
-                                itemsList={itemsList}
-                                contextHint={childCard.name}
-                                placeholder={placeholder}
-                                onChange={(code, item) => {
-                                  setItemCode(code);
-                                  const resolvedItem = item || lookupDatabaseItem(code, itemsList, childCard.name);
-                                  const updated: Record<string, string> = {
-                                    ...fieldValues,
-                                    [el.id]: resolvedItem ? resolvedItem.item_code : code,
-                                  };
-                                  if (resolvedItem) {
-                                    setProductDesc(resolvedItem.description);
-                                    setMatchedDbItem(resolvedItem);
-                                    form.sections.forEach(sec => {
-                                      sec.elements.forEach(subEl => {
-                                        if (subEl.id === 'el-desc' || /product\s*desc|description/i.test(subEl.name)) {
-                                          updated[subEl.id] = resolvedItem.description;
-                                        }
+                              <div className={hasError ? 'border-2 border-rose-500 rounded-xl ring-2 ring-rose-300' : ''}>
+                                <ItemCodeSmartInput
+                                  value={fieldValues[el.id] || itemCode || ''}
+                                  itemsList={itemsList}
+                                  contextHint={childCard.name}
+                                  placeholder={placeholder}
+                                  onChange={(code, item) => {
+                                    setItemCode(code);
+                                    clearFieldError(el.id);
+                                    const resolvedItem = item || lookupDatabaseItem(code, itemsList, childCard.name);
+                                    const updated: Record<string, string> = {
+                                      ...fieldValues,
+                                      [el.id]: resolvedItem ? resolvedItem.item_code : code,
+                                    };
+                                    if (resolvedItem) {
+                                      setProductDesc(resolvedItem.description);
+                                      setMatchedDbItem(resolvedItem);
+                                      form.sections.forEach(sec => {
+                                        sec.elements.forEach(subEl => {
+                                          if (subEl.id === 'el-desc' || /product\s*desc|description/i.test(subEl.name)) {
+                                            updated[subEl.id] = resolvedItem.description;
+                                            clearFieldError(subEl.id);
+                                          }
+                                        });
                                       });
-                                    });
-                                  }
-                                  setFieldValues(updated);
-                                }}
-                                onSelectDescription={(desc, item) => {
-                                  setProductDesc(desc);
-                                  setMatchedDbItem(item);
-                                  setFieldValues(prev => {
-                                    const next = { ...prev, [el.id]: item.item_code };
-                                    form.sections.forEach(sec => {
-                                      sec.elements.forEach(subEl => {
-                                        if (subEl.id === 'el-desc' || /product\s*desc|description/i.test(subEl.name)) {
-                                          next[subEl.id] = desc;
-                                        }
+                                    }
+                                    setFieldValues(updated);
+                                  }}
+                                  onSelectDescription={(desc, item) => {
+                                    setProductDesc(desc);
+                                    setMatchedDbItem(item);
+                                    clearFieldError(el.id);
+                                    setFieldValues(prev => {
+                                      const next = { ...prev, [el.id]: item.item_code };
+                                      form.sections.forEach(sec => {
+                                        sec.elements.forEach(subEl => {
+                                          if (subEl.id === 'el-desc' || /product\s*desc|description/i.test(subEl.name)) {
+                                            next[subEl.id] = desc;
+                                            clearFieldError(subEl.id);
+                                          }
+                                        });
                                       });
+                                      return next;
                                     });
-                                    return next;
-                                  });
-                                }}
-                              />
+                                  }}
+                                />
+                              </div>
                               {matchedDbItem && (
                                 <span className="text-[10px] text-emerald-700 font-semibold mt-1 flex items-center gap-1 truncate" title={`${matchedDbItem.series || ''} • ${matchedDbItem.category || ''}`}>
                                   <Database className="w-3 h-3 text-emerald-600 shrink-0" />
@@ -744,6 +896,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                         checked={isChecked}
                                         onChange={() => {
                                           setFieldValues(prev => ({ ...prev, [el.id]: opt }));
+                                          clearFieldError(el.id);
                                         }}
                                         className="text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
                                       />
@@ -760,8 +913,11 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                 onChange={(e) => {
                                   const val = e.target.value;
                                   setFieldValues(prev => ({ ...prev, [el.id]: val }));
+                                  clearFieldError(el.id);
                                 }}
-                                className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-300 bg-white text-slate-800 appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 shadow-2xs transition cursor-pointer pr-8"
+                                className={`w-full px-3.5 py-2 text-xs rounded-lg border bg-white text-slate-800 appearance-none focus:outline-none focus:ring-1 shadow-2xs transition cursor-pointer pr-8 ${
+                                  hasError ? 'border-rose-500 ring-2 ring-rose-300' : 'border-slate-300 focus:ring-blue-500 focus:border-blue-500'
+                                }`}
                               >
                                 <option value="">Select {el.name}</option>
                                 {(Array.isArray(el.subItems) ? el.subItems : []).map((opt, i) => (
@@ -793,10 +949,21 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                 if (el.id === 'el-desc' || /product\s*desc/i.test(el.name)) {
                                   setProductDesc(val);
                                 }
+                                clearFieldError(el.id);
                               }}
                               placeholder={placeholder}
-                              className="w-full px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                              className={`w-full px-3 py-2 bg-white rounded-xl border text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 transition ${
+                                hasError ? 'border-rose-500 ring-2 ring-rose-300 bg-rose-50/50' : 'border-slate-200 focus:ring-blue-500/30'
+                              }`}
                             />
+                          )}
+
+                          {/* Red Popup Warning Tooltip for Mandatory Field */}
+                          {hasError && (
+                            <div className="flex items-center gap-1.5 mt-1.5 px-3 py-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold shadow-md animate-bounce">
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                              <span>{validationErrors[el.id]}</span>
+                            </div>
                           )}
                         </div>
                       );
@@ -1062,31 +1229,57 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                   Online Inspected By
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-400 block mb-1">
-                      Inspector Name
+                  <div id="footer-online-inspector-name">
+                    <label className="text-[10px] font-semibold text-slate-400 block mb-1 flex items-center justify-between">
+                      <span>Inspector Name</span>
+                      <span className="text-rose-400 font-bold">*</span>
                     </label>
                     <input
                       type="text"
                       value={onlineInspectorName}
-                      onChange={(e) => setOnlineInspectorName(e.target.value)}
-                      placeholder="Inspector Name"
-                      required
-                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      onChange={(e) => {
+                        setOnlineInspectorName(e.target.value);
+                        clearFieldError('onlineInspectorName');
+                      }}
+                      placeholder="Enter Inspector Name"
+                      className={`w-full px-3 py-2 bg-slate-900 border rounded-lg text-xs font-bold text-white placeholder-slate-500 focus:outline-none transition ${
+                        validationErrors['onlineInspectorName']
+                          ? 'border-2 border-rose-500 ring-2 ring-rose-500/60 bg-rose-950/40'
+                          : 'border-slate-700 focus:ring-1 focus:ring-blue-400'
+                      }`}
                     />
+                    {validationErrors['onlineInspectorName'] && (
+                      <div className="flex items-center gap-1.5 mt-1.5 px-2.5 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-bold shadow-md animate-bounce">
+                        <AlertCircle className="w-3 h-3 shrink-0" />
+                        <span>{validationErrors['onlineInspectorName']}</span>
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <label className="text-[10px] font-semibold text-slate-400 block mb-1">
-                      EMP No.
+                  <div id="footer-online-emp-no">
+                    <label className="text-[10px] font-semibold text-slate-400 block mb-1 flex items-center justify-between">
+                      <span>EMP No.</span>
+                      <span className="text-rose-400 font-bold">*</span>
                     </label>
                     <input
                       type="text"
                       value={onlineEmpNo}
-                      onChange={(e) => setOnlineEmpNo(e.target.value)}
-                      placeholder="EMP No."
-                      required
-                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs font-mono font-bold text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      onChange={(e) => {
+                        setOnlineEmpNo(e.target.value);
+                        clearFieldError('onlineEmpNo');
+                      }}
+                      placeholder="Enter EMP No."
+                      className={`w-full px-3 py-2 bg-slate-900 border rounded-lg text-xs font-mono font-bold text-white placeholder-slate-500 focus:outline-none transition ${
+                        validationErrors['onlineEmpNo']
+                          ? 'border-2 border-rose-500 ring-2 ring-rose-500/60 bg-rose-950/40'
+                          : 'border-slate-700 focus:ring-1 focus:ring-blue-400'
+                      }`}
                     />
+                    {validationErrors['onlineEmpNo'] && (
+                      <div className="flex items-center gap-1.5 mt-1.5 px-2.5 py-1 rounded-lg bg-rose-600 text-white text-[10px] font-bold shadow-md animate-bounce">
+                        <AlertCircle className="w-3 h-3 shrink-0" />
+                        <span>{validationErrors['onlineEmpNo']}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
