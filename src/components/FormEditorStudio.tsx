@@ -418,21 +418,20 @@ export const REFERENCE_SECTION_3_FINAL_ELEMENTS: SectionElementSchema[] = [
 // IMD INSPECTION FORM SCHEMA & SECTIONS (Calibrated from Reference Specification)
 // ============================================================================
 export const IMD_SECTION_1_ELEMENTS: SectionElementSchema[] = [
-  { id: 'el-date', name: 'INSPECTION DATE', type: 'date_picker', subItems: [] },
-  { id: 'el-item-code', name: 'ITEM CODE & PRODUCT NAME', type: 'data_field', subItems: [] },
+  { id: 'el-date', name: 'Inspection Date', type: 'date_picker', subItems: [] },
+  { id: 'el-item-code', name: 'Item Code Reference', type: 'data_field', subItems: [] },
+  { id: 'el-desc', name: 'Product Description', type: 'data_field', subItems: [] },
   { id: 'el-mc-no', name: 'MACHINE NO. (MC. NO)', type: 'data_field', subItems: [] },
   { id: 'el-raw-lot', name: 'RAW MATERIAL LOT NO.', type: 'data_field', subItems: [] },
   { id: 'el-raw-grade', name: 'RAW MATERIAL GRADE', type: 'data_field', subItems: [] },
   { id: 'el-batch', name: 'BATCH NUMBER REFERENCE', type: 'data_field', subItems: [] },
-  { id: 'el-coordination', name: 'COORDINATION', type: 'data_field', subItems: [] },
-  { id: 'el-shift', name: 'SHIFT', type: 'dropdown', subItems: ['Shift A', 'Shift B', 'Shift C', 'General Shift'] },
 ];
 
 export const IMD_SECTION_2_COLUMNS: TableColumnSchema[] = [
   { id: 'col-mic', header: 'MIC', type: 'text_label', width: '70px' },
   { id: 'col-param', header: 'PARAMETER', type: 'text_label', width: '260px' },
   { id: 'col-online', header: 'ONLINE RESULT', type: 'dropdown', options: ['Pass', 'Fail', 'N/A'], width: '140px', hasTimeHeader: true, defaultHeaderTime: '08:30 AM' },
-  { id: 'col-final', header: 'FINAL RESULT', type: 'dropdown', options: ['Pass', 'Fail', 'N/A'], width: '140px', hasTimeHeader: true, defaultHeaderTime: '04:30 PM' },
+  { id: 'col-final', header: 'FINAL RESULT', type: 'dropdown', options: ['Pass', 'Fail', 'N/A'], width: '140px', hasTimeHeader: false },
   { id: 'col-specs', header: 'SPECIFICATIONS', type: 'text_label', width: '300px' },
 ];
 
@@ -625,12 +624,98 @@ export const IMD_SECTION_2_ROWS: TableRowSchema[] = [
       'col-specs': 'Clear and correct data on packing slip',
     },
   },
+  {
+    id: 'row-imd-weight-gh',
+    isGroupHeader: true,
+    groupTitle: 'Weight Details — Quantitative Inspection Runs (MIC 7 – 10)',
+    cells: {
+      'col-mic': '07',
+    },
+  },
+  {
+    id: 'row-imd-q-07',
+    isGroupHeader: false,
+    inputType: 'text',
+    unit: 'g',
+    cells: {
+      'col-mic': '07',
+      'col-param': '7. Weight in grams – Shot weight [Avg]',
+      'col-online': '',
+      'col-final': '',
+      'col-specs': 'Actual weight should be recorded',
+    },
+  },
+  {
+    id: 'row-imd-q-7-1',
+    isGroupHeader: false,
+    inputType: 'text',
+    unit: 'g',
+    cells: {
+      'col-mic': '—',
+      'col-param': '7.1 Item weight – 1 [Avg]',
+      'col-online': '',
+      'col-final': '',
+      'col-specs': '—',
+    },
+  },
+  {
+    id: 'row-imd-q-7-2',
+    isGroupHeader: false,
+    inputType: 'text',
+    unit: 'g',
+    cells: {
+      'col-mic': '—',
+      'col-param': '7.2 Item weight – 2 [Avg]',
+      'col-online': '',
+      'col-final': '',
+      'col-specs': '—',
+    },
+  },
+  {
+    id: 'row-imd-q-08',
+    isGroupHeader: false,
+    inputType: 'text',
+    unit: 'pcs',
+    cells: {
+      'col-mic': '08',
+      'col-param': '8. No. of Items (Good)',
+      'col-online': '',
+      'col-final': '',
+      'col-specs': 'Quantity of good items',
+    },
+  },
+  {
+    id: 'row-imd-q-09',
+    isGroupHeader: false,
+    inputType: 'text',
+    unit: 'pcs',
+    cells: {
+      'col-mic': '09',
+      'col-param': '9. No. of Items (Dam. or close)',
+      'col-online': '',
+      'col-final': '',
+      'col-specs': 'Quantity of damaged / close items',
+    },
+  },
+  {
+    id: 'row-imd-q-10',
+    isGroupHeader: false,
+    inputType: 'text',
+    unit: 'g',
+    cells: {
+      'col-mic': '10',
+      'col-param': '10. Runner weight',
+      'col-online': '',
+      'col-final': '',
+      'col-specs': 'Record runner weight',
+    },
+  },
 ];
 
 export const IMD_SECTION_2_ONLINE_ELEMENTS: SectionElementSchema[] = [
   {
     id: 'el-imd-online-table',
-    name: 'Online / Visual Inspection Grid (MIC 1 – 6)',
+    name: 'Online / Visual & Weight Details Inspection Grid (MIC 1 – 10)',
     type: 'table_grid',
     subItems: [],
     tableConfig: {
@@ -724,16 +809,6 @@ export const IMD_SECTION_3_ROWS: TableRowSchema[] = [
 
 export const IMD_SECTION_3_QUANTITATIVE_ELEMENTS: SectionElementSchema[] = [
   {
-    id: 'el-imd-quantitative-table',
-    name: 'Quantitative Inspection Data Grid (MIC 7 – 10)',
-    type: 'table_grid',
-    subItems: [],
-    tableConfig: {
-      columns: IMD_SECTION_3_COLUMNS,
-      rows: IMD_SECTION_3_ROWS,
-    },
-  },
-  {
     id: 'el-imd-avg-shot',
     name: 'AVERAGE SHOT WEIGHT (GM)',
     type: 'data_field',
@@ -777,18 +852,17 @@ export const IMD_FORM_INITIAL: InspectionFormCardData = {
       savedData: {
         'el-date': '2026-11-06',
         'el-item-code': '',
+        'el-desc': '',
         'el-mc-no': '',
         'el-raw-lot': '',
         'el-raw-grade': '',
         'el-batch': '',
-        'el-coordination': '',
-        'el-shift': '',
       },
     },
     {
       id: 'sec-imd-2',
       sectionNumber: 2,
-      title: '2. ONLINE / VISUAL INSPECTION (MIC 1 – 6)',
+      title: '2. ONLINE / VISUAL & WEIGHT INSPECTION (MIC 1 – 10)',
       elements: IMD_SECTION_2_ONLINE_ELEMENTS,
       isSaved: true,
       savedData: {},
@@ -796,7 +870,7 @@ export const IMD_FORM_INITIAL: InspectionFormCardData = {
     {
       id: 'sec-imd-3',
       sectionNumber: 3,
-      title: '3. QUANTITATIVE DATA (MIC 7 – 10)',
+      title: '3. QUANTITATIVE DATA',
       elements: IMD_SECTION_3_QUANTITATIVE_ELEMENTS,
       isSaved: true,
       savedData: {},
@@ -3361,10 +3435,12 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
             <thead>
               <tr className="bg-slate-800 text-slate-200 text-xs font-bold uppercase tracking-wider border-b border-slate-700">
                 {columns.map((col) => {
-                  const hasTimeBox = col.hasTimeHeader || /time|result|online|final/i.test(col.header);
+                  const onlineCols = columns.filter((c) => /online/i.test(c.header) || c.id.includes('online'));
+                  const lastOnlineColId = onlineCols.length > 0 ? onlineCols[onlineCols.length - 1].id : 'col-online';
+                  const isLastOnlineCol = col.id === lastOnlineColId;
+                  const isFinalCol = /final/i.test(col.header) || col.id === 'col-final';
+                  const hasTimeBox = !isFinalCol && (col.hasTimeHeader || /time|online/i.test(col.header) || col.id.includes('online'));
                   const isSampleCol = /sample/i.test(col.header);
-                  const isFinalCol = /final/i.test(col.header);
-                  const isOnlineCol = col.id === 'col-online';
                   const isCustomOnlineCol = col.id.startsWith('col-online-run-');
                   const timeKey = `${element.id}_time_${col.id}`;
                   const currentTimeVal = savedSection.savedData?.[timeKey] ?? (col.defaultHeaderTime || '');
@@ -3422,21 +3498,31 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                             </button>
                           </div>
 
-                          {/* Quick Add Run button on Online Result header */}
-                          {isOnlineCol && (
+                          {/* Quick Add Run button on latest/last Online Result column header */}
+                          {isLastOnlineCol && (
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleAddOnlineColumnBetweenOnlineAndFinal();
                               }}
-                              className="mt-0.5 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-bold tracking-wider transition shadow-2xs hover:scale-105 active:scale-95 cursor-pointer"
+                              className="mt-0.5 inline-flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold tracking-wider transition shadow-2xs hover:scale-105 active:scale-95 cursor-pointer"
                               title="Add next online check run between Online Result and Final Result"
                             >
-                              <Plus className="w-2.5 h-2.5" />
+                              <Plus className="w-3 h-3" />
                               <span>+ Next Run</span>
                             </button>
                           )}
+                        </div>
+                      ) : isFinalCol ? (
+                        <div className="flex flex-col items-center justify-center gap-1 min-w-[110px] py-1">
+                          <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-100">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                            <span>{col.header}</span>
+                          </div>
+                          <span className="text-[9px] px-2 py-0.5 rounded bg-blue-950/80 border border-blue-700/60 text-blue-300 font-bold uppercase tracking-wider">
+                            Final Shift Check
+                          </span>
                         </div>
                       ) : isSampleCol ? (
                         <div className="flex flex-col items-center gap-1 min-w-[90px]">
@@ -3561,12 +3647,39 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                         );
                       }
 
+                      const isWeightRow = row.id.startsWith('row-imd-q-') || row.id.includes('-q-') || /weight|shot weight|runner weight|no\. of items/i.test(row.cells['col-param'] || '');
+                      const isFinalColCell = col.id === 'col-final' || /final/i.test(col.header);
+
                       return (
                         <td
                           key={col.id}
                           className="px-3.5 py-2.5 border-r border-slate-200 last:border-r-0 text-xs text-slate-800 align-middle"
                         >
-                          {isDropdownCol && isRowManualText ? (
+                          {isFinalColCell && isWeightRow ? (
+                            <div className="relative">
+                              <select
+                                value={(!currVal || currVal === '--Select--' || currVal === '--Select-') ? '--Select--' : currVal}
+                                onChange={(e) =>
+                                  handlePreviewFieldChange(savedSection.id, cellKey, e.target.value)
+                                }
+                                className={`w-full px-2.5 py-1.5 text-xs font-bold rounded-lg border appearance-none pr-7 transition cursor-pointer ${
+                                  currVal === 'Satisfactory' || currVal === 'Pass' || currVal === 'OK'
+                                    ? 'border-emerald-400 bg-emerald-50 text-emerald-800'
+                                    : currVal === 'Unsatisfactory' || currVal === 'Fail' || currVal === 'NG'
+                                    ? 'border-rose-400 bg-rose-50 text-rose-800'
+                                    : currVal === 'N/A'
+                                    ? 'border-slate-300 bg-slate-100 text-slate-700'
+                                    : 'border-slate-300 bg-white text-slate-700'
+                                } focus:outline-none focus:ring-1 focus:ring-emerald-500`}
+                              >
+                                <option value="--Select--">--Select--</option>
+                                <option value="Satisfactory">Satisfactory</option>
+                                <option value="Unsatisfactory">Unsatisfactory</option>
+                                <option value="N/A">N/A</option>
+                              </select>
+                              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            </div>
+                          ) : isDropdownCol && isRowManualText ? (
                             <div className="relative">
                               <input
                                 type="text"
@@ -3574,8 +3687,8 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                                 onChange={(e) =>
                                   handlePreviewFieldChange(savedSection.id, cellKey, e.target.value)
                                 }
-                                placeholder=""
-                                className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono shadow-2xs"
+                                placeholder={row.unit ? `${row.unit}` : ''}
+                                className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono shadow-2xs text-center"
                                 title={`Enter value for ${row.cells['col-fi-param'] || row.cells['col-param'] || 'parameter'} (${col.header})`}
                               />
                             </div>
@@ -3587,9 +3700,9 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                                   handlePreviewFieldChange(savedSection.id, cellKey, e.target.value)
                                 }
                                 className={`w-full px-2.5 py-1.5 text-xs font-bold rounded-lg border appearance-none pr-7 transition cursor-pointer ${
-                                  currVal === 'Pass' || currVal === 'OK' || currVal === 'Accept'
+                                  currVal === 'Pass' || currVal === 'OK' || currVal === 'Accept' || currVal === 'Satisfactory'
                                     ? 'border-emerald-400 bg-emerald-50 text-emerald-800'
-                                    : currVal === 'Fail' || currVal === 'NG' || currVal === 'Reject'
+                                    : currVal === 'Fail' || currVal === 'NG' || currVal === 'Reject' || currVal === 'Unsatisfactory'
                                     ? 'border-rose-400 bg-rose-50 text-rose-800'
                                     : 'border-slate-300 bg-white text-slate-700'
                                 } focus:outline-none focus:ring-1 focus:ring-emerald-500`}
@@ -3922,39 +4035,78 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
           // 2nd, 3rd, and subsequent Saved Sections
           const isTableFirst = savedSection.elements.length > 0 && isTableElement(savedSection.elements[0].type);
 
-          const renderRegularInputs = () => (
-            regularElements.length > 0 && (
+          const renderRegularInputs = () => {
+            // Auto-calculate averages from Weight Details across all runs in Section 2 table
+            const shotWeights: number[] = [];
+            const itemWeights: number[] = [];
+            const runnerWeights: number[] = [];
+
+            sections.forEach(sec => {
+              if (sec.savedData) {
+                Object.entries(sec.savedData).forEach(([key, val]) => {
+                  const num = parseFloat(String(val).trim());
+                  if (isNaN(num) || num <= 0) return;
+
+                  if (key.includes('row-imd-q-07') || key.includes('shot')) {
+                    shotWeights.push(num);
+                  } else if (key.includes('row-imd-q-7-1') || key.includes('row-imd-q-7-2') || key.includes('item weight')) {
+                    itemWeights.push(num);
+                  } else if (key.includes('row-imd-q-10') || key.includes('runner')) {
+                    runnerWeights.push(num);
+                  }
+                });
+              }
+            });
+
+            const avgShot = shotWeights.length > 0 ? (shotWeights.reduce((a, b) => a + b, 0) / shotWeights.length).toFixed(2) : '';
+            const avgItem = itemWeights.length > 0 ? (itemWeights.reduce((a, b) => a + b, 0) / itemWeights.length).toFixed(2) : '';
+            const avgRunner = runnerWeights.length > 0 ? (runnerWeights.reduce((a, b) => a + b, 0) / runnerWeights.length).toFixed(2) : '';
+
+            if (regularElements.length === 0) return null;
+
+            return (
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {regularElements.map((element) => {
-                  const currVal = savedSection.savedData?.[element.id] || '';
-                  const placeholder = (() => {
-                    const n = element.name.trim().toLowerCase();
-                    if (n.includes('batch')) return 'Batch No.';
-                    if (n.includes('machine') || n.includes('mc.')) return 'Machine number';
-                    if (n.includes('raw material lot') || n.includes('lot no')) return 'Lot number';
-                    if (n.includes('raw material grade') || n.includes('grade')) return 'Grade';
-                    if (n.includes('coordination')) return 'e.g. 050 (13 A)';
-                    if (n.includes('product description') || n.includes('desc')) return 'Enter Product Description';
-                    if (n.includes('item code')) return 'e.g. MSFZ 13-13A...';
-                    if (n.includes('weight') || n.includes('shot') || n.includes('runner')) return 'Auto / enter';
-                    return `Enter ${element.name}`;
-                  })();
+                  {regularElements.map((element) => {
+                    const isWeightField = element.id === 'el-imd-avg-shot' || element.id === 'el-imd-avg-item' || element.id === 'el-imd-runner-weight' || /average shot|average item|runner weight/i.test(element.name);
+                    const autoVal = isWeightField
+                      ? (element.id === 'el-imd-avg-shot' || /shot/i.test(element.name)
+                          ? avgShot
+                          : element.id === 'el-imd-runner-weight' || /runner/i.test(element.name)
+                          ? avgRunner
+                          : avgItem)
+                      : '';
+                    const currVal = savedSection.savedData?.[element.id] !== undefined
+                      ? savedSection.savedData[element.id]
+                      : (isWeightField && autoVal ? autoVal : '');
 
-                  return (
-                    <div key={element.id} className="space-y-1.5">
-                      <label className="block text-xs font-bold text-slate-800">
-                        {element.name}
-                      </label>
+                    const placeholder = (() => {
+                      const n = element.name.trim().toLowerCase();
+                      if (n.includes('batch')) return 'Batch No.';
+                      if (n.includes('machine') || n.includes('mc.')) return 'Machine number';
+                      if (n.includes('raw material lot') || n.includes('lot no')) return 'Lot number';
+                      if (n.includes('raw material grade') || n.includes('grade')) return 'Grade';
+                      if (n.includes('coordination')) return 'e.g. 050 (13 A)';
+                      if (n.includes('product description') || n.includes('desc')) return 'Enter Product Description';
+                      if (n.includes('item code')) return 'e.g. MSFZ 13-13A...';
+                      if (n.includes('weight') || n.includes('shot') || n.includes('runner')) return autoVal ? `Auto: ${autoVal} / enter` : 'Auto / enter';
+                      return `Enter ${element.name}`;
+                    })();
 
-                      {element.type === 'data_field' && (
-                        <input
-                          type="text"
-                          value={currVal}
-                          onChange={(e) => handlePreviewFieldChange(savedSection.id, element.id, e.target.value)}
-                          placeholder={placeholder}
-                          className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-2xs"
-                        />
-                      )}
+                    return (
+                      <div key={element.id} className="space-y-1.5">
+                        <label className="block text-xs font-bold text-slate-800">
+                          {element.name}
+                        </label>
+
+                        {element.type === 'data_field' && (
+                          <input
+                            type="text"
+                            value={currVal}
+                            onChange={(e) => handlePreviewFieldChange(savedSection.id, element.id, e.target.value)}
+                            placeholder={placeholder}
+                            className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-2xs"
+                          />
+                        )}
 
                       {element.type === 'date_picker' && (
                         <input
@@ -4008,8 +4160,8 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                   );
                 })}
               </div>
-            )
-          );
+            );
+          };
 
           const renderTableGrids = () => (
             tableElements.length > 0 && (

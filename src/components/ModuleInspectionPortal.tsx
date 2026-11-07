@@ -104,8 +104,18 @@ export const ModuleInspectionPortal: React.FC<ModuleInspectionPortalProps> = ({
         </div>
       </div>
 
-      {/* Child Cards Grid */}
-      <div className="w-full max-w-7xl my-auto mb-2 sm:mb-3">
+      {/* Child Cards Container - Universally Centered across all Laptops, Desktops, Tablets & Phones */}
+      <div className={`w-full ${
+        childCards.length === 1
+          ? 'max-w-md'
+          : childCards.length === 2
+          ? 'max-w-2xl'
+          : childCards.length === 3
+          ? 'max-w-5xl'
+          : childCards.length === 4
+          ? 'max-w-6xl'
+          : 'max-w-7xl'
+      } mx-auto my-auto mb-2 sm:mb-3`}>
         {childCards.length === 0 ? (
           <div className="p-8 text-center bg-white/80 rounded-2xl border border-slate-200 max-w-md mx-auto">
             <Layers className="w-10 h-10 text-slate-300 mx-auto mb-2" />
@@ -115,22 +125,34 @@ export const ModuleInspectionPortal: React.FC<ModuleInspectionPortalProps> = ({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4.5">
-            {childCards.map((childCard) => (
-              <div
-                key={childCard.id}
-                onClick={() => navigate(`/inspection/module/${mainCardId}/${childCard.id}`)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    navigate(`/inspection/module/${mainCardId}/${childCard.id}`);
-                  }
-                }}
-                className="portal-glass-card rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center justify-between relative group transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer select-none border border-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white/95 shadow-xs"
-                id={`card-${childCard.id}`}
-              >
+          <div className="flex flex-wrap items-stretch justify-center gap-3.5 sm:gap-4.5 w-full mx-auto">
+            {childCards.map((childCard) => {
+              const cardWidthClass =
+                childCards.length === 1
+                  ? 'w-full max-w-sm'
+                  : childCards.length === 2
+                  ? 'w-full sm:w-[calc(50%-12px)] max-w-sm'
+                  : childCards.length === 3
+                  ? 'w-full sm:w-[calc(50%-12px)] md:w-[calc(33.333%-16px)] max-w-[340px]'
+                  : childCards.length === 4
+                  ? 'w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-16px)] max-w-[300px]'
+                  : 'w-full sm:w-[calc(50%-12px)] md:w-[calc(33.333%-14px)] lg:w-[calc(20%-14px)] max-w-[270px] min-w-[210px]';
+
+              return (
+                <div
+                  key={childCard.id}
+                  onClick={() => navigate(`/inspection/module/${mainCardId}/${childCard.id}`)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigate(`/inspection/module/${mainCardId}/${childCard.id}`);
+                    }
+                  }}
+                  className={`${cardWidthClass} portal-glass-card rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center justify-between relative group transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer select-none border border-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white/95 shadow-xs`}
+                  id={`card-${childCard.id}`}
+                >
                 {/* Module Icon */}
                 <div className="flex flex-col items-center w-full">
                   <div className="relative mb-2.5 sm:mb-3">
@@ -162,7 +184,8 @@ export const ModuleInspectionPortal: React.FC<ModuleInspectionPortalProps> = ({
                   </button>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         )}
       </div>

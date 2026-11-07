@@ -422,7 +422,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           </div>
 
           {/* THE 2 CARDS */}
-          <div className="w-full max-w-3xl mx-auto my-auto grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 mb-8">
+          <div className="w-full max-w-3xl mx-auto my-auto grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 mb-8 justify-center">
             
             {/* CARD 1: CREATE USER */}
             <div

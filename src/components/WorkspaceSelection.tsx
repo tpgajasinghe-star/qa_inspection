@@ -28,9 +28,9 @@ export const WorkspaceSelection: React.FC<WorkspaceSelectionProps> = ({
         </p>
       </div>
 
-      {/* Workspace Selection Cards Grid */}
-      <div className="w-full max-w-3xl px-2 sm:px-4 my-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+      {/* Workspace Selection Cards Container - Universally Centered */}
+      <div className="w-full max-w-3xl mx-auto px-2 sm:px-4 my-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 justify-center">
           {/* Card 1: Inspection */}
           <div
             role="button"

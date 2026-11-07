@@ -56,14 +56,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </p>
       </section>
 
-      {/* Admin Action Cards Grid - RBAC adjusted: 4 cards for SUPER_ADMIN/ADMIN, 3 cards if User Management hidden */}
-      <div className="w-full my-auto flex items-center justify-center">
-        <div className={`grid grid-cols-1 sm:grid-cols-2 ${canManageUsers ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-3 sm:gap-4.5 w-full`}>
+      {/* Admin Action Cards Container - Universally Centered across all Laptops, Desktops, Tablets & Mobile */}
+      <div className={`w-full ${canManageUsers ? 'max-w-6xl' : 'max-w-5xl'} mx-auto my-auto mb-2 sm:mb-3`}>
+        <div className="flex flex-wrap items-stretch justify-center gap-3 sm:gap-4.5 w-full mx-auto">
           {/* CARD 1: User Management - Shown strictly to SUPER_ADMIN and ADMIN accounts */}
           {canManageUsers && (
             <div 
               onClick={() => handleNavigate('/admin/users', 'admin-users')}
-              className="group relative bg-white/95 hover:bg-white rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center portal-glass-card transition-all duration-300 hover:-translate-y-1 shadow-xs hover:shadow-md border border-white/95 cursor-pointer"
+              className={`w-full sm:w-[calc(50%-12px)] ${canManageUsers ? 'lg:w-[calc(25%-16px)] max-w-[290px]' : 'lg:w-[calc(33.333%-16px)] max-w-[340px]'} group relative bg-white/95 hover:bg-white rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center justify-between portal-glass-card transition-all duration-300 hover:-translate-y-1 shadow-xs hover:shadow-md border border-white/95 cursor-pointer`}
               id="admin-user-mgmt-card"
             >
               <div className="relative mb-2.5 sm:mb-3">
@@ -99,22 +99,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {/* CARD 2: Specification Controls */}
           <div 
             onClick={() => handleNavigate('/admin/specs', 'admin-specs')}
-            className="group relative bg-white/95 hover:bg-white rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center portal-glass-card transition-all duration-300 hover:-translate-y-1 cursor-pointer shadow-xs hover:shadow-md border border-white/95"
+            className={`w-full sm:w-[calc(50%-12px)] ${canManageUsers ? 'lg:w-[calc(25%-16px)] max-w-[290px]' : 'lg:w-[calc(33.333%-16px)] max-w-[340px]'} group relative bg-white/95 hover:bg-white rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center justify-between portal-glass-card transition-all duration-300 hover:-translate-y-1 cursor-pointer shadow-xs hover:shadow-md border border-white/95`}
             id="admin-specs-card"
           >
-            <div className="relative mb-2.5 sm:mb-3">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-blue-50/90 flex items-center justify-center border border-blue-100/70 text-blue-600 transition-colors group-hover:bg-blue-600 group-hover:text-white shadow-xs">
-                <Sliders className="w-6 h-6 sm:w-7 sm:h-7 stroke-[1.8]" />
+            <div className="flex flex-col items-center w-full">
+              <div className="relative mb-2.5 sm:mb-3">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-blue-50/90 flex items-center justify-center border border-blue-100/70 text-blue-600 transition-colors group-hover:bg-blue-600 group-hover:text-white shadow-xs">
+                  <Sliders className="w-6 h-6 sm:w-7 sm:h-7 stroke-[1.8]" />
+                </div>
+                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-blue-600 ring-2 ring-white shadow-xs"></span>
               </div>
-              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-blue-600 ring-2 ring-white shadow-xs"></span>
-            </div>
 
-            <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-1 tracking-tight">
-              Specification Controls
-            </h2>
-            <p className="text-slate-500 text-xs leading-relaxed mb-3.5 flex-grow line-clamp-2">
-              Configure QA inspection forms, register test specifications, and customize operational inspection cards.
-            </p>
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-1 tracking-tight">
+                Specification Controls
+              </h2>
+              <p className="text-slate-500 text-xs leading-relaxed mb-3.5 flex-grow line-clamp-2">
+                Configure QA inspection forms, register test specifications, and customize operational inspection cards.
+              </p>
+            </div>
 
             <button
               type="button"
@@ -133,22 +135,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {/* CARD 3: Inspection Records */}
           <div 
             onClick={() => handleNavigate('/admin/records', 'admin-records')}
-            className="group relative bg-white/95 hover:bg-white rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center portal-glass-card transition-all duration-300 hover:-translate-y-1 cursor-pointer shadow-xs hover:shadow-md border border-white/95"
+            className={`w-full sm:w-[calc(50%-12px)] ${canManageUsers ? 'lg:w-[calc(25%-16px)] max-w-[290px]' : 'lg:w-[calc(33.333%-16px)] max-w-[340px]'} group relative bg-white/95 hover:bg-white rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center justify-between portal-glass-card transition-all duration-300 hover:-translate-y-1 cursor-pointer shadow-xs hover:shadow-md border border-white/95`}
             id="admin-records-card"
           >
-            <div className="relative mb-2.5 sm:mb-3">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-blue-50/90 flex items-center justify-center border border-blue-100/70 text-blue-600 transition-colors group-hover:bg-blue-600 group-hover:text-white shadow-xs">
-                <FileSpreadsheet className="w-6 h-6 sm:w-7 sm:h-7 stroke-[1.8]" />
+            <div className="flex flex-col items-center w-full">
+              <div className="relative mb-2.5 sm:mb-3">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-blue-50/90 flex items-center justify-center border border-blue-100/70 text-blue-600 transition-colors group-hover:bg-blue-600 group-hover:text-white shadow-xs">
+                  <FileSpreadsheet className="w-6 h-6 sm:w-7 sm:h-7 stroke-[1.8]" />
+                </div>
+                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-blue-600 ring-2 ring-white shadow-xs"></span>
               </div>
-              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-blue-600 ring-2 ring-white shadow-xs"></span>
-            </div>
 
-            <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-1 tracking-tight">
-              Inspection Records
-            </h2>
-            <p className="text-slate-500 text-xs leading-relaxed mb-3.5 flex-grow line-clamp-2">
-              Query historical audit logs, verify digital auditor sign-offs, and export PDF compliance registers.
-            </p>
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-1 tracking-tight">
+                Inspection Records
+              </h2>
+              <p className="text-slate-500 text-xs leading-relaxed mb-3.5 flex-grow line-clamp-2">
+                Query historical audit logs, verify digital auditor sign-offs, and export PDF compliance registers.
+              </p>
+            </div>
 
             <button
               type="button"
@@ -167,22 +171,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {/* CARD 4: Defect Analytics */}
           <div 
             onClick={() => handleNavigate('/admin/analytics', 'admin-analytics')}
-            className="group relative bg-white/95 hover:bg-white rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center portal-glass-card transition-all duration-300 hover:-translate-y-1 cursor-pointer shadow-xs hover:shadow-md border border-white/95"
+            className={`w-full sm:w-[calc(50%-12px)] ${canManageUsers ? 'lg:w-[calc(25%-16px)] max-w-[290px]' : 'lg:w-[calc(33.333%-16px)] max-w-[340px]'} group relative bg-white/95 hover:bg-white rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center justify-between portal-glass-card transition-all duration-300 hover:-translate-y-1 cursor-pointer shadow-xs hover:shadow-md border border-white/95`}
             id="admin-analytics-card"
           >
-            <div className="relative mb-2.5 sm:mb-3">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-blue-50/90 flex items-center justify-center border border-blue-100/70 text-blue-600 transition-colors group-hover:bg-blue-600 group-hover:text-white shadow-xs">
-                <BarChart3 className="w-6 h-6 sm:w-7 sm:h-7 stroke-[1.8]" />
+            <div className="flex flex-col items-center w-full">
+              <div className="relative mb-2.5 sm:mb-3">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-blue-50/90 flex items-center justify-center border border-blue-100/70 text-blue-600 transition-colors group-hover:bg-blue-600 group-hover:text-white shadow-xs">
+                  <BarChart3 className="w-6 h-6 sm:w-7 sm:h-7 stroke-[1.8]" />
+                </div>
+                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-blue-600 ring-2 ring-white shadow-xs"></span>
               </div>
-              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-blue-600 ring-2 ring-white shadow-xs"></span>
-            </div>
 
-            <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-1 tracking-tight">
-              Defect Analytics
-            </h2>
-            <p className="text-slate-500 text-xs leading-relaxed mb-3.5 flex-grow line-clamp-2">
-              Analyze yield trends, defect Pareto distributions, and supplier quality metrics.
-            </p>
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-1 tracking-tight">
+                Defect Analytics
+              </h2>
+              <p className="text-slate-500 text-xs leading-relaxed mb-3.5 flex-grow line-clamp-2">
+                Analyze yield trends, defect Pareto distributions, and supplier quality metrics.
+              </p>
+            </div>
 
             <button
               type="button"

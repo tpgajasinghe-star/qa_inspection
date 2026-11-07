@@ -359,10 +359,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const emailToSignIn = rawId.includes('@') ? rawId.toLowerCase() : `${rawId.toLowerCase()}@abc.com`;
 
-    // 1. FAST-PATH: Super Admin master credentials (admin / admingamana)
+    // 1. FAST-PATH: Super Admin master credentials (admin / admin1234)
     if (
       (rawId.toLowerCase() === 'admin' || emailToSignIn === 'admin@abc.com') &&
-      cleanPassword === 'admingamana'
+      cleanPassword === 'admin1234'
     ) {
       // Query profiles table directly with standard frontend supabase client
       let adminName = 'Admin';

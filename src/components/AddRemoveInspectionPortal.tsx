@@ -704,7 +704,7 @@ export const AddRemoveInspectionPortal: React.FC<AddRemoveInspectionPortalProps>
       {/* Main Content Area */}
       {activeTab === 'cards' ? (
         /* Cards View: Dual Cards - Specification Controls & Inspection Editor */
-        <div className="w-full max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 my-auto mb-8 px-2">
+        <div className="w-full max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 my-auto mb-8 px-2 justify-center">
           {/* Card 1: Specification Controls & Form Generator */}
           <div
             onClick={() => handleOpenAddModal()}

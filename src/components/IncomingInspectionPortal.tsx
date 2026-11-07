@@ -267,10 +267,31 @@ export const IncomingInspectionPortal: React.FC<IncomingInspectionPortalProps> =
         </div>
       </div>
 
-      {/* Cards Grid */}
-      <div className="w-full max-w-7xl my-auto mb-2 sm:mb-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4.5">
+      {/* Cards Container: Universally Centered on All Laptops, Desktops, Tablets & Mobile */}
+      <div className={`w-full ${
+        configuredChildCards.length === 1
+          ? 'max-w-md'
+          : configuredChildCards.length === 2
+          ? 'max-w-2xl'
+          : configuredChildCards.length === 3
+          ? 'max-w-5xl'
+          : configuredChildCards.length === 4
+          ? 'max-w-6xl'
+          : 'max-w-7xl'
+      } mx-auto my-auto mb-2 sm:mb-3`}>
+        <div className="flex flex-wrap items-stretch justify-center gap-3 sm:gap-4.5 w-full mx-auto">
           {configuredChildCards.map((childCard) => {
+            const cardWidthClass =
+              configuredChildCards.length === 1
+                ? 'w-full max-w-sm'
+                : configuredChildCards.length === 2
+                ? 'w-full sm:w-[calc(50%-12px)] max-w-sm'
+                : configuredChildCards.length === 3
+                ? 'w-full sm:w-[calc(50%-12px)] md:w-[calc(33.333%-16px)] max-w-[340px]'
+                : configuredChildCards.length === 4
+                ? 'w-full sm:w-[calc(50%-12px)] lg:w-[calc(25%-16px)] max-w-[300px]'
+                : 'w-full sm:w-[calc(50%-12px)] md:w-[calc(33.333%-14px)] lg:w-[calc(20%-14px)] max-w-[270px] min-w-[210px]';
+
             const matchedCategory = INCOMING_CATEGORIES.find(
               c => c.name.toLowerCase() === childCard.name.toLowerCase() || c.id === childCard.id
             );
@@ -304,7 +325,7 @@ export const IncomingInspectionPortal: React.FC<IncomingInspectionPortalProps> =
                     navigate(`/inspection/incoming/${childCard.id}`);
                   }
                 }}
-                className="portal-glass-card rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center justify-between relative group transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer select-none border border-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-xs"
+                className={`${cardWidthClass} portal-glass-card rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center justify-between relative group transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer select-none border border-white/90 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-xs`}
                 id={`card-${childCard.name.toLowerCase().replace(/\s+/g, '-')}`}
               >
                 {/* Top Module Icon with decorative orbital accent dot */}

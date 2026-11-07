@@ -346,7 +346,13 @@ export const FormCardsGallery: React.FC<FormCardsGalleryProps> = ({
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className={`grid grid-cols-1 ${
+            filteredForms.length === 1
+              ? 'max-w-md mx-auto'
+              : filteredForms.length === 2
+              ? 'md:grid-cols-2 max-w-2xl mx-auto'
+              : 'md:grid-cols-2 lg:grid-cols-3'
+          } gap-5 justify-center`}>
             {filteredForms.map((form) => {
               const isOngoing = form.name === 'Testing_1' || form.isOngoing;
               const totalElements = form.sections.reduce((acc, sec) => acc + (sec.elements?.length || 0), 0);

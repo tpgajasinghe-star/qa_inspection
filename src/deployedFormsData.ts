@@ -206,12 +206,15 @@ export function getStoredDeployedForms(): DeployedInspectionForm[] {
         };
       }
       // Desired order for Inspection Log section elements:
-      // 1. Date, 2. Item Code, 3. Product Description, 4. Batch Number Reference
+      // 1. Date, 2. Item Code, 3. Product Description, 4. Machine No, 5. Raw Material Lot, 6. Raw Material Grade, 7. Batch No
       const getFieldRank = (id: string, name: string): number => {
         if (id === 'el-date' || /date/i.test(name)) return 1;
         if (id === 'el-item-code' || /item\s*code/i.test(name)) return 2;
         if (id === 'el-desc' || /product\s*desc|description/i.test(name)) return 3;
-        if (id === 'el-batch' || /batch/i.test(name)) return 4;
+        if (id === 'el-mc-no' || /machine/i.test(name)) return 4;
+        if (id === 'el-raw-lot' || /raw.*lot/i.test(name)) return 5;
+        if (id === 'el-raw-grade' || /raw.*grade/i.test(name)) return 6;
+        if (id === 'el-batch' || /batch/i.test(name)) return 7;
         return 99;
       };
 

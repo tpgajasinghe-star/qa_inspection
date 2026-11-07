@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ArrowLeft, 
   CheckCircle2, 
@@ -405,6 +405,32 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
     });
     return map;
   });
+
+  // Auto-calculated averages from Weight Details across all runs in Section 2 table
+  const autoCalculatedWeights = useMemo(() => {
+    const shotWeights: number[] = [];
+    const itemWeights: number[] = [];
+    const runnerWeights: number[] = [];
+
+    Object.entries(cellValues).forEach(([key, val]) => {
+      const num = parseFloat(String(val).trim());
+      if (isNaN(num) || num <= 0) return;
+
+      if (key.includes('row-imd-q-07') || key.includes('-07-') || key.includes('shot')) {
+        shotWeights.push(num);
+      } else if (key.includes('row-imd-q-7-1') || key.includes('row-imd-q-7-2') || key.includes('item weight')) {
+        itemWeights.push(num);
+      } else if (key.includes('row-imd-q-10') || key.includes('runner')) {
+        runnerWeights.push(num);
+      }
+    });
+
+    const avgShot = shotWeights.length > 0 ? (shotWeights.reduce((a, b) => a + b, 0) / shotWeights.length).toFixed(2) : '';
+    const avgItem = itemWeights.length > 0 ? (itemWeights.reduce((a, b) => a + b, 0) / itemWeights.length).toFixed(2) : '';
+    const avgRunner = runnerWeights.length > 0 ? (runnerWeights.reduce((a, b) => a + b, 0) / runnerWeights.length).toFixed(2) : '';
+
+    return { avgShot, avgItem, avgRunner };
+  }, [cellValues]);
 
   // 12-hour round clock time picker modal state
   const [activeClockPicker, setActiveClockPicker] = useState<{
@@ -919,6 +945,16 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
               nonTableEls.length > 0 && (
                 <div className={`p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 ${nonTableEls.length >= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4 border-b border-slate-100 bg-slate-50/50`}>
                   {nonTableEls.map(el => {
+                    const isInspectionLog = section.sectionNumber === 1 || section.id === 'sec-imd-1' || /log/i.test(section.title);
+                    const isWeightField = el.id === 'el-imd-avg-shot' || el.id === 'el-imd-avg-item' || el.id === 'el-imd-runner-weight' || /average shot|average item|runner weight/i.test(el.name);
+                    const autoVal = isWeightField
+                      ? (el.id === 'el-imd-avg-shot' || /shot/i.test(el.name)
+                          ? autoCalculatedWeights.avgShot
+                          : el.id === 'el-imd-runner-weight' || /runner/i.test(el.name)
+                          ? autoCalculatedWeights.avgRunner
+                          : autoCalculatedWeights.avgItem)
+                      : '';
+
                     const placeholder = (() => {
                       const n = el.name.trim().toLowerCase();
                       if (n.includes('batch')) return 'Batch No.';
@@ -947,7 +983,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                             hasError ? 'text-rose-700 font-extrabold' : 'text-slate-700'
                           }`}>
                             <span>{el.name}</span>
-                            <span className="text-rose-500 font-bold">*</span>
+                            {isInspectionLog && <span className="text-rose-500 font-bold">*</span>}
                           </label>
                           {(el.id === 'el-desc' || /product\s*desc/i.test(el.name)) && matchedDbItem && (
                             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
@@ -1113,6 +1149,8 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                               value={
                                 fieldValues[el.id] !== undefined
                                   ? fieldValues[el.id]
+                                  : isWeightField && autoVal
+                                  ? autoVal
                                   : el.id === 'el-batch' || /batch/i.test(el.name)
                                   ? batchId
                                   : el.id === 'el-desc' || /product\s*desc/i.test(el.name)
@@ -1130,7 +1168,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                 }
                                 clearFieldError(el.id);
                               }}
-                              placeholder={placeholder}
+                              placeholder={isWeightField && autoVal ? `Auto: ${autoVal} / enter` : placeholder}
                               className={`w-full px-3 py-2 bg-white rounded-xl border text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 transition ${
                                 hasError ? 'border-rose-500 ring-2 ring-rose-300 bg-rose-50/50' : 'border-slate-200 focus:ring-blue-500/30'
                               }`}
@@ -1159,9 +1197,11 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                         <tr className="bg-slate-200/80 text-slate-800 font-bold border-b border-slate-300">
                           {tableEl.tableConfig.columns.map(col => {
                             const timeKey = `${section.id}-${col.id}`;
-                            const isTimeCol = col.hasTimeHeader || col.type === 'dropdown' || /time|interval|shift|result|online|final/i.test(col.header);
-                            const isFinalCol = /final/i.test(col.header);
-                            const isOnlineCol = col.id === 'col-online';
+                            const onlineCols = tableEl.tableConfig?.columns.filter((c) => /online/i.test(c.header) || c.id.includes('online')) || [];
+                            const lastOnlineColId = onlineCols.length > 0 ? onlineCols[onlineCols.length - 1].id : 'col-online';
+                            const isLastOnlineCol = col.id === lastOnlineColId;
+                            const isFinalCol = /final/i.test(col.header) || col.id === 'col-final';
+                            const isTimeCol = !isFinalCol && (col.hasTimeHeader || (col.type === 'dropdown' && /time|interval|online/i.test(col.header)) || /online/i.test(col.header));
                             const isCustomOnlineCol = col.id.startsWith('col-online-run-');
 
                             return (
@@ -1212,14 +1252,19 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                       </span>
                                     </div>
                                   )}
-                                  {isOnlineCol && (
+                                  {isFinalCol && (
+                                    <span className="mt-1 text-[9px] px-2 py-0.5 rounded bg-blue-100 border border-blue-300 text-blue-800 font-bold uppercase tracking-wider">
+                                      Final Shift Check
+                                    </span>
+                                  )}
+                                  {isLastOnlineCol && (
                                     <button
                                       type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         handleAddOnlineColumnToDeployedTable(section.id, tableEl.id);
                                       }}
-                                      className="mt-0.5 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-bold tracking-wider transition shadow-2xs hover:scale-105 active:scale-95 cursor-pointer"
+                                      className="mt-1 inline-flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold tracking-wider transition shadow-2xs hover:scale-105 active:scale-95 cursor-pointer"
                                       title="Add next online check run between Online Result and Final Result"
                                     >
                                       <Plus className="w-2.5 h-2.5" />
@@ -1349,6 +1394,38 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                   );
                                 }
 
+                                const isWeightRow = row.id.startsWith('row-imd-q-') || row.id.includes('-q-') || /weight|shot weight|runner weight|no\. of items/i.test(row.cells['col-param'] || '');
+                                const isFinalColCell = col.id === 'col-final' || /final/i.test(col.header);
+
+                                if (isFinalColCell && isWeightRow) {
+                                  const currentVal = cellValues[cellKey] || '--Select--';
+                                  const isSatisfactory = currentVal === 'Satisfactory' || currentVal === 'Pass' || currentVal === 'OK';
+                                  const isUnsatisfactory = currentVal === 'Unsatisfactory' || currentVal === 'Fail' || currentVal === 'NG';
+
+                                  return (
+                                    <td key={col.id} className="px-2 py-2 text-center border-r border-slate-200/80">
+                                      <select
+                                        value={currentVal}
+                                        onChange={(e) => handleCellChange(section.id, row.id, col.id, e.target.value)}
+                                        className={`px-2.5 py-1 rounded text-xs font-bold border transition-colors shadow-2xs cursor-pointer ${
+                                          isSatisfactory
+                                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                            : isUnsatisfactory
+                                            ? 'bg-rose-50 text-rose-800 border-rose-300'
+                                            : currentVal === 'N/A'
+                                            ? 'bg-slate-100 text-slate-700 border-slate-300'
+                                            : 'bg-white text-slate-700 border-slate-300'
+                                        }`}
+                                      >
+                                        <option value="--Select--">--Select--</option>
+                                        <option value="Satisfactory">Satisfactory</option>
+                                        <option value="Unsatisfactory">Unsatisfactory</option>
+                                        <option value="N/A">N/A</option>
+                                      </select>
+                                    </td>
+                                  );
+                                }
+
                                 // Interactive input cells: Either dropdown or manual text entry
                                 if (isTextInputCol || (isDropdownCol && isTextInputRow)) {
                                   return (
@@ -1377,9 +1454,9 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                         value={currentVal}
                                         onChange={(e) => handleCellChange(section.id, row.id, col.id, e.target.value)}
                                         className={`px-2 py-1 rounded text-xs font-bold border transition-colors shadow-2xs cursor-pointer ${
-                                          currentVal === 'Pass'
+                                          currentVal === 'Pass' || currentVal === 'OK' || currentVal === 'Satisfactory'
                                             ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                                            : currentVal === 'Fail'
+                                            : currentVal === 'Fail' || currentVal === 'NG' || currentVal === 'Unsatisfactory'
                                             ? 'bg-rose-50 text-rose-800 border-rose-300'
                                             : 'bg-white text-slate-700 border-slate-300'
                                         }`}

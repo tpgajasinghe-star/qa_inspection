@@ -87,7 +87,7 @@ const setCachedProfiles = (profiles: UserProfile[]) => {
 /**
  * Super Admin Seeding:
  * Checks if 'admin@abc.com' exists in Auth.
- * If not, creates it using supabaseAdmin.auth.admin.createUser({ email: 'admin@abc.com', password: 'admingamana', email_confirm: true })
+ * If not, creates it using supabaseAdmin.auth.admin.createUser({ email: 'admin@abc.com', password: 'admin1234', email_confirm: true })
  * and inserts/upserts a record into the profiles table with employee_id: 'admin', full_name: 'System Admin', and role: 'SUPER_ADMIN'.
  */
 export async function seedSuperAdmin(): Promise<{
@@ -96,9 +96,9 @@ export async function seedSuperAdmin(): Promise<{
   user?: any;
 }> {
   const targetEmail = 'admin@abc.com';
-  const targetPassword = 'admingamana';
+  const targetPassword = 'admin1234';
   const targetEmployeeId = 'admin';
-  const targetFullName = 'Admin';
+  const targetFullName = 'System Admin';
   const targetRole: ProfileRole = 'SUPER_ADMIN';
 
   console.log('[adminUserService:seedSuperAdmin] Verifying Admin in database...');
@@ -114,6 +114,18 @@ export async function seedSuperAdmin(): Promise<{
       authUser = (listData as any).users.find((u: any) => u.email?.toLowerCase() === targetEmail.toLowerCase());
       if (authUser) {
         console.log('[adminUserService:seedSuperAdmin] Admin exists in Auth with ID:', authUser.id);
+        // Ensure Auth password matches targetPassword
+        try {
+          await supabaseAdmin.auth.admin.updateUserById(authUser.id, {
+            password: targetPassword,
+            user_metadata: {
+              ...authUser.user_metadata,
+              initial_password: targetPassword,
+            },
+          });
+        } catch (syncErr) {
+          console.warn('[adminUserService:seedSuperAdmin] Auth password sync warning:', syncErr);
+        }
       }
     }
 
@@ -143,6 +155,10 @@ export async function seedSuperAdmin(): Promise<{
     if (!authUser || !authUser.id) {
       throw new Error('Admin Auth record could not be found or created.');
     }
+
+    // Cache password in local vault for seamless offline & action confirmations
+    storeUserPassword(targetEmployeeId, targetPassword);
+    storeUserPassword(targetEmail, targetPassword);
 
     // 3. Only insert if profile does not exist yet (never overwrite existing full_name)
     const { data: existingProfile } = await supabaseAdmin
@@ -629,10 +645,10 @@ export async function verifyCurrentAdminPassword(
     return { success: false, error: 'Admin password is required to authorize deletion.' };
   }
 
-  // 1. Root Super Admin master credentials check (admin / admingamana)
+  // 1. Root Super Admin master credentials check (admin / admin1234)
   if (
     (cleanId === 'admin' || cleanId === 'admin@abc.com' || (adminEmail && adminEmail.toLowerCase() === 'admin@abc.com')) &&
-    cleanPass === 'admingamana'
+    cleanPass === 'admin1234'
   ) {
     return { success: true };
   }

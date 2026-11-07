@@ -423,7 +423,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
         {/* 1. Make New Inspection                                            */}
         {/* 2. View Past Inspection Records                                   */}
         {/* ================================================================= */}
-        <div className="w-full max-w-xl mx-auto my-auto grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4 mb-4 sm:mb-6">
+        <div className="w-full max-w-xl mx-auto my-auto grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4 mb-4 sm:mb-6 justify-center">
           
           {/* CARD 1: MAKE TO NEW INSPECTION */}
           <div
