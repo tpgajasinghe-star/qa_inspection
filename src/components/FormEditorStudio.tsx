@@ -414,6 +414,406 @@ export const REFERENCE_SECTION_3_FINAL_ELEMENTS: SectionElementSchema[] = [
   },
 ];
 
+// ============================================================================
+// IMD INSPECTION FORM SCHEMA & SECTIONS (Calibrated from Reference Specification)
+// ============================================================================
+export const IMD_SECTION_1_ELEMENTS: SectionElementSchema[] = [
+  { id: 'el-date', name: 'INSPECTION DATE', type: 'date_picker', subItems: [] },
+  { id: 'el-item-code', name: 'ITEM CODE & PRODUCT NAME', type: 'data_field', subItems: [] },
+  { id: 'el-mc-no', name: 'MACHINE NO. (MC. NO)', type: 'data_field', subItems: [] },
+  { id: 'el-raw-lot', name: 'RAW MATERIAL LOT NO.', type: 'data_field', subItems: [] },
+  { id: 'el-raw-grade', name: 'RAW MATERIAL GRADE', type: 'data_field', subItems: [] },
+  { id: 'el-batch', name: 'BATCH NUMBER REFERENCE', type: 'data_field', subItems: [] },
+  { id: 'el-coordination', name: 'COORDINATION', type: 'data_field', subItems: [] },
+  { id: 'el-shift', name: 'SHIFT', type: 'dropdown', subItems: ['Shift A', 'Shift B', 'Shift C', 'General Shift'] },
+];
+
+export const IMD_SECTION_2_COLUMNS: TableColumnSchema[] = [
+  { id: 'col-mic', header: 'MIC', type: 'text_label', width: '70px' },
+  { id: 'col-param', header: 'PARAMETER', type: 'text_label', width: '260px' },
+  { id: 'col-online', header: 'ONLINE RESULT', type: 'dropdown', options: ['Pass', 'Fail', 'N/A'], width: '140px', hasTimeHeader: true, defaultHeaderTime: '08:30 AM' },
+  { id: 'col-final', header: 'FINAL RESULT', type: 'dropdown', options: ['Pass', 'Fail', 'N/A'], width: '140px', hasTimeHeader: true, defaultHeaderTime: '04:30 PM' },
+  { id: 'col-specs', header: 'SPECIFICATIONS', type: 'text_label', width: '300px' },
+];
+
+export const IMD_SECTION_2_ROWS: TableRowSchema[] = [
+  {
+    id: 'row-imd-01',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-mic': '01',
+      'col-param': '1. Appearance',
+      'col-online': '--Select--',
+      'col-final': '--Select--',
+      'col-specs': 'Free from damage or injury',
+    },
+  },
+  {
+    id: 'row-imd-02',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-mic': '02',
+      'col-param': '2. Marking',
+      'col-online': '--Select--',
+      'col-final': '--Select--',
+      'col-specs': 'Availability of relevant data and logos in appropriate locations',
+    },
+  },
+  {
+    id: 'row-imd-03',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-mic': '03',
+      'col-param': '3. Colour',
+      'col-online': '--Select--',
+      'col-final': '--Select--',
+      'col-specs': 'Shall be matched with approved sample',
+    },
+  },
+  {
+    id: 'row-imd-04',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-mic': '04',
+      'col-param': '4. Partials Assemble',
+      'col-online': '--Select--',
+      'col-final': '--Select--',
+      'col-specs': 'Proper fixing of the assembling components',
+    },
+  },
+  {
+    id: 'row-imd-05-gh',
+    isGroupHeader: true,
+    groupTitle: 'Coordination test — (2 products shot for coordination test and 3 times per shift)',
+    cells: {
+      'col-mic': '05',
+    },
+  },
+  {
+    id: 'row-imd-4-1',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-mic': '',
+      'col-param': '4.1 Assembling with metal component',
+      'col-online': '--Select--',
+      'col-final': '--Select--',
+      'col-specs': 'All parts should be correctly assembled',
+    },
+  },
+  {
+    id: 'row-imd-4-2',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-mic': '',
+      'col-param': '4.2 Assembling with plastic component',
+      'col-online': '--Select--',
+      'col-final': '--Select--',
+      'col-specs': 'All parts should be correctly assembled',
+    },
+  },
+  {
+    id: 'row-imd-4-3',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-mic': '',
+      'col-param': '4.3 Riveting of hollow rivet',
+      'col-online': '--Select--',
+      'col-final': '--Select--',
+      'col-specs': 'All parts should be correctly assembled',
+    },
+  },
+  {
+    id: 'row-imd-4-4',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-mic': '',
+      'col-param': '4.4 Front cover to back part screw fixing',
+      'col-online': '--Select--',
+      'col-final': '--Select--',
+      'col-specs': 'All parts should be correctly assembled',
+    },
+  },
+  {
+    id: 'row-imd-4-5',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-mic': '',
+      'col-param': '4.5 Dolly function',
+      'col-online': '--Select--',
+      'col-final': '--Select--',
+      'col-specs': 'Shall be functioning properly',
+    },
+  },
+  {
+    id: 'row-imd-4-6',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-mic': '',
+      'col-param': '4.6 Fixing to relevant parts',
+      'col-online': '--Select--',
+      'col-final': '--Select--',
+      'col-specs': 'Shall be well connected with other parts',
+    },
+  },
+  {
+    id: 'row-imd-4-7',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-mic': '',
+      'col-param': '4.7 Shutter operation',
+      'col-online': '--Select--',
+      'col-final': '--Select--',
+      'col-specs': 'Shall operate properly',
+    },
+  },
+  {
+    id: 'row-imd-4-8',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-mic': '',
+      'col-param': '4.8 Thread operation',
+      'col-online': '--Select--',
+      'col-final': '--Select--',
+      'col-specs': 'Shall operate properly',
+    },
+  },
+  {
+    id: 'row-imd-4-9',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-mic': '',
+      'col-param': '4.9 Wire fixing',
+      'col-online': '--Select--',
+      'col-final': '--Select--',
+      'col-specs': 'Being able to connect the wire properly',
+    },
+  },
+  {
+    id: 'row-imd-4-10',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-mic': '',
+      'col-param': '4.10 Printing',
+      'col-online': '--Select--',
+      'col-final': '--Select--',
+      'col-specs': 'Shall be properly printed',
+    },
+  },
+  {
+    id: 'row-imd-06',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-mic': '06',
+      'col-param': '6. Packing, Marking & Identification',
+      'col-online': '--Select--',
+      'col-final': '--Select--',
+      'col-specs': 'Clear and correct data on packing slip',
+    },
+  },
+];
+
+export const IMD_SECTION_2_ONLINE_ELEMENTS: SectionElementSchema[] = [
+  {
+    id: 'el-imd-online-table',
+    name: 'Online / Visual Inspection Grid (MIC 1 – 6)',
+    type: 'table_grid',
+    subItems: [],
+    tableConfig: {
+      columns: IMD_SECTION_2_COLUMNS,
+      rows: IMD_SECTION_2_ROWS,
+    },
+  },
+];
+
+export const IMD_SECTION_3_COLUMNS: TableColumnSchema[] = [
+  { id: 'col-q-mic', header: 'MIC', type: 'text_label', width: '70px' },
+  { id: 'col-q-param', header: 'PARAMETER', type: 'text_label', width: '280px' },
+  { id: 'col-q-val', header: 'VALUE / RESULT', type: 'text_input', width: '160px' },
+  { id: 'col-q-specs', header: 'SPECIFICATIONS / NOTE', type: 'text_label', width: '320px' },
+];
+
+export const IMD_SECTION_3_ROWS: TableRowSchema[] = [
+  {
+    id: 'row-imd-q-07',
+    isGroupHeader: false,
+    inputType: 'text',
+    unit: 'g',
+    cells: {
+      'col-q-mic': '07',
+      'col-q-param': '7. Weight in grams – Shot weight [Avg]',
+      'col-q-val': '',
+      'col-q-specs': 'Actual weight should be recorded',
+    },
+  },
+  {
+    id: 'row-imd-q-7-1',
+    isGroupHeader: false,
+    inputType: 'text',
+    unit: 'g',
+    cells: {
+      'col-q-mic': '',
+      'col-q-param': '7.1 Item weight – 1 [Avg]',
+      'col-q-val': '',
+      'col-q-specs': '—',
+    },
+  },
+  {
+    id: 'row-imd-q-7-2',
+    isGroupHeader: false,
+    inputType: 'text',
+    unit: 'g',
+    cells: {
+      'col-q-mic': '',
+      'col-q-param': '7.2 Item weight – 2 [Avg]',
+      'col-q-val': '',
+      'col-q-specs': '—',
+    },
+  },
+  {
+    id: 'row-imd-q-08',
+    isGroupHeader: false,
+    inputType: 'text',
+    unit: 'pcs',
+    cells: {
+      'col-q-mic': '08',
+      'col-q-param': '8. No. of Items (Good)',
+      'col-q-val': '',
+      'col-q-specs': 'Quantity of good items',
+    },
+  },
+  {
+    id: 'row-imd-q-09',
+    isGroupHeader: false,
+    inputType: 'text',
+    unit: 'pcs',
+    cells: {
+      'col-q-mic': '09',
+      'col-q-param': '9. No. of Items (Dam. or close)',
+      'col-q-val': '',
+      'col-q-specs': 'Quantity of damaged / close items',
+    },
+  },
+  {
+    id: 'row-imd-q-10',
+    isGroupHeader: false,
+    inputType: 'text',
+    unit: 'g',
+    cells: {
+      'col-q-mic': '10',
+      'col-q-param': '10. Runner weight',
+      'col-q-val': '',
+      'col-q-specs': 'Record runner weight',
+    },
+  },
+];
+
+export const IMD_SECTION_3_QUANTITATIVE_ELEMENTS: SectionElementSchema[] = [
+  {
+    id: 'el-imd-quantitative-table',
+    name: 'Quantitative Inspection Data Grid (MIC 7 – 10)',
+    type: 'table_grid',
+    subItems: [],
+    tableConfig: {
+      columns: IMD_SECTION_3_COLUMNS,
+      rows: IMD_SECTION_3_ROWS,
+    },
+  },
+  {
+    id: 'el-imd-avg-shot',
+    name: 'AVERAGE SHOT WEIGHT (GM)',
+    type: 'data_field',
+    subItems: [],
+  },
+  {
+    id: 'el-imd-avg-item',
+    name: 'AVERAGE ITEM WEIGHT (GM)',
+    type: 'data_field',
+    subItems: [],
+  },
+  {
+    id: 'el-imd-runner-weight',
+    name: 'RUNNER WEIGHT (GM)',
+    type: 'data_field',
+    subItems: [],
+  },
+];
+
+export const IMD_FORM_INITIAL: InspectionFormCardData = {
+  id: 'form-imd',
+  name: 'IMD',
+  status: 'Active',
+  createdAt: '2026-11-06',
+  updatedAt: 'Just now',
+  documentHeader: {
+    documentNo: 'F 17/3-2.1',
+    dateOfIssue: '2024-03-20',
+    revisionNo: '04',
+    documentType: 'IMD Online & Quantitative Inspection Report',
+    productType: 'In-Mold Decoration (IMD) Series',
+    refStandard: 'SLS 734',
+  },
+  sections: [
+    {
+      id: 'sec-imd-1',
+      sectionNumber: 1,
+      title: 'INSPECTION LOG',
+      elements: IMD_SECTION_1_ELEMENTS,
+      isSaved: true,
+      savedData: {
+        'el-date': '2026-11-06',
+        'el-item-code': '',
+        'el-mc-no': '',
+        'el-raw-lot': '',
+        'el-raw-grade': '',
+        'el-batch': '',
+        'el-coordination': '',
+        'el-shift': '',
+      },
+    },
+    {
+      id: 'sec-imd-2',
+      sectionNumber: 2,
+      title: '2. ONLINE / VISUAL INSPECTION (MIC 1 – 6)',
+      elements: IMD_SECTION_2_ONLINE_ELEMENTS,
+      isSaved: true,
+      savedData: {},
+    },
+    {
+      id: 'sec-imd-3',
+      sectionNumber: 3,
+      title: '3. QUANTITATIVE DATA (MIC 7 – 10)',
+      elements: IMD_SECTION_3_QUANTITATIVE_ELEMENTS,
+      isSaved: true,
+      savedData: {},
+    },
+  ],
+  footer: {
+    ...DEFAULT_FORM_FOOTER,
+    enabled: true,
+    onlineInspectorName: '',
+    onlineEmpNo: '',
+    finalInspectorName: '',
+    finalEmpNo: '',
+  },
+  notes: 'Calibrated factory standard form for IMD / Injection Molding with swapped Result/Specification columns and quantitative metrics.',
+  productSeries: 'IMD / Injection',
+};
+
 export interface SectionBlockSchema {
   id: string;
   sectionNumber: number;
@@ -427,6 +827,7 @@ export interface SectionBlockSchema {
 export const LOCAL_STORAGE_FORMS_KEY = 'qc_inspection_forms_v2';
 
 export const DEFAULT_FORMS_INITIAL: InspectionFormCardData[] = [
+  IMD_FORM_INITIAL,
   {
     id: 'form-testing-1',
     name: 'Testing_1',
@@ -599,6 +1000,29 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
             parsed[0].name = 'Testing_1';
             parsed[0].isOngoing = true;
           }
+
+          // Ensure IMD form is present and updated with the calibrated 3 sections (Inspection Log, Online Grid, Quantitative Grid)
+          const imdIdx = parsed.findIndex((f: InspectionFormCardData) => 
+            f.name?.toLowerCase().trim() === 'imd' || f.id === 'form-imd'
+          );
+          if (imdIdx !== -1) {
+            parsed[imdIdx] = {
+              ...parsed[imdIdx],
+              ...IMD_FORM_INITIAL,
+              id: parsed[imdIdx].id || 'form-imd',
+              name: 'IMD',
+              sections: IMD_FORM_INITIAL.sections,
+              footer: parsed[imdIdx].footer || IMD_FORM_INITIAL.footer,
+              documentHeader: {
+                ...IMD_FORM_INITIAL.documentHeader,
+                ...(parsed[imdIdx].documentHeader || {}),
+              },
+            };
+          } else {
+            // Add IMD form directly visible in the Form Directory gallery
+            parsed.splice(1, 0, IMD_FORM_INITIAL);
+          }
+
           // Sanitize table grids: dropdowns default to --Select--, manual text rows have blank space (no dummy values)
           parsed.forEach((form: InspectionFormCardData) => {
             if (form.footer) {
@@ -2737,69 +3161,152 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
     if (!element.tableConfig) return null;
     const { columns, rows } = element.tableConfig;
 
-    // Calculate live statistics
+    // Checkpoint count for subtitle
     const dataRows = rows.filter((r) => !r.isGroupHeader);
-    const dropdownCols = columns.filter((c) => c.type === 'dropdown');
-    let passCount = 0;
-    let failCount = 0;
-    let measuredCount = 0;
-    let totalDropdownChecks = 0;
 
-    dataRows.forEach((r) => {
-      const isRowManual = r.inputType === 'text' || r.inputType === 'number' || (r.inputType !== 'dropdown' && /voltage drop/i.test(r.cells['col-fi-param'] || r.cells['col-param'] || ''));
-      dropdownCols.forEach((c) => {
-        const cellKey = `${element.id}_${r.id}_${c.id}`;
-        const val = savedSection.savedData?.[cellKey] ?? (r.cells[c.id] || '');
-        if (isRowManual) {
-          if (val && String(val).trim().length > 0 && val !== 'Pass' && val !== '--Select--' && val !== '--Select-' && val !== '18.4 mV' && val !== '19.1 mV' && val !== '17.8 mV') measuredCount++;
-        } else {
-          totalDropdownChecks++;
-          if (val === 'Pass' || val === 'OK' || val === 'Accept') passCount++;
-          if (val === 'Fail' || val === 'NG' || val === 'Reject') failCount++;
-        }
-      });
-    });
-
-    const handleMarkAllPass = () => {
-      const updates: Record<string, string> = {};
-      dataRows.forEach((r) => {
-        const isRowManual = r.inputType === 'text' || r.inputType === 'number' || (r.inputType !== 'dropdown' && /voltage drop/i.test(r.cells['col-fi-param'] || r.cells['col-param'] || ''));
-        if (!isRowManual) {
-          dropdownCols.forEach((c) => {
-            const cellKey = `${element.id}_${r.id}_${c.id}`;
-            updates[cellKey] = 'Pass';
-          });
-        }
-      });
-      setSections((prev) =>
-        prev.map((s) =>
-          s.id === savedSection.id
-            ? {
-                ...s,
-                savedData: { ...(s.savedData || {}), ...updates },
-              }
-            : s
-        )
-      );
-      showToast(`All dropdown intervals for "${element.name}" set to Pass!`);
-    };
-
-    const handleResetTableEntries = () => {
-      const keysToRemove = new Set<string>();
-      dataRows.forEach((r) => {
-        columns.forEach((c) => {
-          keysToRemove.add(`${element.id}_${r.id}_${c.id}`);
-        });
-      });
+    const handleDeleteRowFromTable = (rowId: string) => {
       setSections((prev) =>
         prev.map((s) => {
           if (s.id !== savedSection.id) return s;
-          const nextData = { ...(s.savedData || {}) };
-          keysToRemove.forEach((k) => delete nextData[k]);
-          return { ...s, savedData: nextData };
+          return {
+            ...s,
+            elements: s.elements.map((el) => {
+              if (el.id !== element.id || !el.tableConfig) return el;
+              return {
+                ...el,
+                tableConfig: {
+                  ...el.tableConfig,
+                  rows: el.tableConfig.rows.filter((r) => r.id !== rowId),
+                },
+              };
+            }),
+          };
         })
       );
-      showToast(`Reset live entries for "${element.name}".`);
+      showToast('Removed custom inspection row.');
+    };
+
+    const handleUpdateCustomRowCell = (rowId: string, colId: string, val: string) => {
+      setSections((prev) =>
+        prev.map((s) => {
+          if (s.id !== savedSection.id) return s;
+          return {
+            ...s,
+            elements: s.elements.map((el) => {
+              if (el.id !== element.id || !el.tableConfig) return el;
+              return {
+                ...el,
+                tableConfig: {
+                  ...el.tableConfig,
+                  rows: el.tableConfig.rows.map((r) => {
+                    if (r.id !== rowId) return r;
+                    return {
+                      ...r,
+                      cells: {
+                        ...r.cells,
+                        [colId]: val,
+                      },
+                    };
+                  }),
+                },
+              };
+            }),
+          };
+        })
+      );
+    };
+
+    const handleAddOnlineColumnBetweenOnlineAndFinal = () => {
+      const currentCols = element.tableConfig?.columns || [];
+      const onlineCols = currentCols.filter((c) => /online/i.test(c.header) || c.id.includes('online'));
+      const nextNum = onlineCols.length + 1;
+      const newColId = `col-online-run-${Date.now()}`;
+
+      // Calculate time: 08:30 AM -> 10:30 AM -> 12:30 PM -> 02:30 PM...
+      const startHour = 8;
+      const calculatedHour = startHour + (nextNum - 1) * 2;
+      const hour12 = calculatedHour > 12 ? calculatedHour - 12 : calculatedHour;
+      const ampm = calculatedHour >= 12 ? 'PM' : 'AM';
+      const defaultTime = `${String(hour12).padStart(2, '0')}:30 ${ampm}`;
+
+      const newCol: TableColumnSchema = {
+        id: newColId,
+        header: `ONLINE RESULT ${nextNum}`,
+        type: 'dropdown',
+        options: ['Pass', 'Fail', 'N/A'],
+        width: '140px',
+        hasTimeHeader: true,
+        defaultHeaderTime: defaultTime,
+      };
+
+      setSections((prev) =>
+        prev.map((s) => {
+          if (s.id !== savedSection.id) return s;
+          return {
+            ...s,
+            elements: s.elements.map((el) => {
+              if (el.id !== element.id || !el.tableConfig) return el;
+              const cols = el.tableConfig.columns;
+              const finalIdx = cols.findIndex((c) => /final/i.test(c.header) || c.id === 'col-final');
+              const insertIdx = finalIdx >= 0 ? finalIdx : cols.length - 1;
+
+              const updatedCols = [...cols];
+              updatedCols.splice(insertIdx, 0, newCol);
+
+              const updatedRows = el.tableConfig.rows.map((r) => {
+                if (r.isGroupHeader) return r;
+                const isText = r.inputType === 'text' || r.inputType === 'number';
+                return {
+                  ...r,
+                  cells: {
+                    ...r.cells,
+                    [newColId]: isText ? '' : '--Select--',
+                  },
+                };
+              });
+
+              return {
+                ...el,
+                tableConfig: {
+                  ...el.tableConfig,
+                  columns: updatedCols,
+                  rows: updatedRows,
+                },
+              };
+            }),
+          };
+        })
+      );
+      showToast(`Added ONLINE RESULT ${nextNum} between Online and Final!`);
+    };
+
+    const handleRemoveOnlineColumn = (colId: string) => {
+      setSections((prev) =>
+        prev.map((s) => {
+          if (s.id !== savedSection.id) return s;
+          return {
+            ...s,
+            elements: s.elements.map((el) => {
+              if (el.id !== element.id || !el.tableConfig) return el;
+              const updatedCols = el.tableConfig.columns.filter((c) => c.id !== colId);
+              const updatedRows = el.tableConfig.rows.map((r) => {
+                const newCells = { ...r.cells };
+                delete newCells[colId];
+                return { ...r, cells: newCells };
+              });
+              return {
+                ...el,
+                tableConfig: {
+                  ...el.tableConfig,
+                  columns: updatedCols,
+                  rows: updatedRows,
+                },
+              };
+            }),
+          };
+        })
+      );
+      showToast('Removed custom online inspection column.');
     };
 
     return (
@@ -2846,47 +3353,6 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
               </div>
             </div>
           </div>
-
-          {/* Live Counters & Controls */}
-          <div className="flex items-center flex-wrap gap-2 text-xs">
-            {(totalDropdownChecks > 0 || measuredCount > 0) && (
-              <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-800 border border-slate-700 text-[11px]">
-                <span className="text-emerald-400 font-bold">{passCount} Pass</span>
-                <span className="text-slate-600">/</span>
-                <span className="text-rose-400 font-bold">{failCount} Fail</span>
-                {measuredCount > 0 && (
-                  <>
-                    <span className="text-slate-600">/</span>
-                    <span className="text-blue-400 font-bold">{measuredCount} Measured</span>
-                  </>
-                )}
-                <span className="text-slate-600">/</span>
-                <span className="text-slate-400">{totalDropdownChecks} Dropdowns</span>
-              </div>
-            )}
-
-            {dropdownCols.length > 0 && (
-              <button
-                type="button"
-                onClick={handleMarkAllPass}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition cursor-pointer shadow-2xs"
-                title="Quickly fill all interval dropdowns with Pass"
-              >
-                <Check className="w-3.5 h-3.5" />
-                <span>Mark All Pass</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={handleResetTableEntries}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition cursor-pointer"
-              title="Clear live entries for this table"
-            >
-              <RotateCcw className="w-3 h-3 text-slate-400" />
-              <span>Reset</span>
-            </button>
-          </div>
         </div>
 
         {/* Scrollable Inspection Table */}
@@ -2894,9 +3360,12 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
           <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr className="bg-slate-800 text-slate-200 text-xs font-bold uppercase tracking-wider border-b border-slate-700">
-                {columns.map((col, colIdx) => {
-                  const hasTimeBox = col.hasTimeHeader || col.header.toLowerCase().includes('time');
+                {columns.map((col) => {
+                  const hasTimeBox = col.hasTimeHeader || /time|result|online|final/i.test(col.header);
                   const isSampleCol = /sample/i.test(col.header);
+                  const isFinalCol = /final/i.test(col.header);
+                  const isOnlineCol = col.id === 'col-online';
+                  const isCustomOnlineCol = col.id.startsWith('col-online-run-');
                   const timeKey = `${element.id}_time_${col.id}`;
                   const currentTimeVal = savedSection.savedData?.[timeKey] ?? (col.defaultHeaderTime || '');
 
@@ -2907,10 +3376,23 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                       className="px-3 py-2.5 border-r border-slate-700/80 last:border-r-0 whitespace-nowrap align-top"
                     >
                       {hasTimeBox ? (
-                        <div className="flex flex-col items-center gap-1.5 min-w-[95px]">
+                        <div className="flex flex-col items-center gap-1.5 min-w-[100px]">
                           <div className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-slate-100">
                             <Clock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                             <span>{col.header}</span>
+                            {isCustomOnlineCol && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveOnlineColumn(col.id);
+                                }}
+                                className="p-0.5 rounded text-rose-400 hover:text-rose-200 hover:bg-rose-900/60 transition ml-1 cursor-pointer"
+                                title="Delete this added online inspection column"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
                           </div>
                           {/* Small textbox to enter the time manually with 12 hrs round clock picker */}
                           <div 
@@ -2939,6 +3421,22 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                               <Clock className="w-3.5 h-3.5 text-emerald-400" />
                             </button>
                           </div>
+
+                          {/* Quick Add Run button on Online Result header */}
+                          {isOnlineCol && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAddOnlineColumnBetweenOnlineAndFinal();
+                              }}
+                              className="mt-0.5 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-bold tracking-wider transition shadow-2xs hover:scale-105 active:scale-95 cursor-pointer"
+                              title="Add next online check run between Online Result and Final Result"
+                            >
+                              <Plus className="w-2.5 h-2.5" />
+                              <span>+ Next Run</span>
+                            </button>
+                          )}
                         </div>
                       ) : isSampleCol ? (
                         <div className="flex flex-col items-center gap-1 min-w-[90px]">
@@ -2953,9 +3451,11 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                       ) : (
                         <div className="flex items-center justify-between gap-1.5 py-1">
                           <span>{col.header}</span>
-                          <span className="text-[9px] lowercase font-normal px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">
-                            {col.type === 'dropdown' ? 'interval' : col.type === 'number_input' ? 'number' : col.type === 'text_input' ? 'input' : 'spec'}
-                          </span>
+                          {col.type !== 'dropdown' && (
+                            <span className="text-[9px] lowercase font-normal px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">
+                              {col.type === 'number_input' ? 'number' : col.type === 'text_input' ? 'input' : 'spec'}
+                            </span>
+                          )}
                         </div>
                       )}
                     </th>
@@ -2984,11 +3484,13 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                   );
                 }
 
+                const isCustomRow = row.id.startsWith('row-custom-');
+
                 return (
                   <tr
                     key={row.id}
                     className={`border-b border-slate-200 transition-colors ${
-                      rIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'
+                      isCustomRow ? 'bg-amber-50/40 hover:bg-amber-50/70' : rIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'
                     } hover:bg-slate-100/60`}
                   >
                     {columns.map((col) => {
@@ -2996,12 +3498,68 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                       const isDropdownCol = col.type === 'dropdown';
                       const isRowManualText = row.inputType === 'text' || row.inputType === 'number' || (row.inputType !== 'dropdown' && /voltage drop/i.test(row.cells['col-fi-param'] || row.cells['col-param'] || ''));
                       const isParamCol = col.id.includes('param') || col.header.toLowerCase().includes('param');
+                      const isMicCol = col.id === 'col-mic' || col.id === 'col-fi-mic' || /mic/i.test(col.header);
+                      const isSpecCol = col.id === 'col-specs' || col.id === 'col-fi-specs' || /spec/i.test(col.header);
 
                       const rawVal = savedSection.savedData?.[cellKey] ?? (row.cells[col.id] || '');
-                      // When text field is selected, no dummy data should enter - it should be blank space
                       const currVal = isRowManualText && (rawVal === 'Pass' || rawVal === 'Fail' || rawVal === 'N/A' || rawVal === '--Select--' || rawVal === '--Select-' || rawVal === '18.4 mV' || rawVal === '19.1 mV' || rawVal === '17.8 mV')
                         ? ''
                         : rawVal;
+
+                      if (isCustomRow && isMicCol) {
+                        return (
+                          <td key={col.id} className="px-2 py-2 border-r border-slate-200 last:border-r-0 text-xs align-middle">
+                            <input
+                              type="text"
+                              value={row.cells['col-mic'] || ''}
+                              onChange={(e) => handleUpdateCustomRowCell(row.id, 'col-mic', e.target.value)}
+                              className="w-16 px-1.5 py-1 text-xs font-mono font-bold rounded border border-amber-300 bg-white text-slate-800 text-center focus:outline-none focus:ring-1 focus:ring-amber-500 shadow-2xs"
+                              placeholder="MIC"
+                              title="Edit MIC ID for continuous run"
+                            />
+                          </td>
+                        );
+                      }
+
+                      if (isCustomRow && isParamCol) {
+                        return (
+                          <td key={col.id} className="px-2.5 py-2 border-r border-slate-200 last:border-r-0 text-xs align-middle">
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="text"
+                                value={row.cells['col-param'] || ''}
+                                onChange={(e) => handleUpdateCustomRowCell(row.id, 'col-param', e.target.value)}
+                                className="flex-1 min-w-[150px] px-2 py-1 text-xs font-semibold rounded border border-amber-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500 shadow-2xs"
+                                placeholder="Inspection Parameter Description"
+                                title="Edit Checkpoint description"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteRowFromTable(row.id)}
+                                className="p-1 rounded text-rose-500 hover:text-rose-700 hover:bg-rose-100 transition cursor-pointer shrink-0"
+                                title="Delete this custom row"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        );
+                      }
+
+                      if (isCustomRow && isSpecCol) {
+                        return (
+                          <td key={col.id} className="px-2.5 py-2 border-r border-slate-200 last:border-r-0 text-xs align-middle">
+                            <input
+                              type="text"
+                              value={row.cells['col-specs'] || ''}
+                              onChange={(e) => handleUpdateCustomRowCell(row.id, 'col-specs', e.target.value)}
+                              className="w-full px-2 py-1 text-xs rounded border border-amber-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500 shadow-2xs"
+                              placeholder="Specification standard"
+                              title="Edit Specification standard"
+                            />
+                          </td>
+                        );
+                      }
 
                       return (
                         <td
@@ -3236,9 +3794,14 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
 
                             const placeholder = (() => {
                               const n = element.name.trim().toLowerCase();
-                              if (n.includes('batch')) return 'Enter Batch Number Reference';
+                              if (n.includes('batch')) return 'Batch No.';
+                              if (n.includes('machine') || n.includes('mc.')) return 'Machine number';
+                              if (n.includes('raw material lot') || n.includes('lot no')) return 'Lot number';
+                              if (n.includes('raw material grade') || n.includes('grade')) return 'Grade';
+                              if (n.includes('coordination')) return 'e.g. 050 (13 A)';
                               if (n.includes('product description') || n.includes('desc')) return 'Enter Product Description';
-                              if (n.includes('item code')) return 'Enter Item Code Reference';
+                              if (n.includes('item code')) return 'e.g. MSFZ 13-13A...';
+                              if (n.includes('weight') || n.includes('shot') || n.includes('runner')) return 'Auto / enter';
                               return `Enter ${element.name}`;
                             })();
 
@@ -3357,6 +3920,107 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
           }
 
           // 2nd, 3rd, and subsequent Saved Sections
+          const isTableFirst = savedSection.elements.length > 0 && isTableElement(savedSection.elements[0].type);
+
+          const renderRegularInputs = () => (
+            regularElements.length > 0 && (
+              <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {regularElements.map((element) => {
+                  const currVal = savedSection.savedData?.[element.id] || '';
+                  const placeholder = (() => {
+                    const n = element.name.trim().toLowerCase();
+                    if (n.includes('batch')) return 'Batch No.';
+                    if (n.includes('machine') || n.includes('mc.')) return 'Machine number';
+                    if (n.includes('raw material lot') || n.includes('lot no')) return 'Lot number';
+                    if (n.includes('raw material grade') || n.includes('grade')) return 'Grade';
+                    if (n.includes('coordination')) return 'e.g. 050 (13 A)';
+                    if (n.includes('product description') || n.includes('desc')) return 'Enter Product Description';
+                    if (n.includes('item code')) return 'e.g. MSFZ 13-13A...';
+                    if (n.includes('weight') || n.includes('shot') || n.includes('runner')) return 'Auto / enter';
+                    return `Enter ${element.name}`;
+                  })();
+
+                  return (
+                    <div key={element.id} className="space-y-1.5">
+                      <label className="block text-xs font-bold text-slate-800">
+                        {element.name}
+                      </label>
+
+                      {element.type === 'data_field' && (
+                        <input
+                          type="text"
+                          value={currVal}
+                          onChange={(e) => handlePreviewFieldChange(savedSection.id, element.id, e.target.value)}
+                          placeholder={placeholder}
+                          className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-2xs"
+                        />
+                      )}
+
+                      {element.type === 'date_picker' && (
+                        <input
+                          type="date"
+                          value={currVal}
+                          onChange={(e) => handlePreviewFieldChange(savedSection.id, element.id, e.target.value)}
+                          className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        />
+                      )}
+
+                      {element.type === 'dropdown' && (
+                        <select
+                          value={currVal}
+                          onChange={(e) => handlePreviewFieldChange(savedSection.id, element.id, e.target.value)}
+                          className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 cursor-pointer"
+                        >
+                          <option value="">Select {element.name}</option>
+                          {element.subItems.map((opt, i) => (
+                            <option key={i} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+
+                      {element.type === 'radio' && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {element.subItems.map((opt, i) => (
+                            <label
+                              key={i}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs cursor-pointer ${
+                                currVal === opt
+                                  ? 'border-slate-800 bg-slate-100 font-bold'
+                                  : 'border-slate-200 bg-white'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name={`live-radio-${savedSection.id}-${element.id}`}
+                                value={opt}
+                                checked={currVal === opt}
+                                onChange={() => handlePreviewFieldChange(savedSection.id, element.id, opt)}
+                                className="text-slate-800 focus:ring-slate-600 w-3.5 h-3.5"
+                              />
+                              <span>{opt}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          );
+
+          const renderTableGrids = () => (
+            tableElements.length > 0 && (
+              <div className="p-4 sm:p-6 space-y-6">
+                {tableElements.map((tableEl) => (
+                  renderLiveTableGrid(savedSection, tableEl)
+                ))}
+              </div>
+            )
+          );
+
           return (
             <div key={savedSection.id} className="w-full bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="bg-slate-800 px-6 py-3.5 flex items-center justify-between">
@@ -3366,94 +4030,33 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                     {savedSection.title}
                   </h3>
                 </div>
-                <span className="text-slate-300 text-xs font-medium">
-                  Section {savedSection.sectionNumber}
-                </span>
+                {(() => {
+                  const t = savedSection.title.toLowerCase();
+                  const badgeText = 
+                    t.includes('online') || t.includes('visual') 
+                      ? 'DROPDOWN RESULTS'
+                      : t.includes('quantitative')
+                      ? 'DATA ENTRY FIELDS'
+                      : `Section ${savedSection.sectionNumber}`;
+                  return (
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-700/60 tracking-wider">
+                      {badgeText}
+                    </span>
+                  );
+                })()}
               </div>
 
-              {/* Regular field inputs if any */}
-              {regularElements.length > 0 && (
-                <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {regularElements.map((element) => {
-                    const currVal = savedSection.savedData?.[element.id] || '';
-
-                    return (
-                      <div key={element.id} className="space-y-1.5">
-                        <label className="block text-xs font-bold text-slate-800">
-                          {element.name}
-                        </label>
-
-                        {element.type === 'data_field' && (
-                          <input
-                            type="text"
-                            value={currVal}
-                            onChange={(e) => handlePreviewFieldChange(savedSection.id, element.id, e.target.value)}
-                            placeholder={`Enter ${element.name}`}
-                            className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500"
-                          />
-                        )}
-
-                        {element.type === 'date_picker' && (
-                          <input
-                            type="date"
-                            value={currVal}
-                            onChange={(e) => handlePreviewFieldChange(savedSection.id, element.id, e.target.value)}
-                            className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500"
-                          />
-                        )}
-
-                        {element.type === 'dropdown' && (
-                          <select
-                            value={currVal}
-                            onChange={(e) => handlePreviewFieldChange(savedSection.id, element.id, e.target.value)}
-                            className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 cursor-pointer"
-                          >
-                            <option value="">Select {element.name}</option>
-                            {element.subItems.map((opt, i) => (
-                              <option key={i} value={opt}>
-                                {opt}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-
-                        {element.type === 'radio' && (
-                          <div className="flex flex-wrap gap-2 pt-1">
-                            {element.subItems.map((opt, i) => (
-                              <label
-                                key={i}
-                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs cursor-pointer ${
-                                  currVal === opt
-                                    ? 'border-slate-800 bg-slate-100 font-bold'
-                                    : 'border-slate-200 bg-white'
-                                }`}
-                              >
-                                <input
-                                  type="radio"
-                                  name={`live-radio-${savedSection.id}-${element.id}`}
-                                  value={opt}
-                                  checked={currVal === opt}
-                                  onChange={() => handlePreviewFieldChange(savedSection.id, element.id, opt)}
-                                  className="text-slate-800 focus:ring-slate-600 w-3.5 h-3.5"
-                                />
-                                <span>{opt}</span>
-                              </label>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Table / Grid elements rendered full width */}
-              {tableElements.length > 0 && (
-                <div className="p-4 sm:p-6 space-y-6">
-                  {tableElements.map((tableEl) => (
-                    renderLiveTableGrid(savedSection, tableEl)
-                  ))}
-                </div>
+              {/* If table is first in elements (e.g. Section 3 Quantitative), render table first then summary cards */}
+              {isTableFirst ? (
+                <>
+                  {renderTableGrids()}
+                  {renderRegularInputs()}
+                </>
+              ) : (
+                <>
+                  {renderRegularInputs()}
+                  {renderTableGrids()}
+                </>
               )}
             </div>
           );

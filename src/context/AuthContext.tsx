@@ -4,7 +4,6 @@ import { User } from '@supabase/supabase-js';
 import toast from 'react-hot-toast';
 import { supabase } from '../backend/supabase';
 import { ProfileRole, UserProfile } from '../types';
-import { FullScreenAuthLoading } from '../components/ProtectedRoute';
 
 // Inactivity timeout threshold: 15 minutes without interaction
 export const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000;
@@ -600,7 +599,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUserDetails,
       }}
     >
-      {isInitializing ? <FullScreenAuthLoading /> : children}
+      {children}
     </AuthContext.Provider>
   );
 };

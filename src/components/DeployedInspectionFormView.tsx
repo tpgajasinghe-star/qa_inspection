@@ -21,13 +21,15 @@ import {
   Loader2,
   ChevronDown,
   AlertCircle,
-  ArrowRight
+  ArrowRight,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { DeployedInspectionForm } from '../deployedFormsData';
 import { InspectionRecord, QAStatus } from '../types';
 import { InspectionHierarchyCard } from '../inspectionHierarchyData';
-import { TableRowSchema } from './FormEditorStudio';
+import { TableRowSchema, SectionBlockSchema, TableColumnSchema } from './FormEditorStudio';
 import { RoundClockTimePickerModal } from './RoundClockTimePickerModal';
 import { fetchItems, DbItem, lookupDatabaseItem, SEED_FACTORY_ITEMS } from '../backend/itemService';
 import { ItemCodeSmartInput } from './ItemCodeSmartInput';
@@ -59,6 +61,193 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
   onBackToMainCards,
   onSubmitRecord,
 }) => {
+  // Section state allows dynamic addition/removal of inspection rows for continuous runs
+  const [sections, setSections] = useState<SectionBlockSchema[]>(() => form.sections);
+
+  useEffect(() => {
+    setSections(form.sections);
+  }, [form]);
+
+  const handleAddRowToDeployedTable = (sectionId: string, elementId: string) => {
+    setSections(prevSections =>
+      prevSections.map(sec => {
+        if (sec.id !== sectionId) return sec;
+        return {
+          ...sec,
+          elements: sec.elements.map(el => {
+            if (el.id !== elementId || !el.tableConfig) return el;
+            const rows = el.tableConfig.rows;
+            const customCount = rows.filter(r => r.id.startsWith('row-custom-')).length + 1;
+            const nextMic = String(rows.length + 1).padStart(2, '0');
+            const newRow: TableRowSchema = {
+              id: `row-custom-${Date.now()}`,
+              isGroupHeader: false,
+              inputType: 'dropdown',
+              cells: {
+                'col-mic': nextMic,
+                'col-param': `Continuous Checkpoint ${customCount}`,
+                'col-online': '--Select--',
+                'col-final': '--Select--',
+                'col-specs': 'Shall conform to standard',
+              },
+            };
+            return {
+              ...el,
+              tableConfig: {
+                ...el.tableConfig,
+                rows: [...rows, newRow],
+              },
+            };
+          }),
+        };
+      })
+    );
+    toast.success('Added new inspection row for continuous machine run!');
+  };
+
+  const handleDeleteRowFromDeployedTable = (sectionId: string, elementId: string, rowId: string) => {
+    setSections(prevSections =>
+      prevSections.map(sec => {
+        if (sec.id !== sectionId) return sec;
+        return {
+          ...sec,
+          elements: sec.elements.map(el => {
+            if (el.id !== elementId || !el.tableConfig) return el;
+            return {
+              ...el,
+              tableConfig: {
+                ...el.tableConfig,
+                rows: el.tableConfig.rows.filter(r => r.id !== rowId),
+              },
+            };
+          }),
+        };
+      })
+    );
+    toast.success('Removed custom checkpoint row.');
+  };
+
+  const handleUpdateCustomCellInDeployedTable = (sectionId: string, elementId: string, rowId: string, colId: string, val: string) => {
+    setSections(prevSections =>
+      prevSections.map(sec => {
+        if (sec.id !== sectionId) return sec;
+        return {
+          ...sec,
+          elements: sec.elements.map(el => {
+            if (el.id !== elementId || !el.tableConfig) return el;
+            return {
+              ...el,
+              tableConfig: {
+                ...el.tableConfig,
+                rows: el.tableConfig.rows.map(r => {
+                  if (r.id !== rowId) return r;
+                  return {
+                    ...r,
+                    cells: {
+                      ...r.cells,
+                      [colId]: val,
+                    },
+                  };
+                }),
+              },
+            };
+          }),
+        };
+      })
+    );
+  };
+
+  const handleAddOnlineColumnToDeployedTable = (sectionId: string, elementId: string) => {
+    setSections(prevSections =>
+      prevSections.map(sec => {
+        if (sec.id !== sectionId) return sec;
+        return {
+          ...sec,
+          elements: sec.elements.map(el => {
+            if (el.id !== elementId || !el.tableConfig) return el;
+            const cols = el.tableConfig.columns;
+            const onlineCols = cols.filter(c => /online/i.test(c.header) || c.id.includes('online'));
+            const nextNum = onlineCols.length + 1;
+            const newColId = `col-online-run-${Date.now()}`;
+
+            const startHour = 8;
+            const calculatedHour = startHour + (nextNum - 1) * 2;
+            const hour12 = calculatedHour > 12 ? calculatedHour - 12 : calculatedHour;
+            const ampm = calculatedHour >= 12 ? 'PM' : 'AM';
+            const defaultTime = `${String(hour12).padStart(2, '0')}:30 ${ampm}`;
+
+            const newCol: TableColumnSchema = {
+              id: newColId,
+              header: `ONLINE RESULT ${nextNum}`,
+              type: 'dropdown',
+              options: ['Pass', 'Fail', 'N/A'],
+              width: '140px',
+              hasTimeHeader: true,
+              defaultHeaderTime: defaultTime,
+            };
+
+            const finalIdx = cols.findIndex(c => /final/i.test(c.header) || c.id === 'col-final');
+            const insertIdx = finalIdx >= 0 ? finalIdx : cols.length - 1;
+
+            const updatedCols = [...cols];
+            updatedCols.splice(insertIdx, 0, newCol);
+
+            const updatedRows = el.tableConfig.rows.map(r => {
+              if (r.isGroupHeader) return r;
+              const isText = r.inputType === 'text' || r.inputType === 'number';
+              return {
+                ...r,
+                cells: {
+                  ...r.cells,
+                  [newColId]: isText ? '' : '--Select--',
+                },
+              };
+            });
+
+            return {
+              ...el,
+              tableConfig: {
+                ...el.tableConfig,
+                columns: updatedCols,
+                rows: updatedRows,
+              },
+            };
+          }),
+        };
+      })
+    );
+    toast.success('Added new inspection column between Online and Final!');
+  };
+
+  const handleRemoveOnlineColumnFromDeployed = (sectionId: string, elementId: string, colId: string) => {
+    setSections(prevSections =>
+      prevSections.map(sec => {
+        if (sec.id !== sectionId) return sec;
+        return {
+          ...sec,
+          elements: sec.elements.map(el => {
+            if (el.id !== elementId || !el.tableConfig) return el;
+            const updatedCols = el.tableConfig.columns.filter(c => c.id !== colId);
+            const updatedRows = el.tableConfig.rows.map(r => {
+              const newCells = { ...r.cells };
+              delete newCells[colId];
+              return { ...r, cells: newCells };
+            });
+            return {
+              ...el,
+              tableConfig: {
+                ...el.tableConfig,
+                columns: updatedCols,
+                rows: updatedRows,
+              },
+            };
+          }),
+        };
+      })
+    );
+    toast.success('Removed custom online inspection column.');
+  };
+
   // Traceability & Audit Metadata
   const categoryPrefix = (childCard.name.replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toUpperCase()) || 'QC';
   const [lotNumber] = useState(`LOT-${categoryPrefix}-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`);
@@ -473,6 +662,8 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
       columnTimeHeaders,
       // General field values across sections
       fieldValues,
+      // Preserved sections (including any custom added checkpoints for continuous runs)
+      sections,
       // Observations, remarks, quality status
       remarks,
       status,
@@ -718,64 +909,52 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
 
         <div className="p-6 sm:p-8 space-y-8">
           {/* DYNAMIC SECTIONS & TABLE GRIDS */}
-          {form.sections.map((section, sIdx) => {
+          {sections.map((section, sIdx) => {
             // Find table element in section if any
             const tableEl = section.elements.find(el => el.tableConfig);
             const nonTableEls = section.elements.filter(el => !el.tableConfig);
+            const isTableFirst = section.elements.length > 0 && Boolean(section.elements[0].tableConfig);
 
-            return (
-              <div 
-                key={section.id || sIdx}
-                className="rounded-2xl border border-slate-200 bg-white shadow-2xs relative z-20 overflow-visible"
-              >
-                {/* Section Title Header */}
-                <div className="bg-slate-100/90 px-5 py-3 border-b border-slate-200 flex items-center justify-between">
-                  <h4 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-lg bg-blue-600 text-white text-[11px] flex items-center justify-center font-bold">
-                      {section.sectionNumber || sIdx + 1}
-                    </span>
-                    <span>{section.title.replace(/DIGITAL FACTORY\s*/i, '')}</span>
-                  </h4>
-                  <span className="text-[11px] font-semibold text-slate-500">
-                    {section.elements.length} Form Elements
-                  </span>
-                </div>
+            const renderNonTableContent = () => (
+              nonTableEls.length > 0 && (
+                <div className={`p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 ${nonTableEls.length >= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4 border-b border-slate-100 bg-slate-50/50`}>
+                  {nonTableEls.map(el => {
+                    const placeholder = (() => {
+                      const n = el.name.trim().toLowerCase();
+                      if (n.includes('batch')) return 'Batch No.';
+                      if (n.includes('machine') || n.includes('mc.')) return 'Machine number';
+                      if (n.includes('raw material lot') || n.includes('lot no')) return 'Lot number';
+                      if (n.includes('raw material grade') || n.includes('grade')) return 'Grade';
+                      if (n.includes('coordination')) return 'e.g. 050 (13 A)';
+                      if (n.includes('product description') || n.includes('desc')) return 'Enter Product Description';
+                      if (n.includes('item code')) return 'e.g. MSFZ 13-13A...';
+                      if (n.includes('weight') || n.includes('shot') || n.includes('runner')) return 'Auto / enter';
+                      return `Enter ${el.name}`;
+                    })();
 
-                {/* Non-table elements if present */}
-                {nonTableEls.length > 0 && (
-                  <div className={`p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 ${nonTableEls.length >= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4 border-b border-slate-100 bg-slate-50/50`}>
-                    {nonTableEls.map(el => {
-                      const placeholder = (() => {
-                        const n = el.name.trim().toLowerCase();
-                        if (n.includes('batch')) return 'Enter Batch Number Reference';
-                        if (n.includes('product description') || n.includes('desc')) return 'Enter Product Description';
-                        if (n.includes('item code')) return 'Enter Item Code Reference';
-                        return `Enter ${el.name}`;
-                      })();
+                    const hasError = Boolean(validationErrors[el.id]);
 
-                      const hasError = Boolean(validationErrors[el.id]);
-
-                      return (
-                        <div 
-                          key={el.id} 
-                          id={`field-container-${el.id}`}
-                          className={`space-y-1 p-2 rounded-xl transition-all duration-200 ${
-                            hasError ? 'bg-rose-50/80 border-2 border-rose-400 ring-2 ring-rose-200 shadow-sm' : ''
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <label className={`text-[11px] font-bold block flex items-center gap-1 ${
-                              hasError ? 'text-rose-700 font-extrabold' : 'text-slate-700'
-                            }`}>
-                              <span>{el.name}</span>
-                              <span className="text-rose-500 font-bold">*</span>
-                            </label>
-                            {(el.id === 'el-desc' || /product\s*desc/i.test(el.name)) && matchedDbItem && (
-                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                                Auto-filled
-                              </span>
-                            )}
-                          </div>
+                    return (
+                      <div 
+                        key={el.id} 
+                        id={`field-container-${el.id}`}
+                        className={`space-y-1 p-2 rounded-xl transition-all duration-200 ${
+                          hasError ? 'bg-rose-50/80 border-2 border-rose-400 ring-2 ring-rose-200 shadow-sm' : ''
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <label className={`text-[11px] font-bold block flex items-center gap-1 ${
+                            hasError ? 'text-rose-700 font-extrabold' : 'text-slate-700'
+                          }`}>
+                            <span>{el.name}</span>
+                            <span className="text-rose-500 font-bold">*</span>
+                          </label>
+                          {(el.id === 'el-desc' || /product\s*desc/i.test(el.name)) && matchedDbItem && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                              Auto-filled
+                            </span>
+                          )}
+                        </div>
 
                           {el.type === 'date_picker' ? (
                             <input
@@ -866,7 +1045,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                 </span>
                               )}
                             </div>
-                          ) : (el.type === 'radio' || /cordination/i.test(el.name)) ? (
+                          ) : (el.type === 'radio' || (el.type !== 'data_field' && /cordination/i.test(el.name))) ? (
                             <div className="flex flex-wrap gap-2 pt-0.5">
                               {(() => {
                                 const opts = (Array.isArray(el.subItems) && el.subItems.length > 0)
@@ -969,17 +1148,21 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                       );
                     })}
                   </div>
-                )}
+                )
+              );
 
-                {/* Table Grid if configured */}
-                {tableEl && tableEl.tableConfig && (
+              const renderTableContent = () => (
+                tableEl && tableEl.tableConfig && (
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
                         <tr className="bg-slate-200/80 text-slate-800 font-bold border-b border-slate-300">
                           {tableEl.tableConfig.columns.map(col => {
                             const timeKey = `${section.id}-${col.id}`;
-                            const isTimeCol = col.hasTimeHeader || /time|interval|shift/i.test(col.header);
+                            const isTimeCol = col.hasTimeHeader || col.type === 'dropdown' || /time|interval|shift|result|online|final/i.test(col.header);
+                            const isFinalCol = /final/i.test(col.header);
+                            const isOnlineCol = col.id === 'col-online';
+                            const isCustomOnlineCol = col.id.startsWith('col-online-run-');
 
                             return (
                               <th 
@@ -987,8 +1170,23 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                 className="px-3.5 py-3 text-center first:text-left last:text-left border-r border-slate-300/80 last:border-r-0"
                                 style={{ width: col.width }}
                               >
-                                <div>
-                                  <span className="block text-[11px] uppercase tracking-wider">{col.header}</span>
+                                <div className="flex flex-col items-center gap-1">
+                                  <div className="flex items-center justify-center gap-1">
+                                    <span className="block text-[11px] uppercase tracking-wider font-bold">{col.header}</span>
+                                    {isCustomOnlineCol && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRemoveOnlineColumnFromDeployed(section.id, tableEl.id, col.id);
+                                        }}
+                                        className="p-0.5 rounded text-rose-500 hover:text-rose-700 hover:bg-rose-100 transition ml-1 cursor-pointer"
+                                        title="Delete this added online inspection column"
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                  </div>
                                   {isTimeCol && (
                                     <div 
                                       onClick={() => {
@@ -999,7 +1197,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                           currentValue: columnTimeHeaders[timeKey] || col.defaultHeaderTime || '08:30 AM',
                                         });
                                       }}
-                                      className="mt-1 inline-flex items-center justify-center gap-1.5 bg-white border border-slate-300 rounded-lg px-2 py-1 shadow-2xs hover:border-blue-500 hover:ring-2 hover:ring-blue-500/20 hover:bg-blue-50/40 transition cursor-pointer select-none group"
+                                      className="mt-0.5 inline-flex items-center justify-center gap-1.5 bg-white border border-slate-300 rounded-lg px-2 py-1 shadow-2xs hover:border-blue-500 hover:ring-2 hover:ring-blue-500/20 hover:bg-blue-50/40 transition cursor-pointer select-none group"
                                       title={`Click to open 12 hrs round clock time picker for ${col.header}`}
                                     >
                                       <span className="text-[9px] text-slate-500 font-bold font-mono">Time:</span>
@@ -1013,6 +1211,20 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                         <Clock className="w-3.5 h-3.5 text-blue-600" />
                                       </span>
                                     </div>
+                                  )}
+                                  {isOnlineCol && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAddOnlineColumnToDeployedTable(section.id, tableEl.id);
+                                      }}
+                                      className="mt-0.5 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-bold tracking-wider transition shadow-2xs hover:scale-105 active:scale-95 cursor-pointer"
+                                      title="Add next online check run between Online Result and Final Result"
+                                    >
+                                      <Plus className="w-2.5 h-2.5" />
+                                      <span>+ Next Run</span>
+                                    </button>
                                   )}
                                 </div>
                               </th>
@@ -1029,14 +1241,17 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                   colSpan={tableEl.tableConfig?.columns.length} 
                                   className="px-4 py-2 text-xs uppercase tracking-wider font-extrabold text-blue-900 bg-blue-50/70 border-y border-blue-200"
                                 >
+                                  {row.cells['col-mic'] && <span className="font-mono text-blue-700 mr-2">{row.cells['col-mic']}</span>}
                                   {row.groupTitle || 'Group Section'}
                                 </td>
                               </tr>
                             );
                           }
 
+                          const isCustomRow = row.id.startsWith('row-custom-');
+
                           return (
-                            <tr key={row.id} className="hover:bg-slate-50 transition-colors">
+                            <tr key={row.id} className={`transition-colors ${isCustomRow ? 'bg-amber-50/40 hover:bg-amber-50/70' : 'hover:bg-slate-50'}`}>
                               {tableEl.tableConfig?.columns.map((col) => {
                                 const cellKey = `${section.id}-${row.id}-${col.id}`;
                                 const isParamCol = col.id === 'col-param' || col.id === 'col-fi-param' || /parameter/i.test(col.header);
@@ -1044,6 +1259,63 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                 const isSpecCol = col.id === 'col-specs' || col.id === 'col-fi-specs' || /specification/i.test(col.header);
                                 const isDropdownCol = col.type === 'dropdown';
                                 const isTextInputRow = row.inputType === 'text' || row.inputType === 'number';
+                                const isTextInputCol = col.type === 'text_input' || col.type === 'number_input';
+
+                                // Custom Row editable cells
+                                if (isCustomRow && isMicCol) {
+                                  return (
+                                    <td key={col.id} className="px-2 py-2 text-center border-r border-slate-200/80">
+                                      <input
+                                        type="text"
+                                        value={row.cells['col-mic'] || ''}
+                                        onChange={(e) => handleUpdateCustomCellInDeployedTable(section.id, tableEl.id, row.id, 'col-mic', e.target.value)}
+                                        className="w-16 px-1.5 py-1 text-xs font-mono font-bold rounded border border-blue-300 bg-white text-slate-800 text-center focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                                        placeholder="MIC"
+                                        title="Edit Checkpoint MIC"
+                                      />
+                                    </td>
+                                  );
+                                }
+
+                                if (isCustomRow && isParamCol) {
+                                  return (
+                                    <td key={col.id} className="px-2.5 py-2 border-r border-slate-200/80">
+                                      <div className="flex items-center gap-1.5">
+                                        <input
+                                          type="text"
+                                          value={row.cells['col-param'] || ''}
+                                          onChange={(e) => handleUpdateCustomCellInDeployedTable(section.id, tableEl.id, row.id, 'col-param', e.target.value)}
+                                          className="flex-1 min-w-[150px] px-2 py-1 text-xs font-semibold rounded border border-blue-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                                          placeholder="Inspection Parameter Description"
+                                          title="Edit Checkpoint description"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteRowFromDeployedTable(section.id, tableEl.id, row.id)}
+                                          className="p-1 rounded text-rose-500 hover:text-rose-700 hover:bg-rose-100 transition cursor-pointer shrink-0"
+                                          title="Delete this custom row"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  );
+                                }
+
+                                if (isCustomRow && isSpecCol) {
+                                  return (
+                                    <td key={col.id} className="px-2.5 py-2 border-r border-slate-200/80">
+                                      <input
+                                        type="text"
+                                        value={row.cells['col-specs'] || ''}
+                                        onChange={(e) => handleUpdateCustomCellInDeployedTable(section.id, tableEl.id, row.id, 'col-specs', e.target.value)}
+                                        className="w-full px-2 py-1 text-xs rounded border border-blue-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                                        placeholder="Specification standard"
+                                        title="Edit Specification standard"
+                                      />
+                                    </td>
+                                  );
+                                }
 
                                 // Text label columns (MIC NO, Specifications)
                                 if (isMicCol) {
@@ -1078,22 +1350,23 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                 }
 
                                 // Interactive input cells: Either dropdown or manual text entry
-                                if (isDropdownCol) {
-                                  // If this row specifically requires manual text input (e.g. Voltage drop test):
-                                  if (isTextInputRow) {
-                                    return (
-                                      <td key={col.id} className="px-2 py-2 text-center border-r border-slate-200/80">
+                                if (isTextInputCol || (isDropdownCol && isTextInputRow)) {
+                                  return (
+                                    <td key={col.id} className="px-2 py-2 text-center border-r border-slate-200/80">
+                                      <div className="relative inline-flex items-center justify-center w-full">
                                         <input
-                                          type="text"
+                                          type={col.type === 'number_input' ? 'number' : 'text'}
                                           value={cellValues[cellKey] || ''}
                                           onChange={(e) => handleCellChange(section.id, row.id, col.id, e.target.value)}
-                                          placeholder={row.unit ? `e.g. 14.5 ${row.unit}` : 'Enter value...'}
+                                          placeholder={row.unit ? `${row.unit}` : ''}
                                           className="w-24 px-2 py-1 bg-white border border-slate-300 rounded text-center text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
                                         />
-                                      </td>
-                                    );
-                                  }
+                                      </div>
+                                    </td>
+                                  );
+                                }
 
+                                if (isDropdownCol) {
                                   // Standard Dropdown list with --Select--
                                   const options = col.options || ['Pass', 'Fail', 'N/A'];
                                   const currentVal = cellValues[cellKey] || '--Select--';
@@ -1132,10 +1405,57 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                       </tbody>
                     </table>
                   </div>
-                )}
-              </div>
-            );
-          })}
+                )
+              );
+
+              return (
+                <div 
+                  key={section.id || sIdx}
+                  className="rounded-2xl border border-slate-200 bg-white shadow-2xs relative z-20 overflow-visible"
+                >
+                  {/* Section Title Header */}
+                  <div className="bg-slate-100/90 px-5 py-3 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2">
+                    <h4 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-lg bg-blue-600 text-white text-[11px] flex items-center justify-center font-bold">
+                        {section.sectionNumber || sIdx + 1}
+                      </span>
+                      <span>{section.title.replace(/DIGITAL FACTORY\s*/i, '')}</span>
+                    </h4>
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const t = section.title.toLowerCase();
+                        const badgeText = 
+                          section.sectionNumber === 1 || t.includes('log') 
+                            ? 'VERIFIED SECTION'
+                            : t.includes('online') || t.includes('visual') 
+                            ? 'DROPDOWN RESULTS'
+                            : t.includes('quantitative')
+                            ? 'DATA ENTRY FIELDS'
+                            : `${section.elements.length} Form Elements`;
+                        
+                        return (
+                          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 tracking-wider">
+                            {badgeText}
+                          </span>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  {isTableFirst ? (
+                    <>
+                      {renderTableContent()}
+                      {renderNonTableContent()}
+                    </>
+                  ) : (
+                    <>
+                      {renderNonTableContent()}
+                      {renderTableContent()}
+                    </>
+                  )}
+                </div>
+              );
+            })}
 
           {/* ATTACHMENTS & REMARKS SECTION */}
           <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-200 space-y-4">

@@ -6,7 +6,8 @@ import {
   REFERENCE_SECTION_1_ELEMENTS,
   REFERENCE_SECTION_1_SAVED_DATA,
   REFERENCE_SECTION_2_ONLINE_ELEMENTS,
-  REFERENCE_SECTION_3_FINAL_ELEMENTS
+  REFERENCE_SECTION_3_FINAL_ELEMENTS,
+  IMD_FORM_INITIAL
 } from './components/FormEditorStudio';
 
 export interface DeployedInspectionForm {
@@ -149,6 +150,37 @@ export const INITIAL_DEFAULT_DEPLOYED_FORMS: DeployedInspectionForm[] = [
     version: 'Rev 02',
     notes: 'Incoming acceptance for LED chip reels, chromatic binning and ESD barriers.',
   },
+  {
+    id: 'deployed-imd-1',
+    sourceFormId: 'form-imd',
+    name: 'IMD - Online & Quantitative Inspection Report',
+    targetMainCardId: 'main-inprocess',
+    targetMainCardName: 'Online / In-Process',
+    targetChildCardId: 'child-injection',
+    targetChildCardName: 'Injection Molding',
+    productType: 'In-Mold Decoration (IMD) Series',
+    documentHeader: {
+      documentNo: 'F 17/3-2.1',
+      dateOfIssue: '2024-03-20',
+      revisionNo: '04',
+      documentType: 'IMD Online & Quantitative Inspection Report',
+      productType: 'In-Mold Decoration (IMD) Series',
+      refStandard: 'SLS 734',
+    },
+    sections: IMD_FORM_INITIAL.sections,
+    footer: {
+      ...DEFAULT_FORM_FOOTER,
+      onlineInspectorName: '',
+      onlineEmpNo: '',
+      finalInspectorName: '',
+      finalEmpNo: '',
+    },
+    deployedAt: '2026-11-06 10:00 AM',
+    deployedBy: 'QC Lead Engineer',
+    status: 'Active',
+    version: 'Rev 04',
+    notes: 'Calibrated factory standard form for IMD / Injection Molding with swapped Result/Specification columns and quantitative metrics.',
+  },
 ];
 
 // Helper to retrieve all deployed forms from localStorage
@@ -161,6 +193,18 @@ export function getStoredDeployedForms(): DeployedInspectionForm[] {
     }
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
+      // Ensure deployed IMD form is present and updated
+      const imdFormIdx = parsed.findIndex((f: DeployedInspectionForm) => f.id === 'deployed-imd-1' || f.name.toLowerCase().includes('imd'));
+      if (imdFormIdx === -1) {
+        const defaultImd = INITIAL_DEFAULT_DEPLOYED_FORMS.find(f => f.id === 'deployed-imd-1');
+        if (defaultImd) parsed.push(defaultImd);
+      } else {
+        parsed[imdFormIdx] = {
+          ...parsed[imdFormIdx],
+          sections: IMD_FORM_INITIAL.sections,
+          productType: 'In-Mold Decoration (IMD) Series',
+        };
+      }
       // Desired order for Inspection Log section elements:
       // 1. Date, 2. Item Code, 3. Product Description, 4. Batch Number Reference
       const getFieldRank = (id: string, name: string): number => {

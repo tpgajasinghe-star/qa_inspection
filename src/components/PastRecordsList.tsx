@@ -695,7 +695,7 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
             <div className="p-6 sm:p-8 space-y-8">
               {/* DYNAMIC SECTIONS & TABLE GRIDS (READ-ONLY SECTION BLOCKS) */}
               <div className="space-y-6">
-                {formSchema.sections.map((section, sIdx) => {
+                {(fullRecordData.form_data?.sections || formSchema.sections).map((section, sIdx) => {
                   const tableEl = section.elements?.find(el => el.tableConfig);
                   const nonTableEls = section.elements?.filter(el => !el.tableConfig) || [];
 
@@ -761,7 +761,7 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
                                   const recordedTime = 
                                     fullRecordData.form_data?.columnTimeHeaders?.[timeKey] || 
                                     col.defaultHeaderTime;
-                                  const isTimeCol = col.hasTimeHeader || /time|interval|shift/i.test(col.header);
+                                  const isTimeCol = col.hasTimeHeader || col.type === 'dropdown' || /time|interval|shift|result|online|final/i.test(col.header);
 
                                   return (
                                     <th 

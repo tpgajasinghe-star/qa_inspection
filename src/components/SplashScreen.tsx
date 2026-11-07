@@ -4,11 +4,13 @@ import { Shield, ClipboardCheck, Sparkles } from 'lucide-react';
 interface SplashScreenProps {
   onComplete?: () => void;
   duration?: number;
+  isLoading?: boolean;
 }
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({
   onComplete,
-  duration = 3000,
+  duration = 2600,
+  isLoading = false,
 }) => {
   const [isVisible, setIsVisible] = useState(true);
   const [isFading, setIsFading] = useState(false);
@@ -17,34 +19,34 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
   useEffect(() => {
     const startTime = Date.now();
 
-    // Smoothly animate progress bar to reach 100% at the end of the duration
+    // Smoothly animate progress bar
     const progressInterval = setInterval(() => {
       const elapsed = Date.now() - startTime;
-      const current = Math.min(100, Math.round((elapsed / duration) * 100));
+      const cap = isLoading ? 92 : 100;
+      const current = Math.min(cap, Math.round((elapsed / duration) * 100));
       setProgress(current);
-      if (elapsed >= duration) {
-        clearInterval(progressInterval);
-      }
     }, 25);
 
-    // Timeout to hide splash screen and reveal the main dashboard
-    const hideTimer = setTimeout(() => {
+    return () => clearInterval(progressInterval);
+  }, [duration, isLoading]);
+
+  useEffect(() => {
+    // Hold completion if background session verification is still initializing
+    if (isLoading) return;
+
+    const timer = setTimeout(() => {
+      setProgress(100);
       setIsFading(true);
       const exitTimer = setTimeout(() => {
         setIsVisible(false);
-        if (onComplete) {
-          onComplete();
-        }
+        if (onComplete) onComplete();
       }, 350); // smooth fade exit
 
       return () => clearTimeout(exitTimer);
     }, duration);
 
-    return () => {
-      clearInterval(progressInterval);
-      clearTimeout(hideTimer);
-    };
-  }, [duration, onComplete]);
+    return () => clearTimeout(timer);
+  }, [duration, isLoading, onComplete]);
 
   if (!isVisible) return null;
 

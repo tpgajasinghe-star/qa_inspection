@@ -56,7 +56,8 @@ export default function App() {
     role: authProfileRole, 
     canManageUsers, 
     employeeId, 
-    signOut: authSignOut 
+    signOut: authSignOut,
+    isInitializing
   } = useAuth();
 
   // Splash Screen State (shows on portal launch, auto-hides after 3 seconds)
@@ -296,9 +297,12 @@ export default function App() {
         }}
       />
 
-      {/* QA Inspection Portal Splash Screen (Auto-hides after 3 seconds) */}
+      {/* QA Inspection Portal Splash Screen (Auto-hides after intro animation while session verifies in background) */}
       {showSplash && (
-        <SplashScreen onComplete={() => setShowSplash(false)} />
+        <SplashScreen 
+          isLoading={isInitializing}
+          onComplete={() => setShowSplash(false)} 
+        />
       )}
 
       {/* Background Graphic & Luminous Mesh Overlay */}
