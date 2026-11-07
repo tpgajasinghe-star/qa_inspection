@@ -828,6 +828,33 @@ export const IMD_SECTION_3_QUANTITATIVE_ELEMENTS: SectionElementSchema[] = [
   },
 ];
 
+export const IMD_SECTION_4_SYSTEM_RELEASE_ELEMENTS: SectionElementSchema[] = [
+  {
+    id: 'el-sr-shift',
+    name: 'Shift Selection',
+    type: 'radio',
+    subItems: ['Day Shift', 'Night Shift'],
+  },
+  {
+    id: 'el-sr-serial',
+    name: 'Serial no',
+    type: 'data_field',
+    subItems: [],
+  },
+  {
+    id: 'el-sr-qty',
+    name: 'Qty (Pcs)',
+    type: 'data_field',
+    subItems: [],
+  },
+  {
+    id: 'el-sr-operator',
+    name: 'Machine operator',
+    type: 'data_field',
+    subItems: [],
+  },
+];
+
 export const IMD_FORM_INITIAL: InspectionFormCardData = {
   id: 'form-imd',
   name: 'IMD',
@@ -874,6 +901,25 @@ export const IMD_FORM_INITIAL: InspectionFormCardData = {
       elements: IMD_SECTION_3_QUANTITATIVE_ELEMENTS,
       isSaved: true,
       savedData: {},
+    },
+    {
+      id: 'sec-imd-4',
+      sectionNumber: 4,
+      title: '4. SYSTEM RELEASE',
+      elements: IMD_SECTION_4_SYSTEM_RELEASE_ELEMENTS,
+      isSaved: true,
+      savedData: {
+        'el-sr-shift': 'Day Shift',
+        'el-sr-serial': '',
+        'el-sr-qty': '',
+        'el-sr-operator': '',
+        'el-sr-day-serial': '',
+        'el-sr-day-qty': '',
+        'el-sr-day-operator': '',
+        'el-sr-night-serial': '',
+        'el-sr-night-qty': '',
+        'el-sr-night-operator': '',
+      },
     },
   ],
   footer: {
@@ -1264,6 +1310,19 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
     initialValue: string;
     onApply: (newTime: string) => void;
   } | null>(null);
+
+  // Track submitted online inspection runs (Run 1, Run 2, etc.)
+  const [onlineRunSubmittedStatus, setOnlineRunSubmittedStatus] = useState<Record<string, { submitted: boolean; time: string }>>({});
+
+  const handleOnlineRunSubmit = (_sectionId: string, colId: string, colHeader: string) => {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setOnlineRunSubmittedStatus(prev => ({
+      ...prev,
+      [colId]: { submitted: true, time: timeStr },
+    }));
+    showToast(`✓ Checkpoint run for "${colHeader}" successfully submitted and saved (${timeStr})!`);
+  };
 
   // Persist forms to localStorage
   useEffect(() => {
@@ -3753,6 +3812,53 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                 );
               })}
             </tbody>
+            <tfoot>
+              <tr className="bg-slate-50 border-t border-slate-300">
+                <td
+                  colSpan={Math.max(1, columns.filter(c => !c.id.includes('online') && !/online/i.test(c.header) && c.id !== 'col-final' && !/final/i.test(c.header)).length)}
+                  className="px-3 py-2 border-r border-slate-200"
+                />
+                {columns.map(col => {
+                  const isOnlineCol = col.id.includes('online') || /online/i.test(col.header);
+                  const isFinalCol = col.id === 'col-final' || /final/i.test(col.header);
+                  if (!isOnlineCol && !isFinalCol) return null;
+
+                  if (isOnlineCol) {
+                    const isSubmitted = onlineRunSubmittedStatus[col.id]?.submitted;
+                    const timeLogged = onlineRunSubmittedStatus[col.id]?.time;
+                    return (
+                      <td key={col.id} className="px-2 py-2.5 text-center border-r border-slate-200">
+                        <div className="flex flex-col items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleOnlineRunSubmit(savedSection.id, col.id, col.header)}
+                            className={`w-full max-w-[120px] px-2.5 py-1.5 rounded-lg text-[11px] font-bold shadow-2xs flex items-center justify-center gap-1 transition cursor-pointer ${
+                              isSubmitted
+                                ? 'bg-emerald-700 text-white hover:bg-emerald-600 ring-1 ring-emerald-400'
+                                : 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95'
+                            }`}
+                            title={`Submit results for ${col.header}`}
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>{isSubmitted ? '✓ Submitted' : 'Submit'}</span>
+                          </button>
+                          {timeLogged && (
+                            <span className="text-[9px] font-mono text-emerald-700 font-bold block">
+                              {timeLogged}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    );
+                  }
+
+                  // Final column: no button, no label
+                  return (
+                    <td key={col.id} className="px-2 py-2 text-center" />
+                  );
+                })}
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
@@ -4063,6 +4169,128 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
             const avgRunner = runnerWeights.length > 0 ? (runnerWeights.reduce((a, b) => a + b, 0) / runnerWeights.length).toFixed(2) : '';
 
             if (regularElements.length === 0) return null;
+
+            const isSystemRelease = savedSection.title.toLowerCase().includes('system release') || savedSection.id === 'sec-imd-4';
+
+            if (isSystemRelease) {
+              const activeShift = savedSection.savedData?.['el-sr-shift'] || 'Day Shift';
+              const daySerial = savedSection.savedData?.['el-sr-day-serial'] ?? (activeShift === 'Day Shift' ? (savedSection.savedData?.['el-sr-serial'] || '') : '');
+              const dayQty = savedSection.savedData?.['el-sr-day-qty'] ?? (activeShift === 'Day Shift' ? (savedSection.savedData?.['el-sr-qty'] || '') : '');
+              const dayOperator = savedSection.savedData?.['el-sr-day-operator'] ?? (activeShift === 'Day Shift' ? (savedSection.savedData?.['el-sr-operator'] || '') : '');
+              
+              const nightSerial = savedSection.savedData?.['el-sr-night-serial'] ?? (activeShift === 'Night Shift' ? (savedSection.savedData?.['el-sr-serial'] || '') : '');
+              const nightQty = savedSection.savedData?.['el-sr-night-qty'] ?? (activeShift === 'Night Shift' ? (savedSection.savedData?.['el-sr-qty'] || '') : '');
+              const nightOperator = savedSection.savedData?.['el-sr-night-operator'] ?? (activeShift === 'Night Shift' ? (savedSection.savedData?.['el-sr-operator'] || '') : '');
+
+              const updateShift = (shift: string) => {
+                handlePreviewFieldChange(savedSection.id, 'el-sr-shift', shift);
+                if (shift === 'Day Shift') {
+                  handlePreviewFieldChange(savedSection.id, 'el-sr-serial', daySerial);
+                  handlePreviewFieldChange(savedSection.id, 'el-sr-qty', dayQty);
+                  handlePreviewFieldChange(savedSection.id, 'el-sr-operator', dayOperator);
+                } else {
+                  handlePreviewFieldChange(savedSection.id, 'el-sr-serial', nightSerial);
+                  handlePreviewFieldChange(savedSection.id, 'el-sr-qty', nightQty);
+                  handlePreviewFieldChange(savedSection.id, 'el-sr-operator', nightOperator);
+                }
+              };
+
+              const updateField = (field: 'serial' | 'qty' | 'operator', val: string, shift: 'Day Shift' | 'Night Shift') => {
+                if (shift === 'Day Shift') {
+                  handlePreviewFieldChange(savedSection.id, `el-sr-day-${field}`, val);
+                  if (activeShift === 'Day Shift') {
+                    handlePreviewFieldChange(savedSection.id, `el-sr-${field}`, val);
+                  }
+                } else {
+                  handlePreviewFieldChange(savedSection.id, `el-sr-night-${field}`, val);
+                  if (activeShift === 'Night Shift') {
+                    handlePreviewFieldChange(savedSection.id, `el-sr-${field}`, val);
+                  }
+                }
+              };
+
+              return (
+                <div className="p-6 space-y-6">
+                  {/* Shift Selection Radio & Form Fields */}
+                  <div className="bg-slate-50/80 p-5 rounded-xl border border-slate-200 space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <span className="text-xs font-bold text-slate-800 uppercase tracking-wide block">
+                          Shift Selection
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                          Select Day Shift or Night Shift to input parameters or enter directly in table
+                        </span>
+                      </div>
+                      <div className="inline-flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-300 shadow-2xs">
+                        {['Day Shift', 'Night Shift'].map((shift) => (
+                          <label
+                            key={shift}
+                            onClick={() => updateShift(shift)}
+                            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition flex items-center gap-2 ${
+                              activeShift === shift
+                                ? 'bg-blue-600 text-white shadow-xs'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name={`sr-shift-${savedSection.id}`}
+                              value={shift}
+                              checked={activeShift === shift}
+                              onChange={() => updateShift(shift)}
+                              className="sr-only"
+                            />
+                            <span className={`w-2 h-2 rounded-full ${activeShift === shift ? 'bg-white' : 'bg-slate-400'}`} />
+                            <span>{shift}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Quick Fields for Active Shift */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-slate-200">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Serial no ({activeShift})
+                        </label>
+                        <input
+                          type="text"
+                          value={activeShift === 'Day Shift' ? daySerial : nightSerial}
+                          onChange={(e) => updateField('serial', e.target.value, activeShift as any)}
+                          placeholder="Enter Serial no"
+                          className="w-full px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Qty (Pcs) ({activeShift})
+                        </label>
+                        <input
+                          type="text"
+                          value={activeShift === 'Day Shift' ? dayQty : nightQty}
+                          onChange={(e) => updateField('qty', e.target.value, activeShift as any)}
+                          placeholder="Quantity in pcs"
+                          className="w-full px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Machine operator ({activeShift})
+                        </label>
+                        <input
+                          type="text"
+                          value={activeShift === 'Day Shift' ? dayOperator : nightOperator}
+                          onChange={(e) => updateField('operator', e.target.value, activeShift as any)}
+                          placeholder="Machine operator name / ID"
+                          className="w-full px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
 
             return (
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

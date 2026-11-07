@@ -440,6 +440,19 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
     currentValue: string;
   } | null>(null);
 
+  // Track individual online inspection run submissions (Run 1, Run 2, etc.)
+  const [runSubmittedStatus, setRunSubmittedStatus] = useState<Record<string, { submitted: boolean; time: string }>>({});
+
+  const handleOnlineRunSubmit = (_sectionId: string, colId: string, colHeader: string) => {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setRunSubmittedStatus(prev => ({
+      ...prev,
+      [colId]: { submitted: true, time: timeStr },
+    }));
+    toast.success(`Online Inspection checkpoint for "${colHeader}" submitted successfully (${timeStr})!`);
+  };
+
   // General field values for non-table elements (e.g. Section 1 data fields)
   const [fieldValues, setFieldValues] = useState<Record<string, string>>(() => {
     const vals: Record<string, string> = {};
@@ -941,8 +954,133 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
             const nonTableEls = section.elements.filter(el => !el.tableConfig);
             const isTableFirst = section.elements.length > 0 && Boolean(section.elements[0].tableConfig);
 
-            const renderNonTableContent = () => (
-              nonTableEls.length > 0 && (
+            const renderNonTableContent = () => {
+              if (nonTableEls.length === 0) return null;
+
+              const isSystemRelease = section.title.toLowerCase().includes('system release') || section.id === 'sec-imd-4';
+
+              if (isSystemRelease) {
+                const activeShift = fieldValues['el-sr-shift'] || 'Day Shift';
+                const daySerial = fieldValues['el-sr-day-serial'] ?? (activeShift === 'Day Shift' ? (fieldValues['el-sr-serial'] || '') : '');
+                const dayQty = fieldValues['el-sr-day-qty'] ?? (activeShift === 'Day Shift' ? (fieldValues['el-sr-qty'] || '') : '');
+                const dayOperator = fieldValues['el-sr-day-operator'] ?? (activeShift === 'Day Shift' ? (fieldValues['el-sr-operator'] || '') : '');
+                
+                const nightSerial = fieldValues['el-sr-night-serial'] ?? (activeShift === 'Night Shift' ? (fieldValues['el-sr-serial'] || '') : '');
+                const nightQty = fieldValues['el-sr-night-qty'] ?? (activeShift === 'Night Shift' ? (fieldValues['el-sr-qty'] || '') : '');
+                const nightOperator = fieldValues['el-sr-night-operator'] ?? (activeShift === 'Night Shift' ? (fieldValues['el-sr-operator'] || '') : '');
+
+                const updateShift = (shift: string) => {
+                  setFieldValues(prev => ({
+                    ...prev,
+                    'el-sr-shift': shift,
+                    'el-sr-serial': shift === 'Day Shift' ? daySerial : nightSerial,
+                    'el-sr-qty': shift === 'Day Shift' ? dayQty : nightQty,
+                    'el-sr-operator': shift === 'Day Shift' ? dayOperator : nightOperator,
+                  }));
+                };
+
+                const updateField = (field: 'serial' | 'qty' | 'operator', val: string, shift: 'Day Shift' | 'Night Shift') => {
+                  setFieldValues(prev => {
+                    const next = { ...prev };
+                    if (shift === 'Day Shift') {
+                      next[`el-sr-day-${field}`] = val;
+                      if (activeShift === 'Day Shift') {
+                        next[`el-sr-${field}`] = val;
+                      }
+                    } else {
+                      next[`el-sr-night-${field}`] = val;
+                      if (activeShift === 'Night Shift') {
+                        next[`el-sr-${field}`] = val;
+                      }
+                    }
+                    return next;
+                  });
+                };
+
+                return (
+                  <div className="p-5 space-y-6">
+                    {/* Shift Selection Radio & Form Fields */}
+                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200/90 space-y-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <span className="text-xs font-bold text-slate-800 uppercase tracking-wide block">
+                            Shift Selection
+                          </span>
+                          <span className="text-[11px] text-slate-500">
+                            Select Day Shift or Night Shift to input parameters or enter directly in table below
+                          </span>
+                        </div>
+                        <div className="inline-flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-300 shadow-2xs">
+                          {['Day Shift', 'Night Shift'].map((shift) => (
+                            <label
+                              key={shift}
+                              onClick={() => updateShift(shift)}
+                              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition flex items-center gap-2 ${
+                                activeShift === shift
+                                  ? 'bg-blue-600 text-white shadow-xs'
+                                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name={`sr-shift-deployed-${section.id}`}
+                                value={shift}
+                                checked={activeShift === shift}
+                                onChange={() => updateShift(shift)}
+                                className="sr-only"
+                              />
+                              <span className={`w-2 h-2 rounded-full ${activeShift === shift ? 'bg-white' : 'bg-slate-400'}`} />
+                              <span>{shift}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Quick Fields for Active Shift */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-slate-200">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">
+                            Serial no ({activeShift})
+                          </label>
+                          <input
+                            type="text"
+                            value={activeShift === 'Day Shift' ? daySerial : nightSerial}
+                            onChange={(e) => updateField('serial', e.target.value, activeShift as any)}
+                            placeholder="Enter Serial no"
+                            className="w-full px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">
+                            Qty (Pcs) ({activeShift})
+                          </label>
+                          <input
+                            type="text"
+                            value={activeShift === 'Day Shift' ? dayQty : nightQty}
+                            onChange={(e) => updateField('qty', e.target.value, activeShift as any)}
+                            placeholder="Quantity in pcs"
+                            className="w-full px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1">
+                            Machine operator ({activeShift})
+                          </label>
+                          <input
+                            type="text"
+                            value={activeShift === 'Day Shift' ? dayOperator : nightOperator}
+                            onChange={(e) => updateField('operator', e.target.value, activeShift as any)}
+                            placeholder="Machine operator name / ID"
+                            className="w-full px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
                 <div className={`p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 ${nonTableEls.length >= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4 border-b border-slate-100 bg-slate-50/50`}>
                   {nonTableEls.map(el => {
                     const isInspectionLog = section.sectionNumber === 1 || section.id === 'sec-imd-1' || /log/i.test(section.title);
@@ -1186,8 +1324,8 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                       );
                     })}
                   </div>
-                )
-              );
+                );
+              };
 
               const renderTableContent = () => (
                 tableEl && tableEl.tableConfig && (
@@ -1201,6 +1339,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                             const lastOnlineColId = onlineCols.length > 0 ? onlineCols[onlineCols.length - 1].id : 'col-online';
                             const isLastOnlineCol = col.id === lastOnlineColId;
                             const isFinalCol = /final/i.test(col.header) || col.id === 'col-final';
+                            const isOnlineCol = /online/i.test(col.header) || col.id.includes('online');
                             const isTimeCol = !isFinalCol && (col.hasTimeHeader || (col.type === 'dropdown' && /time|interval|online/i.test(col.header)) || /online/i.test(col.header));
                             const isCustomOnlineCol = col.id.startsWith('col-online-run-');
 
@@ -1480,6 +1619,53 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                           );
                         })}
                       </tbody>
+                      <tfoot>
+                        <tr className="bg-slate-50 border-t border-slate-300">
+                          <td
+                            colSpan={Math.max(1, tableEl.tableConfig?.columns.filter(c => !c.id.includes('online') && !/online/i.test(c.header) && c.id !== 'col-final' && !/final/i.test(c.header)).length || 3)}
+                            className="px-3 py-2 border-r border-slate-200"
+                          />
+                          {tableEl.tableConfig?.columns.map(col => {
+                            const isOnlineCol = col.id.includes('online') || /online/i.test(col.header);
+                            const isFinalCol = col.id === 'col-final' || /final/i.test(col.header);
+                            if (!isOnlineCol && !isFinalCol) return null;
+
+                            if (isOnlineCol) {
+                              const isSubmitted = runSubmittedStatus[col.id]?.submitted;
+                              const timeLogged = runSubmittedStatus[col.id]?.time;
+                              return (
+                                <td key={col.id} className="px-2 py-2.5 text-center border-r border-slate-200">
+                                  <div className="flex flex-col items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOnlineRunSubmit(section.id, col.id, col.header)}
+                                      className={`w-full max-w-[120px] px-2.5 py-1.5 rounded-lg text-[11px] font-bold shadow-2xs flex items-center justify-center gap-1 transition cursor-pointer ${
+                                        isSubmitted
+                                          ? 'bg-emerald-700 text-white hover:bg-emerald-600 ring-1 ring-emerald-400'
+                                          : 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95'
+                                      }`}
+                                      title={`Submit checkpoint results for ${col.header}`}
+                                    >
+                                      <CheckCircle2 className="w-3.5 h-3.5" />
+                                      <span>{isSubmitted ? '✓ Submitted' : 'Submit'}</span>
+                                    </button>
+                                    {timeLogged && (
+                                      <span className="text-[9px] font-mono text-emerald-700 font-bold block">
+                                        {timeLogged}
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              );
+                            }
+
+                            // Final column: no button, no label
+                            return (
+                              <td key={col.id} className="px-2 py-2 text-center" />
+                            );
+                          })}
+                        </tr>
+                      </tfoot>
                     </table>
                   </div>
                 )
