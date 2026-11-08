@@ -38,6 +38,7 @@ export const SEED_FACTORY_ITEMS: DbItem[] = [
   { item_code: '3000000571', description: 'Single Sunk Box', series: 'Accessories', category: 'Sunk Boxes' },
   { item_code: '3000000572', description: 'Kv Junction Box', series: 'Accessories', category: 'Junction Box' },
   { item_code: '3000000573', description: 'Straight Batten Holder', series: 'Accessories', category: 'Holders' },
+  { item_code: '3000000780', description: "10 A, 'L' Terminal (Brass / Copper Alloy)", series: 'Raw Material', category: 'Terminals' },
   { item_code: '3000018402', description: 'Kevilton 9W High-Lumen LED Bulb', series: 'LED', category: 'Kevilton LED' },
 ];
 

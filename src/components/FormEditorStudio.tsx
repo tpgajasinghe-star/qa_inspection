@@ -934,6 +934,378 @@ export const IMD_FORM_INITIAL: InspectionFormCardData = {
   productSeries: 'IMD / Injection',
 };
 
+// ============================================================================
+// INCOMING MATERIAL INSPECTION FORM SCHEMA (Calibrated from F17/1 Reference)
+// ============================================================================
+export const INCOMING_TERMINAL_SECTION_1_ELEMENTS: SectionElementSchema[] = [
+  { id: 'el-in-supplier', name: 'Supplier', type: 'data_field', subItems: [] },
+  { id: 'el-in-supp-ref', name: 'Supplier Ref', type: 'data_field', subItems: [] },
+  { id: 'el-in-qty-rec', name: 'Qty. Received', type: 'data_field', subItems: [] },
+  { id: 'el-in-lot', name: 'Inspection lot', type: 'data_field', subItems: [] },
+  { id: 'el-in-rec-date', name: 'Received date', type: 'date_picker', subItems: [] },
+  { id: 'el-in-slip-date', name: 'Packing Slip date', type: 'date_picker', subItems: [] },
+  { id: 'el-item-code', name: 'Material Code', type: 'data_field', subItems: [] },
+  { id: 'el-desc', name: 'Product / Type', type: 'data_field', subItems: [] },
+];
+
+export const INCOMING_TERMINAL_SECTION_2_DIMENSIONS_COLUMNS: TableColumnSchema[] = [
+  { id: 'col-in-dim-param', header: 'Dimensions / Parameter', type: 'text_label', width: '280px' },
+  { id: 'col-in-dim-s1', header: 'S1', type: 'number_input', width: '90px' },
+  { id: 'col-in-dim-s2', header: 'S2', type: 'number_input', width: '90px' },
+  { id: 'col-in-dim-s3', header: 'S3', type: 'number_input', width: '90px' },
+  { id: 'col-in-dim-min', header: 'min:', type: 'text_label', width: '85px' },
+  { id: 'col-in-dim-max', header: 'max:', type: 'text_label', width: '85px' },
+];
+
+export const INCOMING_TERMINAL_SECTION_2_DIMENSIONS_ROWS: TableRowSchema[] = [
+  {
+    id: 'row-in-dim-1',
+    isGroupHeader: false,
+    inputType: 'number',
+    unit: 'mm',
+    cells: {
+      'col-in-dim-param': 'Height > H (Terminal)',
+      'col-in-dim-s1': '',
+      'col-in-dim-s2': '',
+      'col-in-dim-s3': '',
+      'col-in-dim-min': '10.7',
+      'col-in-dim-max': '10.9',
+    },
+  },
+  {
+    id: 'row-in-dim-2',
+    isGroupHeader: false,
+    inputType: 'number',
+    unit: 'mm',
+    cells: {
+      'col-in-dim-param': 'Width > W (Terminal)',
+      'col-in-dim-s1': '',
+      'col-in-dim-s2': '',
+      'col-in-dim-s3': '',
+      'col-in-dim-min': '5.2',
+      'col-in-dim-max': '5.3',
+    },
+  },
+  {
+    id: 'row-in-dim-3',
+    isGroupHeader: false,
+    inputType: 'number',
+    unit: 'mm',
+    cells: {
+      'col-in-dim-param': 'Breadth > B (Terminal)',
+      'col-in-dim-s1': '',
+      'col-in-dim-s2': '',
+      'col-in-dim-s3': '',
+      'col-in-dim-min': '5.8',
+      'col-in-dim-max': '6.0',
+    },
+  },
+  {
+    id: 'row-in-dim-4',
+    isGroupHeader: false,
+    inputType: 'number',
+    unit: 'mm',
+    cells: {
+      'col-in-dim-param': 'Height- > P1 (Riveting Pillar)',
+      'col-in-dim-s1': '',
+      'col-in-dim-s2': '',
+      'col-in-dim-s3': '',
+      'col-in-dim-min': '1.9',
+      'col-in-dim-max': '2.0',
+    },
+  },
+  {
+    id: 'row-in-dim-5',
+    isGroupHeader: false,
+    inputType: 'number',
+    unit: 'mm',
+    cells: {
+      'col-in-dim-param': 'diameter (outer) (Riveting Pillar)',
+      'col-in-dim-s1': '',
+      'col-in-dim-s2': '',
+      'col-in-dim-s3': '',
+      'col-in-dim-min': '3.1',
+      'col-in-dim-max': '3.2',
+    },
+  },
+  {
+    id: 'row-in-dim-6',
+    isGroupHeader: false,
+    inputType: 'number',
+    unit: 'mm',
+    cells: {
+      'col-in-dim-param': 'C/H diameter',
+      'col-in-dim-s1': '',
+      'col-in-dim-s2': '',
+      'col-in-dim-s3': '',
+      'col-in-dim-min': '3.5',
+      'col-in-dim-max': '3.7',
+    },
+  },
+  {
+    id: 'row-in-dim-7',
+    isGroupHeader: false,
+    inputType: 'number',
+    unit: 'mm',
+    cells: {
+      'col-in-dim-param': 'Distance from screw hole to bottom',
+      'col-in-dim-s1': '',
+      'col-in-dim-s2': '',
+      'col-in-dim-s3': '',
+      'col-in-dim-min': '1.4',
+      'col-in-dim-max': '1.6',
+    },
+  },
+  {
+    id: 'row-in-dim-8',
+    isGroupHeader: false,
+    inputType: 'number',
+    unit: 'mm',
+    cells: {
+      'col-in-dim-param': 'Riveting hole inner diameter',
+      'col-in-dim-s1': '',
+      'col-in-dim-s2': '',
+      'col-in-dim-s3': '',
+      'col-in-dim-min': '1.55',
+      'col-in-dim-max': '1.65',
+    },
+  },
+];
+
+export const INCOMING_TERMINAL_SECTION_3_MASTER_COLUMNS: TableColumnSchema[] = [
+  { id: 'col-in-mc-param', header: 'Master Inspection Characteristics', type: 'text_label', width: '250px' },
+  { id: 'col-in-mc-proc', header: 'Sampling Procedure', type: 'text_label', width: '95px' },
+  { id: 'col-in-mc-sample-qty', header: 'Sample Qty (Pcs)', type: 'number_input', width: '110px' },
+  { id: 'col-in-mc-defect', header: 'Defect. Qty.', type: 'number_input', width: '95px' },
+  { id: 'col-in-mc-status', header: 'Quality Status', type: 'dropdown', options: ['--Select--', 'Satisfactory', 'Unsatisfactory', 'Pass', 'Fail', 'N/A'], width: '140px' },
+  { id: 'col-in-mc-specs', header: 'Specifications', type: 'text_label', width: '270px' },
+];
+
+export const INCOMING_TERMINAL_SECTION_3_MASTER_ROWS: TableRowSchema[] = [
+  {
+    id: 'row-in-mc-1',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-in-mc-param': '1. Color',
+      'col-in-mc-proc': 'SP01-',
+      'col-in-mc-sample-qty': '',
+      'col-in-mc-defect': '0',
+      'col-in-mc-status': '--Select--',
+      'col-in-mc-specs': 'As per Std. Sample',
+    },
+  },
+  {
+    id: 'row-in-mc-2',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-in-mc-param': '2. Co-ordination',
+      'col-in-mc-proc': 'SP01-',
+      'col-in-mc-sample-qty': '',
+      'col-in-mc-defect': '0',
+      'col-in-mc-status': '--Select--',
+      'col-in-mc-specs': 'Coordination with D/housing shall be correct',
+    },
+  },
+  {
+    id: 'row-in-mc-3',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-in-mc-param': '3. Tapering – C/H entry',
+      'col-in-mc-proc': 'SP01-',
+      'col-in-mc-sample-qty': '',
+      'col-in-mc-defect': '0',
+      'col-in-mc-status': '--Select--',
+      'col-in-mc-specs': 'shall be correct.',
+    },
+  },
+  {
+    id: 'row-in-mc-4',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-in-mc-param': '4. Threading hole positioning',
+      'col-in-mc-proc': 'SP01-',
+      'col-in-mc-sample-qty': '',
+      'col-in-mc-defect': '0',
+      'col-in-mc-status': '--Select--',
+      'col-in-mc-specs': 'shall be correct',
+    },
+  },
+  {
+    id: 'row-in-mc-5',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-in-mc-param': '5. Mechanical - Torque',
+      'col-in-mc-proc': 'Fix-3',
+      'col-in-mc-sample-qty': '3',
+      'col-in-mc-defect': '0',
+      'col-in-mc-status': '--Select--',
+      'col-in-mc-specs': '> 0.5 N m',
+    },
+  },
+  {
+    id: 'row-in-mc-6',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-in-mc-param': '6. Application - Threading',
+      'col-in-mc-proc': 'SP01-',
+      'col-in-mc-sample-qty': '',
+      'col-in-mc-defect': '0',
+      'col-in-mc-status': '--Select--',
+      'col-in-mc-specs': 'Free movement',
+    },
+  },
+  {
+    id: 'row-in-mc-7',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-in-mc-param': '7. Riveting - Tightness',
+      'col-in-mc-proc': 'SP01-',
+      'col-in-mc-sample-qty': '',
+      'col-in-mc-defect': '0',
+      'col-in-mc-status': '--Select--',
+      'col-in-mc-specs': 'Shall be riveted well with sw.contact',
+    },
+  },
+  {
+    id: 'row-in-mc-8',
+    isGroupHeader: false,
+    inputType: 'dropdown',
+    cells: {
+      'col-in-mc-param': '8. Labeling and packing',
+      'col-in-mc-proc': 'SP01-',
+      'col-in-mc-sample-qty': '',
+      'col-in-mc-defect': '0',
+      'col-in-mc-status': '--Select--',
+      'col-in-mc-specs': 'Each box / bag should be labeled with a packing slip',
+    },
+  },
+];
+
+export const INCOMING_TERMINAL_SECTION_4_CONCLUSION_ELEMENTS: SectionElementSchema[] = [
+  {
+    id: 'el-in-rivet-eval',
+    name: 'Sample got riveted on',
+    type: 'radio',
+    subItems: ['Satisfactory (✓)', 'Unsatisfactory (X)', 'N/A'],
+  },
+  {
+    id: 'el-in-lot-conclusion',
+    name: 'Conclusion / Lot Disposition',
+    type: 'radio',
+    subItems: ['Accepted', 'Rejected', 'Sort out', 'Rework based on visual inspection & application'],
+  },
+];
+
+export const INCOMING_TERMINAL_FORM_INITIAL: InspectionFormCardData = {
+  id: 'form-incoming-10a-terminal',
+  name: "Incoming - 10A 'L' Terminal",
+  status: 'Active',
+  createdAt: '2026-11-08',
+  updatedAt: 'Just now',
+  documentHeader: {
+    documentNo: 'F17/1',
+    dateOfIssue: '2024-03-20',
+    revisionNo: '01',
+    documentType: 'Inspection Report of Incoming Material',
+    productType: "10 A, 'L' Terminal",
+    refStandard: 'ISO 2859 (SP1)',
+  },
+  sections: [
+    {
+      id: 'sec-in-term-1',
+      sectionNumber: 1,
+      title: '1. INCOMING MATERIAL TRACEABILITY',
+      elements: INCOMING_TERMINAL_SECTION_1_ELEMENTS,
+      isSaved: true,
+      savedData: {
+        'el-in-supplier': '',
+        'el-in-supp-ref': '',
+        'el-in-qty-rec': '',
+        'el-in-lot': '',
+        'el-in-rec-date': '2026-11-08',
+        'el-in-slip-date': '2026-11-08',
+        'el-item-code': '3000000780',
+        'el-desc': "10 A, 'L' Terminal",
+      },
+    },
+    {
+      id: 'sec-in-term-2',
+      sectionNumber: 2,
+      title: '2. DIMENSIONAL INSPECTION (Units in mm)',
+      elements: [
+        {
+          id: 'el-in-dim-table',
+          name: 'Dimensional Inspection Table (Units in mm)',
+          type: 'table_grid',
+          subItems: [],
+          tableConfig: {
+            columns: INCOMING_TERMINAL_SECTION_2_DIMENSIONS_COLUMNS,
+            rows: INCOMING_TERMINAL_SECTION_2_DIMENSIONS_ROWS,
+          },
+        },
+      ],
+      isSaved: true,
+      savedData: {},
+    },
+    {
+      id: 'sec-in-term-3',
+      sectionNumber: 3,
+      title: '3. MASTER INSPECTION CHARACTERISTICS',
+      elements: [
+        {
+          id: 'el-in-sp01-qty',
+          name: 'SP01- Sample Size (Pcs) [Based on Lot Qty]',
+          type: 'data_field',
+          subItems: [],
+        },
+        {
+          id: 'el-in-mc-table',
+          name: 'Master Inspection Characteristics Table (Visual & Mechanical Tests)',
+          type: 'table_grid',
+          subItems: [],
+          tableConfig: {
+            columns: INCOMING_TERMINAL_SECTION_3_MASTER_COLUMNS,
+            rows: INCOMING_TERMINAL_SECTION_3_MASTER_ROWS,
+          },
+        },
+      ],
+      isSaved: true,
+      savedData: {
+        'el-in-sp01-qty': '',
+      },
+    },
+    {
+      id: 'sec-in-term-4',
+      sectionNumber: 4,
+      title: '4. APPLICATION & LOT CONCLUSION',
+      elements: INCOMING_TERMINAL_SECTION_4_CONCLUSION_ELEMENTS,
+      isSaved: true,
+      savedData: {
+        'el-in-rivet-eval': 'Satisfactory (✓)',
+        'el-in-lot-conclusion': 'Accepted',
+      },
+    },
+  ],
+  footer: {
+    ...DEFAULT_FORM_FOOTER,
+    enabled: true,
+    onlineInspectorName: '',
+    onlineEmpNo: '',
+    finalInspectorName: '',
+    finalEmpNo: '',
+    remarks: '',
+  },
+  notes: "Incoming material quality inspection report for 10 A, 'L' Terminal as per Doc F17/1 with Dimensional Inspection (mm) and Master Inspection Characteristics.",
+  productSeries: 'Incoming / Raw Material',
+};
+
 export interface SectionBlockSchema {
   id: string;
   sectionNumber: number;
@@ -948,6 +1320,7 @@ export const LOCAL_STORAGE_FORMS_KEY = 'qc_inspection_forms_v2';
 
 export const DEFAULT_FORMS_INITIAL: InspectionFormCardData[] = [
   IMD_FORM_INITIAL,
+  INCOMING_TERMINAL_FORM_INITIAL,
   {
     id: 'form-testing-1',
     name: 'Testing_1',
@@ -1141,6 +1514,31 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
           } else {
             // Add IMD form directly visible in the Form Directory gallery
             parsed.splice(1, 0, IMD_FORM_INITIAL);
+          }
+
+          // Ensure Incoming 10A Terminal form is present and updated
+          const incomingTerminalIdx = parsed.findIndex((f: InspectionFormCardData) => 
+            f.id === 'form-incoming-10a-terminal' || 
+            f.name?.toLowerCase().includes("10a 'l' terminal") || 
+            f.name?.toLowerCase().includes("10 a, 'l' terminal") ||
+            f.name?.toLowerCase().includes("incoming - 10a")
+          );
+          if (incomingTerminalIdx !== -1) {
+            parsed[incomingTerminalIdx] = {
+              ...parsed[incomingTerminalIdx],
+              ...INCOMING_TERMINAL_FORM_INITIAL,
+              id: parsed[incomingTerminalIdx].id || 'form-incoming-10a-terminal',
+              name: "Incoming - 10A 'L' Terminal",
+              sections: INCOMING_TERMINAL_FORM_INITIAL.sections,
+              footer: parsed[incomingTerminalIdx].footer || INCOMING_TERMINAL_FORM_INITIAL.footer,
+              documentHeader: {
+                ...INCOMING_TERMINAL_FORM_INITIAL.documentHeader,
+                ...(parsed[incomingTerminalIdx].documentHeader || {}),
+              },
+            };
+          } else {
+            // Add Incoming form directly visible in the Form Directory gallery
+            parsed.splice(2, 0, INCOMING_TERMINAL_FORM_INITIAL);
           }
 
           // Sanitize table grids: dropdowns default to --Select--, manual text rows have blank space (no dummy values)
@@ -3645,6 +4043,7 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                       const isParamCol = col.id.includes('param') || col.header.toLowerCase().includes('param');
                       const isMicCol = col.id === 'col-mic' || col.id === 'col-fi-mic' || /mic/i.test(col.header);
                       const isSpecCol = col.id === 'col-specs' || col.id === 'col-fi-specs' || /spec/i.test(col.header);
+                      const isProcCol = col.id === 'col-in-mc-proc' || /procedure/i.test(col.header);
 
                       const rawVal = savedSection.savedData?.[cellKey] ?? (row.cells[col.id] || '');
                       const currVal = isRowManualText && (rawVal === 'Pass' || rawVal === 'Fail' || rawVal === 'N/A' || rawVal === '--Select--' || rawVal === '--Select-' || rawVal === '18.4 mV' || rawVal === '19.1 mV' || rawVal === '17.8 mV')
@@ -3775,6 +4174,16 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                               </select>
                               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
                             </div>
+                          ) : isProcCol ? (
+                            <div className="flex items-center justify-center">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
+                                (currVal || row.cells[col.id] || '').toLowerCase().includes('fix')
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                  : 'bg-blue-100 text-blue-800 border border-blue-300 font-mono'
+                              }`}>
+                                {currVal || row.cells[col.id] || '-'}
+                              </span>
+                            </div>
                           ) : isParamCol ? (
                             <div className="font-semibold text-slate-800">
                               {currVal || row.cells[col.id] || '-'}
@@ -3787,7 +4196,7 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                                 handlePreviewFieldChange(savedSection.id, cellKey, e.target.value)
                               }
                               placeholder=""
-                              className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                              className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono text-center"
                             />
                           ) : col.type === 'number_input' ? (
                             <input
@@ -3797,8 +4206,8 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                               onChange={(e) =>
                                 handlePreviewFieldChange(savedSection.id, cellKey, e.target.value)
                               }
-                              placeholder=""
-                              className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 bg-white text-slate-800 font-mono focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                              placeholder={col.id === 'col-in-mc-sample-qty' ? 'Pcs' : col.id === 'col-in-mc-defect' ? '0' : ''}
+                              className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 bg-white text-slate-800 font-mono focus:outline-none focus:ring-1 focus:ring-emerald-500 text-center"
                             />
                           ) : (
                             <div className="font-medium text-slate-800">
@@ -3812,53 +4221,49 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                 );
               })}
             </tbody>
-            <tfoot>
-              <tr className="bg-slate-50 border-t border-slate-300">
-                <td
-                  colSpan={Math.max(1, columns.filter(c => !c.id.includes('online') && !/online/i.test(c.header) && c.id !== 'col-final' && !/final/i.test(c.header)).length)}
-                  className="px-3 py-2 border-r border-slate-200"
-                />
-                {columns.map(col => {
-                  const isOnlineCol = col.id.includes('online') || /online/i.test(col.header);
-                  const isFinalCol = col.id === 'col-final' || /final/i.test(col.header);
-                  if (!isOnlineCol && !isFinalCol) return null;
+            {columns.some(col => (col.id.includes('online') || /online/i.test(col.header)) && !(/final/i.test(col.header) || col.id === 'col-final')) && (
+              <tfoot>
+                <tr className="bg-slate-50 border-t border-slate-300">
+                  {columns.map(col => {
+                    const isOnlineCol = (col.id.includes('online') || /online/i.test(col.header)) && !(/final/i.test(col.header) || col.id === 'col-final');
 
-                  if (isOnlineCol) {
-                    const isSubmitted = onlineRunSubmittedStatus[col.id]?.submitted;
-                    const timeLogged = onlineRunSubmittedStatus[col.id]?.time;
+                    if (isOnlineCol) {
+                      const isSubmitted = onlineRunSubmittedStatus[col.id]?.submitted;
+                      const timeLogged = onlineRunSubmittedStatus[col.id]?.time;
+                      return (
+                        <td key={col.id} className="px-2 py-2.5 text-center border-r border-slate-200 last:border-r-0">
+                          <div className="flex flex-col items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleOnlineRunSubmit(savedSection.id, col.id, col.header)}
+                              className={`w-full max-w-[120px] px-2.5 py-1.5 rounded-lg text-[11px] font-bold shadow-2xs flex items-center justify-center gap-1 transition cursor-pointer ${
+                                isSubmitted
+                                  ? 'bg-emerald-700 text-white hover:bg-emerald-600 ring-1 ring-emerald-400'
+                                  : 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95'
+                              }`}
+                              title={`Submit results for ${col.header}`}
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>{isSubmitted ? '✓ Submitted' : 'Submit'}</span>
+                            </button>
+                            {timeLogged && (
+                              <span className="text-[9px] font-mono text-emerald-700 font-bold block">
+                                {timeLogged}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      );
+                    }
+
+                    // Non-online columns (MIC, Parameter, Final Result, Specifications): empty cell
                     return (
-                      <td key={col.id} className="px-2 py-2.5 text-center border-r border-slate-200">
-                        <div className="flex flex-col items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => handleOnlineRunSubmit(savedSection.id, col.id, col.header)}
-                            className={`w-full max-w-[120px] px-2.5 py-1.5 rounded-lg text-[11px] font-bold shadow-2xs flex items-center justify-center gap-1 transition cursor-pointer ${
-                              isSubmitted
-                                ? 'bg-emerald-700 text-white hover:bg-emerald-600 ring-1 ring-emerald-400'
-                                : 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95'
-                            }`}
-                            title={`Submit results for ${col.header}`}
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>{isSubmitted ? '✓ Submitted' : 'Submit'}</span>
-                          </button>
-                          {timeLogged && (
-                            <span className="text-[9px] font-mono text-emerald-700 font-bold block">
-                              {timeLogged}
-                            </span>
-                          )}
-                        </div>
-                      </td>
+                      <td key={col.id} className="px-2 py-2 border-r border-slate-200 last:border-r-0" />
                     );
-                  }
-
-                  // Final column: no button, no label
-                  return (
-                    <td key={col.id} className="px-2 py-2 text-center" />
-                  );
-                })}
-              </tr>
-            </tfoot>
+                  })}
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>

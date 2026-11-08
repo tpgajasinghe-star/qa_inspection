@@ -7,7 +7,8 @@ import {
   REFERENCE_SECTION_1_SAVED_DATA,
   REFERENCE_SECTION_2_ONLINE_ELEMENTS,
   REFERENCE_SECTION_3_FINAL_ELEMENTS,
-  IMD_FORM_INITIAL
+  IMD_FORM_INITIAL,
+  INCOMING_TERMINAL_FORM_INITIAL
 } from './components/FormEditorStudio';
 
 export interface DeployedInspectionForm {
@@ -181,6 +182,30 @@ export const INITIAL_DEFAULT_DEPLOYED_FORMS: DeployedInspectionForm[] = [
     version: 'Rev 04',
     notes: 'Calibrated factory standard form for IMD / Injection Molding with swapped Result/Specification columns and quantitative metrics.',
   },
+  {
+    id: 'deployed-incoming-terminal-1',
+    sourceFormId: 'form-incoming-10a-terminal',
+    name: "Incoming - 10A 'L' Terminal",
+    targetMainCardId: 'main-incoming',
+    targetMainCardName: 'Incoming Inspection',
+    targetChildCardId: 'child-raw-material',
+    targetChildCardName: 'Raw Material',
+    productType: "10 A, 'L' Terminal",
+    documentHeader: INCOMING_TERMINAL_FORM_INITIAL.documentHeader,
+    sections: INCOMING_TERMINAL_FORM_INITIAL.sections,
+    footer: {
+      ...DEFAULT_FORM_FOOTER,
+      onlineInspectorName: '',
+      onlineEmpNo: '',
+      finalInspectorName: '',
+      finalEmpNo: '',
+    },
+    deployedAt: '2026-11-08 09:30 AM',
+    deployedBy: 'QC Lead Engineer',
+    status: 'Active',
+    version: 'Rev 01',
+    notes: "Incoming material quality inspection report for 10 A, 'L' Terminal as per Doc F17/1 with Dimensional Inspection (mm) and Master Inspection Characteristics.",
+  },
 ];
 
 // Helper to retrieve all deployed forms from localStorage
@@ -203,6 +228,23 @@ export function getStoredDeployedForms(): DeployedInspectionForm[] {
           ...parsed[imdFormIdx],
           sections: IMD_FORM_INITIAL.sections,
           productType: 'In-Mold Decoration (IMD) Series',
+        };
+      }
+
+      // Ensure deployed Incoming 10A Terminal form is present and updated
+      const inTermIdx = parsed.findIndex((f: DeployedInspectionForm) => 
+        f.id === 'deployed-incoming-terminal-1' || 
+        f.name.toLowerCase().includes("10a 'l' terminal") ||
+        f.name.toLowerCase().includes("10 a, 'l' terminal")
+      );
+      if (inTermIdx === -1) {
+        const defaultInTerm = INITIAL_DEFAULT_DEPLOYED_FORMS.find(f => f.id === 'deployed-incoming-terminal-1');
+        if (defaultInTerm) parsed.push(defaultInTerm);
+      } else {
+        parsed[inTermIdx] = {
+          ...parsed[inTermIdx],
+          sections: INCOMING_TERMINAL_FORM_INITIAL.sections,
+          productType: "10 A, 'L' Terminal",
         };
       }
       // Desired order for Inspection Log section elements:

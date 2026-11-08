@@ -1441,6 +1441,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                 const isParamCol = col.id === 'col-param' || col.id === 'col-fi-param' || /parameter/i.test(col.header);
                                 const isMicCol = col.id === 'col-mic' || col.id === 'col-fi-mic' || /mic/i.test(col.header);
                                 const isSpecCol = col.id === 'col-specs' || col.id === 'col-fi-specs' || /specification/i.test(col.header);
+                                const isProcCol = col.id === 'col-in-mc-proc' || /procedure/i.test(col.header);
                                 const isDropdownCol = col.type === 'dropdown';
                                 const isTextInputRow = row.inputType === 'text' || row.inputType === 'number';
                                 const isTextInputCol = col.type === 'text_input' || col.type === 'number_input';
@@ -1533,6 +1534,22 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                   );
                                 }
 
+                                if (isProcCol) {
+                                  const procVal = row.cells[col.id] || '-';
+                                  const isFix = procVal.toLowerCase().includes('fix');
+                                  return (
+                                    <td key={col.id} className="px-2 py-2 text-center border-r border-slate-200/80">
+                                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
+                                        isFix
+                                          ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                          : 'bg-blue-100 text-blue-800 border border-blue-300 font-mono'
+                                      }`}>
+                                        {procVal}
+                                      </span>
+                                    </td>
+                                  );
+                                }
+
                                 const isWeightRow = row.id.startsWith('row-imd-q-') || row.id.includes('-q-') || /weight|shot weight|runner weight|no\. of items/i.test(row.cells['col-param'] || '');
                                 const isFinalColCell = col.id === 'col-final' || /final/i.test(col.header);
 
@@ -1567,15 +1584,21 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
 
                                 // Interactive input cells: Either dropdown or manual text entry
                                 if (isTextInputCol || (isDropdownCol && isTextInputRow)) {
+                                  const isSampleQtyCol = col.id === 'col-in-mc-sample-qty' || /sample\s*qty/i.test(col.header);
+                                  const sp01SectionQty = fieldValues['el-in-sp01-qty'] || '';
+                                  const isFixRow = (row.cells['col-in-mc-proc'] || '').toLowerCase().includes('fix');
+                                  const fallbackVal = isFixRow ? (row.cells[col.id] || '3') : (cellValues[cellKey] !== undefined ? cellValues[cellKey] : (row.cells[col.id] || (sp01SectionQty ? sp01SectionQty : '')));
+                                  const currentVal = cellValues[cellKey] !== undefined ? cellValues[cellKey] : fallbackVal;
+
                                   return (
                                     <td key={col.id} className="px-2 py-2 text-center border-r border-slate-200/80">
                                       <div className="relative inline-flex items-center justify-center w-full">
                                         <input
                                           type={col.type === 'number_input' ? 'number' : 'text'}
-                                          value={cellValues[cellKey] || ''}
+                                          value={currentVal}
                                           onChange={(e) => handleCellChange(section.id, row.id, col.id, e.target.value)}
-                                          placeholder={row.unit ? `${row.unit}` : ''}
-                                          className="w-24 px-2 py-1 bg-white border border-slate-300 rounded text-center text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                                          placeholder={isSampleQtyCol ? (isFixRow ? '3' : (sp01SectionQty ? `${sp01SectionQty}` : 'Pcs')) : (row.unit ? `${row.unit}` : '')}
+                                          className="w-20 px-2 py-1 bg-white border border-slate-300 rounded text-center text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
                                         />
                                       </div>
                                     </td>
@@ -1619,53 +1642,49 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                           );
                         })}
                       </tbody>
-                      <tfoot>
-                        <tr className="bg-slate-50 border-t border-slate-300">
-                          <td
-                            colSpan={Math.max(1, tableEl.tableConfig?.columns.filter(c => !c.id.includes('online') && !/online/i.test(c.header) && c.id !== 'col-final' && !/final/i.test(c.header)).length || 3)}
-                            className="px-3 py-2 border-r border-slate-200"
-                          />
-                          {tableEl.tableConfig?.columns.map(col => {
-                            const isOnlineCol = col.id.includes('online') || /online/i.test(col.header);
-                            const isFinalCol = col.id === 'col-final' || /final/i.test(col.header);
-                            if (!isOnlineCol && !isFinalCol) return null;
+                      {tableEl.tableConfig?.columns.some(col => (col.id.includes('online') || /online/i.test(col.header)) && !(/final/i.test(col.header) || col.id === 'col-final')) && (
+                        <tfoot>
+                          <tr className="bg-slate-50 border-t border-slate-300">
+                            {tableEl.tableConfig?.columns.map(col => {
+                              const isOnlineCol = (col.id.includes('online') || /online/i.test(col.header)) && !(/final/i.test(col.header) || col.id === 'col-final');
 
-                            if (isOnlineCol) {
-                              const isSubmitted = runSubmittedStatus[col.id]?.submitted;
-                              const timeLogged = runSubmittedStatus[col.id]?.time;
+                              if (isOnlineCol) {
+                                const isSubmitted = runSubmittedStatus[col.id]?.submitted;
+                                const timeLogged = runSubmittedStatus[col.id]?.time;
+                                return (
+                                  <td key={col.id} className="px-2 py-2.5 text-center border-r border-slate-200 last:border-r-0">
+                                    <div className="flex flex-col items-center gap-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOnlineRunSubmit(section.id, col.id, col.header)}
+                                        className={`w-full max-w-[120px] px-2.5 py-1.5 rounded-lg text-[11px] font-bold shadow-2xs flex items-center justify-center gap-1 transition cursor-pointer ${
+                                          isSubmitted
+                                            ? 'bg-emerald-700 text-white hover:bg-emerald-600 ring-1 ring-emerald-400'
+                                            : 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95'
+                                        }`}
+                                        title={`Submit checkpoint results for ${col.header}`}
+                                      >
+                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                        <span>{isSubmitted ? '✓ Submitted' : 'Submit'}</span>
+                                      </button>
+                                      {timeLogged && (
+                                        <span className="text-[9px] font-mono text-emerald-700 font-bold block">
+                                          {timeLogged}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+                                );
+                              }
+
+                              // Non-online columns (MIC, Parameter, Final Result, Specifications): empty cell
                               return (
-                                <td key={col.id} className="px-2 py-2.5 text-center border-r border-slate-200">
-                                  <div className="flex flex-col items-center gap-1">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOnlineRunSubmit(section.id, col.id, col.header)}
-                                      className={`w-full max-w-[120px] px-2.5 py-1.5 rounded-lg text-[11px] font-bold shadow-2xs flex items-center justify-center gap-1 transition cursor-pointer ${
-                                        isSubmitted
-                                          ? 'bg-emerald-700 text-white hover:bg-emerald-600 ring-1 ring-emerald-400'
-                                          : 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95'
-                                      }`}
-                                      title={`Submit checkpoint results for ${col.header}`}
-                                    >
-                                      <CheckCircle2 className="w-3.5 h-3.5" />
-                                      <span>{isSubmitted ? '✓ Submitted' : 'Submit'}</span>
-                                    </button>
-                                    {timeLogged && (
-                                      <span className="text-[9px] font-mono text-emerald-700 font-bold block">
-                                        {timeLogged}
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
+                                <td key={col.id} className="px-2 py-2 border-r border-slate-200 last:border-r-0" />
                               );
-                            }
-
-                            // Final column: no button, no label
-                            return (
-                              <td key={col.id} className="px-2 py-2 text-center" />
-                            );
-                          })}
-                        </tr>
-                      </tfoot>
+                            })}
+                          </tr>
+                        </tfoot>
+                      )}
                     </table>
                   </div>
                 )
