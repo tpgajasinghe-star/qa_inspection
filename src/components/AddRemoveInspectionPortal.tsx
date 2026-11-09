@@ -32,7 +32,7 @@ import {
   ChevronDown,
   SlidersHorizontal
 } from 'lucide-react';
-import { fetchItems, DbItem } from '../backend/itemService';
+import { fetchItems, DbItem } from '../services/itemService';
 import { FormEditorStudio, DocumentHeaderData } from './FormEditorStudio';
 import { InspectionEditor } from './InspectionEditor';
 

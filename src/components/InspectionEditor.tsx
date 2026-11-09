@@ -38,7 +38,7 @@ import {
   AVAILABLE_CARD_ICONS
 } from './InspectionCardIconRenderer';
 import { useAuth } from '../context/AuthContext';
-import { verifyCurrentAdminPassword } from '../backend/adminUserService';
+import { verifyCurrentAdminPassword } from '../services/adminUserService';
 
 interface InspectionEditorProps {
   onBack: () => void;

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
 import toast from 'react-hot-toast';
-import { supabase } from '../backend/supabase';
+import { supabase } from '../services/supabase';
 import { ProfileRole, UserProfile } from '../types';
 
 // Inactivity timeout threshold: 15 minutes without interaction

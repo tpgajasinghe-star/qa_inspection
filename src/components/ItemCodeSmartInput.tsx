@@ -18,7 +18,7 @@ import {
   parseItemCode,
   lookupDatabaseItem,
   SEED_FACTORY_ITEMS 
-} from '../backend/itemService';
+} from '../services/itemService';
 
 export interface ItemCodeSmartInputProps {
   value: string;

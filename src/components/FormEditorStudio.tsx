@@ -46,7 +46,7 @@ import { getMainCards, getChildCards, InspectionHierarchyCard } from '../inspect
 import { deployInspectionForm } from '../deployedFormsData';
 import { RoundClockTimePickerModal } from './RoundClockTimePickerModal';
 import { ItemCodeSmartInput } from './ItemCodeSmartInput';
-import { lookupDatabaseItem, fetchItems, DbItem, SEED_FACTORY_ITEMS } from '../backend/itemService';
+import { lookupDatabaseItem, fetchItems, DbItem, SEED_FACTORY_ITEMS } from '../services/itemService';
 
 // Footer Section Block Data Model (matching user's reference image)
 export interface FormFooterAttachment {

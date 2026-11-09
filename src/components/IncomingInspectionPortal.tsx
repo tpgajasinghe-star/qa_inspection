@@ -22,7 +22,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { IncomingCategoryItem, IncomingCategoryType, InspectionRecord } from '../types';
 import { INCOMING_CATEGORIES, IncomingSampleLot } from '../incomingData';
-import { fetchItems, DbItem } from '../backend/itemService';
+import { fetchItems, DbItem } from '../services/itemService';
 import { ItemCodeSmartInput } from './ItemCodeSmartInput';
 import {
   getChildCards,

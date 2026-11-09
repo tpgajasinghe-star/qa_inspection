@@ -30,7 +30,7 @@ import {
 import { InspectionRecord, QAStatus, DefectSeverity } from '../types';
 import { InspectionHierarchyCard } from '../inspectionHierarchyData';
 import { InspectionCardIconRenderer } from './InspectionCardIconRenderer';
-import { fetchItems, DbItem } from '../backend/itemService';
+import { fetchItems, DbItem } from '../services/itemService';
 import { 
   getStoredDeployedForms, 
   getDeployedFormsForChildCard, 

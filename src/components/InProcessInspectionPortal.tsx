@@ -22,7 +22,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { InProcessCategoryItem, InProcessCategoryType, InspectionRecord } from '../types';
 import { IN_PROCESS_CATEGORIES, InProcessSampleCheckpoint } from '../inProcessData';
-import { fetchItems, DbItem } from '../backend/itemService';
+import { fetchItems, DbItem } from '../services/itemService';
 import { ItemCodeSmartInput } from './ItemCodeSmartInput';
 import {
   getChildCards,

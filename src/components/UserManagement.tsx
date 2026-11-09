@@ -36,7 +36,7 @@ import {
   deleteProfileUser,
   getStoredUserPassword,
   verifyCurrentAdminPassword
-} from '../backend/adminUserService';
+} from '../services/adminUserService';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 

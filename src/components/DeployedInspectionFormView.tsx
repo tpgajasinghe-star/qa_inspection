@@ -31,9 +31,9 @@ import { InspectionRecord, QAStatus } from '../types';
 import { InspectionHierarchyCard } from '../inspectionHierarchyData';
 import { TableRowSchema, SectionBlockSchema, TableColumnSchema } from './FormEditorStudio';
 import { RoundClockTimePickerModal } from './RoundClockTimePickerModal';
-import { fetchItems, DbItem, lookupDatabaseItem, SEED_FACTORY_ITEMS } from '../backend/itemService';
+import { fetchItems, DbItem, lookupDatabaseItem, SEED_FACTORY_ITEMS } from '../services/itemService';
 import { ItemCodeSmartInput } from './ItemCodeSmartInput';
-import { submitInspection, InspectionCoreData } from '../backend/inspectionService';
+import { submitInspection, InspectionCoreData } from '../services/inspectionService';
 
 
 interface DeployedInspectionFormViewProps {

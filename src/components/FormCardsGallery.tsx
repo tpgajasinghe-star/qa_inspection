@@ -29,7 +29,7 @@ import {
   MapPin
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { verifyCurrentAdminPassword } from '../backend/adminUserService';
+import { verifyCurrentAdminPassword } from '../services/adminUserService';
 import { 
   getStoredDeployedForms, 
   deleteDeployedForm, 

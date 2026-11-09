@@ -35,8 +35,8 @@ import {
   getInspectionDetails, 
   InspectionSummary, 
   InspectionRecordResponse 
-} from '../backend/inspectionService';
-import { fetchItems, DbItem, lookupDatabaseItem, SEED_FACTORY_ITEMS } from '../backend/itemService';
+} from '../services/inspectionService';
+import { fetchItems, DbItem, lookupDatabaseItem, SEED_FACTORY_ITEMS } from '../services/itemService';
 import { 
   INITIAL_DEFAULT_DEPLOYED_FORMS, 
   LOCAL_STORAGE_DEPLOYED_FORMS_KEY, 
