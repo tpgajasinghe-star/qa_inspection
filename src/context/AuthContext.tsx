@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
 import toast from 'react-hot-toast';
-import { supabase } from '../services/supabase';
+import { supabase, isSupabaseConfigured } from '../services/supabase';
 import { ProfileRole, UserProfile } from '../types';
 
 // Inactivity timeout threshold: 15 minutes without interaction
@@ -344,7 +344,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, [fetchProfileFromDatabase, persistSession, navigate]);
 
-  // Sign in method using standard frontend supabase client
+  // Sign in method with high-speed fast-paths, user_metadata caching, and network timeout protection
   const signIn = useCallback(async (
     identifier: string,
     passwordInput: string,
@@ -359,106 +359,105 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const emailToSignIn = rawId.includes('@') ? rawId.toLowerCase() : `${rawId.toLowerCase()}@abc.com`;
 
-    // 1. FAST-PATH: Super Admin master credentials (admin / admin1234)
+    // 1. INSTANT FAST-PATH: Super Admin master credentials (admin / admin1234)
     if (
       (rawId.toLowerCase() === 'admin' || emailToSignIn === 'admin@abc.com') &&
       cleanPassword === 'admin1234'
     ) {
-      // Query profiles table directly with standard frontend supabase client
-      let adminName = 'Admin';
-      try {
-        const { data: pData } = await supabase
-          .from('profiles')
-          .select('full_name, employee_id, role')
-          .eq('employee_id', 'admin')
-          .maybeSingle();
-        if (pData?.full_name) {
-          adminName = pData.full_name;
-        }
-      } catch {}
-
       const superAdminProfile: UserProfile = {
         id: '9c9f26c8-b705-4e52-b47a-e9f737a084de',
         employee_id: 'admin',
-        full_name: adminName,
+        full_name: 'Super Admin',
         role: 'SUPER_ADMIN',
       };
 
       setRole('SUPER_ADMIN');
-      setFullName(adminName);
+      setFullName('Super Admin');
       setEmployeeId('admin');
       setIsAuthenticated(true);
       updateLastActivityTimestamp();
       setProfile(superAdminProfile);
-      persistSession('SUPER_ADMIN', adminName, 'admin', 'admin', 'admin');
+      persistSession('SUPER_ADMIN', 'Super Admin', 'admin', 'admin', 'admin');
 
-      // Async background signIn
-      supabase.auth.signInWithPassword({ email: 'admin@abc.com', password: cleanPassword }).catch(() => {});
+      // Non-blocking background sync so UI responds instantly (0ms delay)
+      if (isSupabaseConfigured) {
+        supabase.auth.signInWithPassword({ email: 'admin@abc.com', password: cleanPassword }).catch(() => {});
+        const queryPromise = supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('employee_id', 'admin')
+          .maybeSingle();
+        Promise.resolve(queryPromise)
+          .then(({ data }) => {
+            if (data?.full_name) {
+              setFullName(data.full_name);
+              setProfile(prev => prev ? { ...prev, full_name: data.full_name } : prev);
+            }
+          })
+          .catch(() => {});
+      }
 
       return { success: true, profile: superAdminProfile };
     }
 
-    // 2. STANDARD AUTHENTICATION: supabase.auth.signInWithPassword
+    // 2. If Supabase is unconfigured or in offline fallback mode, bypass network hang immediately
+    if (!isSupabaseConfigured) {
+      return {
+        success: false,
+        error: 'SUPABASE_NOT_CONFIGURED',
+      };
+    }
+
+    // 3. STANDARD AUTHENTICATION: Wrapped with 3.5s strict timeout to prevent indefinite hangs
     try {
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      const authPromise = supabase.auth.signInWithPassword({
         email: emailToSignIn,
         password: cleanPassword,
       });
 
-      if (authError || !authData.user) {
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Network timeout: database took too long to respond')), 3500)
+      );
+
+      const { data: authData, error: authError } = await (Promise.race([
+        authPromise,
+        timeoutPromise,
+      ]) as Promise<{ data: any; error: any }>);
+
+      if (authError || !authData?.user) {
         return {
           success: false,
           error: authError?.message || 'Invalid credentials. Please verify your Employee ID / Username and password.',
         };
       }
 
-      // 3. DIRECT QUERY OF PROFILES TABLE WITH STANDARD FRONTEND CLIENT (RLS is disabled)
-      let resolvedProfile: UserProfile | null = await fetchProfileFromDatabase(authData.user.id, rawId);
+      // 4. FAST-TRACK PROFILE RESOLUTION: Check user_metadata first (0ms latency)
+      const meta = authData.user.user_metadata || {};
+      const metaRole = (meta.role as string)?.toUpperCase() === 'SUPER_ADMIN'
+        ? 'SUPER_ADMIN'
+        : (meta.role as string)?.toUpperCase() === 'ADMIN'
+        ? 'ADMIN'
+        : (meta.role as ProfileRole) || 'USER';
+      const metaFullName = meta.full_name || rawId;
+      const metaEmpId = meta.employee_id || rawId;
 
-      // If lookup by ID failed, try fallback by employee_id or email
-      if (!resolvedProfile) {
-        try {
-          const { data: fallbackData } = await supabase
-            .from('profiles')
-            .select('id, employee_id, full_name, role, created_at')
-            .or(`employee_id.ilike.${rawId},employee_id.eq.${rawId}`)
-            .maybeSingle();
+      let resolvedProfile: UserProfile = {
+        id: authData.user.id,
+        employee_id: metaEmpId,
+        full_name: metaFullName,
+        role: metaRole,
+      };
 
-          if (fallbackData) {
-            resolvedProfile = {
-              id: fallbackData.id,
-              employee_id: fallbackData.employee_id || rawId,
-              full_name: fallbackData.full_name || rawId,
-              role: (fallbackData.role as ProfileRole) || 'USER',
-              created_at: fallbackData.created_at,
-            };
-          }
-        } catch {}
-      }
-
-      // If still not in database, fallback to metadata or defaults
-      if (!resolvedProfile) {
-        const metaRole = (authData.user.user_metadata?.role as ProfileRole) || 'USER';
-        const metaName = authData.user.user_metadata?.full_name || rawId;
-        resolvedProfile = {
-          id: authData.user.id,
-          employee_id: rawId,
-          full_name: metaName,
-          role: metaRole,
-        };
-      }
-
-      // 4. RBAC CHECK: If signing into Admin Panel, user must have ADMIN or SUPER_ADMIN role
+      // 5. RBAC CHECK: If signing into Admin Panel, user must have ADMIN or SUPER_ADMIN role
       if (panelRole === 'admin' && resolvedProfile.role !== 'ADMIN' && resolvedProfile.role !== 'SUPER_ADMIN') {
-        // Sign out to prevent unauthorized admin session
-        await supabase.auth.signOut().catch(() => {});
+        supabase.auth.signOut().catch(() => {});
         return {
           success: false,
           error: 'Access denied: This account has USER permissions. Only accounts with ADMIN permissions can log in to the Admin Panel.',
         };
       }
 
-      // 5. UPDATE GLOBAL STATE
+      // 6. UPDATE GLOBAL STATE IMMEDIATELY (Instant login without waiting for extra DB roundtrips)
       setUser(authData.user);
       setProfile(resolvedProfile);
       setRole(resolvedProfile.role);
@@ -476,9 +475,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         targetPanel
       );
 
+      // 7. Non-blocking background sync from database profiles table (in case database has newer edits)
+      fetchProfileFromDatabase(authData.user.id, rawId)
+        .then(dbProfile => {
+          if (dbProfile) {
+            setProfile(dbProfile);
+            setRole(dbProfile.role);
+            setFullName(dbProfile.full_name);
+            setEmployeeId(dbProfile.employee_id);
+            persistSession(
+              dbProfile.role,
+              dbProfile.full_name,
+              dbProfile.employee_id,
+              dbProfile.id,
+              dbProfile.role === 'USER' ? 'inspector' : panelRole
+            );
+          }
+        })
+        .catch(() => {});
+
       return { success: true, profile: resolvedProfile };
     } catch (err: any) {
-      console.error('[AuthContext] Sign-in error:', err);
+      console.warn('[AuthContext] Supabase sign-in network check failed or timed out:', err.message);
       return { success: false, error: err.message || 'Authentication error occurred.' };
     }
   }, [fetchProfileFromDatabase, persistSession]);
