@@ -38,7 +38,8 @@ import {
   FolderPlus,
   Paperclip,
   ShieldCheck,
-  PenTool
+  PenTool,
+  Calculator
 } from 'lucide-react';
 import { InspectionSpecItem } from './AddRemoveInspectionPortal';
 import { FormCardsGallery, InspectionFormCardData } from './FormCardsGallery';
@@ -105,6 +106,47 @@ export const REFERENCE_SECTION_1_SAVED_DATA: Record<string, string> = {
   'el-item-code': '',
   'el-desc': '',
   'el-batch': '',
+};
+
+// Section 1 elements for Testing_1 form including Cordination radio options
+export const TESTING_1_SECTION_1_ELEMENTS: SectionElementSchema[] = [
+  ...REFERENCE_SECTION_1_ELEMENTS,
+  {
+    id: 'el-cordination-sso',
+    name: 'Cordination',
+    type: 'radio',
+    subItems: [
+      'SSO (13 A)',
+      'SSO - Neon Indicator (13 A) All parts should be correctly assembled.',
+      'SSO - Twin (With / Without neon)',
+    ],
+  },
+];
+
+export const TESTING_1_SECTION_1_SAVED_DATA: Record<string, string> = {
+  ...REFERENCE_SECTION_1_SAVED_DATA,
+  'el-cordination-sso': '',
+};
+
+// Section 1 elements for Modular switch QA 2 form including Cordination radio options
+export const MODULAR_SWITCH_SECTION_1_ELEMENTS: SectionElementSchema[] = [
+  ...REFERENCE_SECTION_1_ELEMENTS,
+  {
+    id: 'el-cordination-modular',
+    name: 'Cordination',
+    type: 'radio',
+    subItems: [
+      'Switch (10 A)',
+      'Switch - Bell press (10 A)',
+      'Switch - Bell push (4 A)',
+      'Switch - Double pole (20 A)',
+    ],
+  },
+];
+
+export const MODULAR_SWITCH_SECTION_1_SAVED_DATA: Record<string, string> = {
+  ...REFERENCE_SECTION_1_SAVED_DATA,
+  'el-cordination-modular': '',
 };
 
 // Element types supported: Data field, Date picker, Dropdown list, Radio button, Online Inspection Table Grid, Final Inspection Table Grid
@@ -419,19 +461,19 @@ export const REFERENCE_SECTION_3_FINAL_ELEMENTS: SectionElementSchema[] = [
 // ============================================================================
 export const IMD_SECTION_1_ELEMENTS: SectionElementSchema[] = [
   { id: 'el-date', name: 'Inspection Date', type: 'date_picker', subItems: [] },
-  { id: 'el-item-code', name: 'Item Code Reference', type: 'data_field', subItems: [] },
-  { id: 'el-desc', name: 'Product Description', type: 'data_field', subItems: [] },
   { id: 'el-mc-no', name: 'MACHINE NO. (MC. NO)', type: 'data_field', subItems: [] },
   { id: 'el-raw-lot', name: 'RAW MATERIAL LOT NO.', type: 'data_field', subItems: [] },
   { id: 'el-raw-grade', name: 'RAW MATERIAL GRADE', type: 'data_field', subItems: [] },
   { id: 'el-batch', name: 'BATCH NUMBER REFERENCE', type: 'data_field', subItems: [] },
+  { id: 'el-item-code', name: 'Item Code Reference', type: 'data_field', subItems: [] },
+  { id: 'el-desc', name: 'Product Description', type: 'data_field', subItems: [] },
 ];
 
 export const IMD_SECTION_2_COLUMNS: TableColumnSchema[] = [
   { id: 'col-mic', header: 'MIC', type: 'text_label', width: '70px' },
   { id: 'col-param', header: 'PARAMETER', type: 'text_label', width: '260px' },
   { id: 'col-online', header: 'ONLINE RESULT', type: 'dropdown', options: ['Pass', 'Fail', 'N/A'], width: '140px', hasTimeHeader: true, defaultHeaderTime: '08:30 AM' },
-  { id: 'col-final', header: 'FINAL RESULT', type: 'dropdown', options: ['Pass', 'Fail', 'N/A'], width: '140px', hasTimeHeader: false },
+  { id: 'col-final', header: 'FINAL RESULT', type: 'dropdown', options: ['Pass', 'Fail', 'N/A'], width: '75px', hasTimeHeader: false },
   { id: 'col-specs', header: 'SPECIFICATIONS', type: 'text_label', width: '300px' },
 ];
 
@@ -646,6 +688,32 @@ export const IMD_SECTION_2_ROWS: TableRowSchema[] = [
     },
   },
   {
+    id: 'row-imd-q-08',
+    isGroupHeader: false,
+    inputType: 'text',
+    unit: 'pcs',
+    cells: {
+      'col-mic': '08',
+      'col-param': '8. No. of Items (Good)',
+      'col-online': '',
+      'col-final': '',
+      'col-specs': 'Quantity of good items',
+    },
+  },
+  {
+    id: 'row-imd-q-10',
+    isGroupHeader: false,
+    inputType: 'text',
+    unit: 'g',
+    cells: {
+      'col-mic': '10',
+      'col-param': '10. Runner weight',
+      'col-online': '',
+      'col-final': '',
+      'col-specs': 'Record runner weight',
+    },
+  },
+  {
     id: 'row-imd-q-7-1',
     isGroupHeader: false,
     inputType: 'text',
@@ -655,7 +723,7 @@ export const IMD_SECTION_2_ROWS: TableRowSchema[] = [
       'col-param': '7.1 Item weight – 1 [Avg]',
       'col-online': '',
       'col-final': '',
-      'col-specs': '—',
+      'col-specs': 'Auto-calc: (Shot - Runner) / Good (>2) or Manual',
     },
   },
   {
@@ -672,19 +740,6 @@ export const IMD_SECTION_2_ROWS: TableRowSchema[] = [
     },
   },
   {
-    id: 'row-imd-q-08',
-    isGroupHeader: false,
-    inputType: 'text',
-    unit: 'pcs',
-    cells: {
-      'col-mic': '08',
-      'col-param': '8. No. of Items (Good)',
-      'col-online': '',
-      'col-final': '',
-      'col-specs': 'Quantity of good items',
-    },
-  },
-  {
     id: 'row-imd-q-09',
     isGroupHeader: false,
     inputType: 'text',
@@ -695,19 +750,6 @@ export const IMD_SECTION_2_ROWS: TableRowSchema[] = [
       'col-online': '',
       'col-final': '',
       'col-specs': 'Quantity of damaged / close items',
-    },
-  },
-  {
-    id: 'row-imd-q-10',
-    isGroupHeader: false,
-    inputType: 'text',
-    unit: 'g',
-    cells: {
-      'col-mic': '10',
-      'col-param': '10. Runner weight',
-      'col-online': '',
-      'col-final': '',
-      'col-specs': 'Record runner weight',
     },
   },
 ];
@@ -746,6 +788,30 @@ export const IMD_SECTION_3_ROWS: TableRowSchema[] = [
     },
   },
   {
+    id: 'row-imd-q-08',
+    isGroupHeader: false,
+    inputType: 'text',
+    unit: 'pcs',
+    cells: {
+      'col-q-mic': '08',
+      'col-q-param': '8. No. of Items (Good)',
+      'col-q-val': '',
+      'col-q-specs': 'Quantity of good items',
+    },
+  },
+  {
+    id: 'row-imd-q-10',
+    isGroupHeader: false,
+    inputType: 'text',
+    unit: 'g',
+    cells: {
+      'col-q-mic': '10',
+      'col-q-param': '10. Runner weight',
+      'col-q-val': '',
+      'col-q-specs': 'Record runner weight',
+    },
+  },
+  {
     id: 'row-imd-q-7-1',
     isGroupHeader: false,
     inputType: 'text',
@@ -754,7 +820,7 @@ export const IMD_SECTION_3_ROWS: TableRowSchema[] = [
       'col-q-mic': '',
       'col-q-param': '7.1 Item weight – 1 [Avg]',
       'col-q-val': '',
-      'col-q-specs': '—',
+      'col-q-specs': 'Auto-calc: (Shot - Runner) / Good (>2) or Manual',
     },
   },
   {
@@ -770,18 +836,6 @@ export const IMD_SECTION_3_ROWS: TableRowSchema[] = [
     },
   },
   {
-    id: 'row-imd-q-08',
-    isGroupHeader: false,
-    inputType: 'text',
-    unit: 'pcs',
-    cells: {
-      'col-q-mic': '08',
-      'col-q-param': '8. No. of Items (Good)',
-      'col-q-val': '',
-      'col-q-specs': 'Quantity of good items',
-    },
-  },
-  {
     id: 'row-imd-q-09',
     isGroupHeader: false,
     inputType: 'text',
@@ -791,18 +845,6 @@ export const IMD_SECTION_3_ROWS: TableRowSchema[] = [
       'col-q-param': '9. No. of Items (Dam. or close)',
       'col-q-val': '',
       'col-q-specs': 'Quantity of damaged / close items',
-    },
-  },
-  {
-    id: 'row-imd-q-10',
-    isGroupHeader: false,
-    inputType: 'text',
-    unit: 'g',
-    cells: {
-      'col-q-mic': '10',
-      'col-q-param': '10. Runner weight',
-      'col-q-val': '',
-      'col-q-specs': 'Record runner weight',
     },
   },
 ];
@@ -1370,9 +1412,9 @@ export const DEFAULT_FORMS_INITIAL: InspectionFormCardData[] = [
         id: 'section-1',
         sectionNumber: 1,
         title: 'INSPECTION LOG',
-        elements: REFERENCE_SECTION_1_ELEMENTS,
+        elements: TESTING_1_SECTION_1_ELEMENTS,
         isSaved: true,
-        savedData: REFERENCE_SECTION_1_SAVED_DATA,
+        savedData: TESTING_1_SECTION_1_SAVED_DATA,
       },
       {
         id: 'section-2',
@@ -1414,14 +1456,9 @@ export const DEFAULT_FORMS_INITIAL: InspectionFormCardData[] = [
         id: 'section-1',
         sectionNumber: 1,
         title: 'INSPECTION LOG',
-        elements: REFERENCE_SECTION_1_ELEMENTS,
+        elements: MODULAR_SWITCH_SECTION_1_ELEMENTS,
         isSaved: true,
-        savedData: {
-          'el-date': '',
-          'el-batch': '',
-          'el-desc': '',
-          'el-item-code': '',
-        },
+        savedData: MODULAR_SWITCH_SECTION_1_SAVED_DATA,
       },
       {
         id: 'section-2',
@@ -1568,7 +1605,7 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
             };
           }
 
-          // Sanitize table grids: dropdowns default to --Select--, manual text rows have blank space
+          // Sanitize table grids and update Cordination radio elements for Testing_1 & Modular switch
           validForms.forEach((form: InspectionFormCardData) => {
             if (form.footer) {
               if (form.footer.onlineInspectorName === 'H. P. Karunaratne' || form.footer.onlineInspectorName?.includes('Karunaratne')) form.footer.onlineInspectorName = '';
@@ -1576,6 +1613,49 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
               if (form.footer.finalInspectorName === 'M. Vigneshwaran' || form.footer.finalInspectorName?.includes('Vigneshwaran')) form.footer.finalInspectorName = '';
               if (form.footer.finalEmpNo === 'QC-Lead-09' || form.footer.finalEmpNo?.includes('Lead-09')) form.footer.finalEmpNo = '';
             }
+
+            const isTesting1 = form.id === 'form-testing-1' || form.name?.toLowerCase().includes('testing_1') || form.name?.toLowerCase().includes('testing 1');
+            const isModular2 = form.id === 'form-modular-2' || form.name?.toLowerCase().includes('modular_switch_qa_2') || form.name?.toLowerCase().includes('modular switch');
+
+            if (isTesting1 || isModular2) {
+              const sec1 = form.sections?.find(s => s.id === 'section-1' || s.sectionNumber === 1 || /inspection log/i.test(s.title || ''));
+              if (sec1) {
+                const targetSubItems = isTesting1
+                  ? [
+                      'SSO (13 A)',
+                      'SSO - Neon Indicator (13 A) All parts should be correctly assembled.',
+                      'SSO - Twin (With / Without neon)',
+                    ]
+                  : [
+                      'Switch (10 A)',
+                      'Switch - Bell press (10 A)',
+                      'Switch - Bell push (4 A)',
+                      'Switch - Double pole (20 A)',
+                    ];
+                const cordId = isTesting1 ? 'el-cordination-sso' : 'el-cordination-modular';
+                const cordElement: SectionElementSchema = {
+                  id: cordId,
+                  name: 'Cordination',
+                  type: 'radio',
+                  subItems: targetSubItems,
+                };
+
+                if (!Array.isArray(sec1.elements)) {
+                  sec1.elements = isTesting1 ? TESTING_1_SECTION_1_ELEMENTS : MODULAR_SWITCH_SECTION_1_ELEMENTS;
+                } else {
+                  const existingCordIdx = sec1.elements.findIndex(el => /cordination/i.test(el.name) || el.id.includes('cordination'));
+                  if (existingCordIdx >= 0) {
+                    sec1.elements[existingCordIdx] = cordElement;
+                  } else {
+                    sec1.elements.push(cordElement);
+                  }
+                }
+                if (sec1.savedData && !sec1.savedData[cordId]) {
+                  sec1.savedData[cordId] = '';
+                }
+              }
+            }
+
             form.sections?.forEach((sec) => {
               if (sec.savedData) {
                 Object.keys(sec.savedData).forEach((k) => {
@@ -1612,7 +1692,10 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
               });
             });
           });
-          return parsed;
+          try {
+            localStorage.setItem(LOCAL_STORAGE_FORMS_KEY, JSON.stringify(validForms));
+          } catch {}
+          return validForms;
         }
       }
     } catch (e) {
@@ -1665,6 +1748,9 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
       finalEmpNo: (raw.finalEmpNo === 'QC-Lead-09' || raw.finalEmpNo === 'admin' ? '' : raw.finalEmpNo) || '',
     };
   });
+
+  // Number of items molded on machine in IMD form preview (1 to 4 items)
+  const [studioImdItemCount, setStudioImdItemCount] = useState<number>(1);
   const editableFooterFileInputRef = useRef<HTMLInputElement | null>(null);
   const liveFooterFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -1747,6 +1833,86 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
       [colId]: { submitted: true, time: timeStr },
     }));
     showToast(`✓ Checkpoint run for "${colHeader}" successfully submitted and saved (${timeStr})!`);
+  };
+
+  // End Run: calculate quantitative averages across all Online Result columns and auto-fill Quantitative Data
+  const handleStudioEndRun = (sectionId: string, _tableElId?: string) => {
+    setSections(prev => {
+      const targetSec = prev.find(s => s.id === sectionId) || prev.find(s => s.id === 'sec-imd-2');
+      if (!targetSec) return prev;
+      const targetTable = targetSec.elements.find(el => el.type === 'table_grid');
+      if (!targetTable || !targetTable.tableConfig) return prev;
+
+      const cols = targetTable.tableConfig.columns;
+      const onlineCols = cols.filter(c => (c.id.includes('online') || /online/i.test(c.header)) && !(/final/i.test(c.header) || c.id === 'col-final'));
+      const finalCol = cols.find(c => c.id === 'col-final' || /final/i.test(c.header));
+      const finalColId = finalCol ? finalCol.id : 'col-final';
+
+      const onlineColCount = onlineCols.length;
+      if (onlineColCount === 0) {
+        showToast('No Online Result columns found to calculate averages.');
+        return prev;
+      }
+
+      const updatedSavedData = { ...(targetSec.savedData || {}) };
+      const rowAverages: Record<string, number> = {};
+
+      targetTable.tableConfig.rows.forEach(row => {
+        if (row.isGroupHeader) return;
+
+        const isWeightRow = row.id.startsWith('row-imd-q-') || row.id.includes('-q-') || /weight|shot|runner|no\.\s*of\s*items|good|dam/i.test(row.cells['col-param'] || '');
+
+        if (isWeightRow) {
+          const values: number[] = [];
+          onlineCols.forEach(col => {
+            const key = `${row.id}_${col.id}`;
+            const val = updatedSavedData[key];
+            const num = parseFloat(String(val).trim());
+            if (!isNaN(num) && num > 0) {
+              values.push(num);
+            }
+          });
+
+          if (values.length > 0) {
+            const sum = values.reduce((a, b) => a + b, 0);
+            const avg = sum / onlineColCount;
+            rowAverages[row.id] = avg;
+            updatedSavedData[`${row.id}_${finalColId}`] = avg.toFixed(2);
+          }
+        } else {
+          const results = onlineCols.map(col => updatedSavedData[`${row.id}_${col.id}`]).filter(Boolean);
+          if (results.length > 0) {
+            if (results.some(r => r === 'Fail' || r === 'NG' || r === 'Unsatisfactory')) {
+              updatedSavedData[`${row.id}_${finalColId}`] = 'Fail';
+            } else if (results.every(r => r === 'Pass' || r === 'OK' || r === 'Satisfactory')) {
+              updatedSavedData[`${row.id}_${finalColId}`] = 'Pass';
+            }
+          }
+        }
+      });
+
+      return prev.map(sec => {
+        if (sec.id === targetSec.id) {
+          return { ...sec, savedData: updatedSavedData };
+        }
+        if (sec.id === 'sec-imd-3' || /quantitative/i.test(sec.title || '')) {
+          const sec3Data = { ...(sec.savedData || {}) };
+          if (rowAverages['row-imd-q-07'] !== undefined) {
+            sec3Data['el-imd-avg-shot'] = rowAverages['row-imd-q-07'].toFixed(2);
+          }
+          if (rowAverages['row-imd-q-7-1'] !== undefined) {
+            sec3Data['el-imd-avg-item'] = rowAverages['row-imd-q-7-1'].toFixed(2);
+          }
+          if (rowAverages['row-imd-q-10'] !== undefined) {
+            sec3Data['el-imd-runner-weight'] = rowAverages['row-imd-q-10'].toFixed(2);
+          }
+          return { ...sec, savedData: sec3Data };
+        }
+        return sec;
+      });
+    });
+
+    showToast(`✓ End Run completed! Averages calculated across Online Result columns and auto-filled.`);
   };
 
   // Persist forms to localStorage
@@ -3226,17 +3392,49 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
     showToast('Editing section configuration unlocked.');
   };
 
-  // Live preview value updates (only active after saved)
+  // Live preview value updates (only active after saved) with IMD weight auto-calculation
   const handlePreviewFieldChange = (sectionId: string, elementId: string, value: string) => {
     setSections((prev) =>
       prev.map((sec) => {
         if (sec.id === sectionId) {
+          const nextData = {
+            ...(sec.savedData || {}),
+            [elementId]: value,
+          };
+
+          // Auto-calculate Item weight - 1 [Avg] in IMD live preview
+          const isImd = activeForm.id.includes('imd') || /imd/i.test(activeForm.name || headerData.productType || '');
+          if (isImd && studioImdItemCount <= 1) {
+            const sec1 = prev.find(s => s.id === 'sec-imd-1' || /inspection log/i.test(s.title || ''));
+            const itemDesc = (sec1?.savedData?.['el-desc'] || headerData.productType || '').trim();
+            const isExcluded = /sunk\s*box|plog\s*top|plug\s*top/i.test(itemDesc);
+
+            if (!isExcluded) {
+              const parts = elementId.split('_');
+              if (parts.length >= 3) {
+                const elTableId = parts[0];
+                const colId = parts[2];
+                const shotKey = `${elTableId}_row-imd-q-07_${colId}`;
+                const goodKey = `${elTableId}_row-imd-q-08_${colId}`;
+                const runnerKey = `${elTableId}_row-imd-q-10_${colId}`;
+                const item1Key = `${elTableId}_row-imd-q-7-1_${colId}`;
+
+                if (elementId === shotKey || elementId === goodKey || elementId === runnerKey) {
+                  const shotVal = parseFloat(elementId === shotKey ? value : (nextData[shotKey] || ''));
+                  const goodVal = parseFloat(elementId === goodKey ? value : (nextData[goodKey] || ''));
+                  const runnerVal = parseFloat(elementId === runnerKey ? value : (nextData[runnerKey] || ''));
+
+                  if (goodVal > 2 && !isNaN(shotVal) && !isNaN(runnerVal) && shotVal > runnerVal) {
+                    nextData[item1Key] = ((shotVal - runnerVal) / goodVal).toFixed(2);
+                  }
+                }
+              }
+            }
+          }
+
           return {
             ...sec,
-            savedData: {
-              ...(sec.savedData || {}),
-              [elementId]: value,
-            },
+            savedData: nextData,
           };
         }
         return sec;
@@ -3972,7 +4170,11 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                   return (
                     <th
                       key={col.id}
-                      style={{ width: col.width }}
+                      style={{
+                        width: isFinalCol ? '75px' : col.width,
+                        minWidth: isFinalCol ? '70px' : undefined,
+                        maxWidth: isFinalCol ? '85px' : undefined
+                      }}
                       className="px-3 py-2.5 border-r border-slate-700/80 last:border-r-0 whitespace-nowrap align-top"
                     >
                       {hasTimeBox ? (
@@ -4039,14 +4241,11 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                           )}
                         </div>
                       ) : isFinalCol ? (
-                        <div className="flex flex-col items-center justify-center gap-1 min-w-[110px] py-1">
-                          <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-100">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                            <span>{col.header}</span>
-                          </div>
-                          <span className="text-[9px] px-2 py-0.5 rounded bg-blue-950/80 border border-blue-700/60 text-blue-300 font-bold uppercase tracking-wider">
-                            Final Shift Check
+                        <div className="flex flex-col items-center justify-center gap-1 min-w-[65px] py-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300">
+                            {col.header}
                           </span>
+                          <span className="text-[9px] text-slate-400 font-medium">Final</span>
                         </div>
                       ) : isSampleCol ? (
                         <div className="flex flex-col items-center gap-1 min-w-[90px]">
@@ -4181,28 +4380,17 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                           className="px-3.5 py-2.5 border-r border-slate-200 last:border-r-0 text-xs text-slate-800 align-middle"
                         >
                           {isFinalColCell && isWeightRow ? (
-                            <div className="relative">
-                              <select
-                                value={(!currVal || currVal === '--Select--' || currVal === '--Select-') ? '--Select--' : currVal}
+                            <div className="relative flex justify-center">
+                              <input
+                                type="text"
+                                value={currVal ?? ''}
                                 onChange={(e) =>
                                   handlePreviewFieldChange(savedSection.id, cellKey, e.target.value)
                                 }
-                                className={`w-full px-2.5 py-1.5 text-xs font-bold rounded-lg border appearance-none pr-7 transition cursor-pointer ${
-                                  currVal === 'Satisfactory' || currVal === 'Pass' || currVal === 'OK'
-                                    ? 'border-emerald-400 bg-emerald-50 text-emerald-800'
-                                    : currVal === 'Unsatisfactory' || currVal === 'Fail' || currVal === 'NG'
-                                    ? 'border-rose-400 bg-rose-50 text-rose-800'
-                                    : currVal === 'N/A'
-                                    ? 'border-slate-300 bg-slate-100 text-slate-700'
-                                    : 'border-slate-300 bg-white text-slate-700'
-                                } focus:outline-none focus:ring-1 focus:ring-emerald-500`}
-                              >
-                                <option value="--Select--">--Select--</option>
-                                <option value="Satisfactory">Satisfactory</option>
-                                <option value="Unsatisfactory">Unsatisfactory</option>
-                                <option value="N/A">N/A</option>
-                              </select>
-                              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                placeholder="Avg"
+                                className="w-14 px-1 py-1 bg-white border border-slate-300 rounded text-center text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                                title="Final Average"
+                              />
                             </div>
                           ) : isDropdownCol && isRowManualText ? (
                             <div className="relative">
@@ -4253,7 +4441,27 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                             </div>
                           ) : isParamCol ? (
                             <div className="font-semibold text-slate-800">
-                              {currVal || row.cells[col.id] || '-'}
+                              {(() => {
+                                const isImd = activeForm.id.includes('imd') || /imd/i.test(activeForm.name || headerData.productType || '');
+                                if (isImd && studioImdItemCount > 1) {
+                                  const sec1 = sections.find(s => s.id === 'sec-imd-1' || /inspection log/i.test(s.title || ''));
+                                  const item1Name = (sec1?.savedData?.['el-desc'] || sec1?.savedData?.['el-item-code'] || '1st Item').trim();
+                                  const item2Name = (sec1?.savedData?.['el-desc-2'] || sec1?.savedData?.['el-item-code-2'] || '2nd Item').trim();
+                                  const item3Name = (sec1?.savedData?.['el-desc-3'] || sec1?.savedData?.['el-item-code-3'] || '3rd Item').trim();
+                                  const item4Name = (sec1?.savedData?.['el-desc-4'] || sec1?.savedData?.['el-item-code-4'] || '4th Item').trim();
+
+                                  if (row.id === 'row-imd-q-07') {
+                                    return `7. ${item1Name} weight [Avg]`;
+                                  } else if (row.id === 'row-imd-q-7-1') {
+                                    return `7.1 ${item2Name} weight [Avg]`;
+                                  } else if (row.id === 'row-imd-q-7-2') {
+                                    return `7.2 ${item3Name} weight [Avg]`;
+                                  } else if (row.id === 'row-imd-q-7-3') {
+                                    return `7.3 ${item4Name} weight [Avg]`;
+                                  }
+                                }
+                                return currVal || row.cells[col.id] || '-';
+                              })()}
                             </div>
                           ) : col.type === 'text_input' ? (
                             <input
@@ -4323,7 +4531,27 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                       );
                     }
 
-                    // Non-online columns (MIC, Parameter, Final Result, Specifications): empty cell
+                    const isFinalCol = col.id === 'col-final' || /final/i.test(col.header);
+
+                    if (isFinalCol) {
+                      return (
+                        <td key={col.id} className="px-1 py-2.5 text-center border-r border-slate-200 last:border-r-0 bg-blue-50/30">
+                          <div className="flex flex-col items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleStudioEndRun(savedSection.id, element.id)}
+                              className="w-full px-1.5 py-1.5 rounded-lg text-[10px] font-bold shadow-2xs flex items-center justify-center gap-1 transition cursor-pointer bg-blue-600 hover:bg-blue-700 active:scale-95 text-white whitespace-nowrap"
+                              title="End Run: Calculate averages across all Online Result columns and auto-fill Quantitative Data"
+                            >
+                              <Calculator className="w-3 h-3" />
+                              <span>End Run</span>
+                            </button>
+                          </div>
+                        </td>
+                      );
+                    }
+
+                    // Non-online columns (MIC, Parameter, Specifications): empty cell
                     return (
                       <td key={col.id} className="px-2 py-2 border-r border-slate-200 last:border-r-0" />
                     );
@@ -4477,128 +4705,254 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                     </div>
 
                     {/* Card Body: 4-Column Grid Layout matching image for regular fields */}
-                    {regularElements.length > 0 && (
-                      <div className="p-5 sm:p-6">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 items-start">
-                          {regularElements.map((element) => {
-                            const currVal = savedSection.savedData?.[element.id] ?? '';
+                    {regularElements.length > 0 && (() => {
+                      const isImd = activeForm.id.includes('imd') || /imd/i.test(activeForm.name || headerData.productType || '');
+                      const isInspectionLog = savedSection.id === 'sec-imd-1' || /inspection log/i.test(savedSection.title || '');
+                      const displayRegularElements = (isImd && isInspectionLog)
+                        ? regularElements.filter(el => el.id !== 'el-item-code' && el.id !== 'el-desc' && !/item\s*code|product\s*desc/i.test(el.name))
+                        : regularElements;
 
-                            const placeholder = (() => {
-                              const n = element.name.trim().toLowerCase();
-                              if (n.includes('batch')) return 'Batch No.';
-                              if (n.includes('machine') || n.includes('mc.')) return 'Machine number';
-                              if (n.includes('raw material lot') || n.includes('lot no')) return 'Lot number';
-                              if (n.includes('raw material grade') || n.includes('grade')) return 'Grade';
-                              if (n.includes('coordination')) return 'e.g. 050 (13 A)';
-                              if (n.includes('product description') || n.includes('desc')) return 'Enter Product Description';
-                              if (n.includes('item code')) return 'e.g. MSFZ 13-13A...';
-                              if (n.includes('weight') || n.includes('shot') || n.includes('runner')) return 'Auto / enter';
-                              return `Enter ${element.name}`;
-                            })();
+                      return (
+                        <div className="p-5 sm:p-6 space-y-4">
+                          <div className={`grid grid-cols-1 sm:grid-cols-2 ${displayRegularElements.length >= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4 sm:gap-5 items-start`}>
+                            {displayRegularElements.map((element) => {
+                              const currVal = savedSection.savedData?.[element.id] ?? '';
 
-                            return (
-                              <div key={element.id} className="space-y-1.5 flex flex-col justify-start">
-                                <label className="block text-xs font-semibold text-slate-700">
-                                  {element.name}
-                                </label>
+                              const placeholder = (() => {
+                                const n = element.name.trim().toLowerCase();
+                                if (n.includes('batch')) return 'Batch No.';
+                                if (n.includes('machine') || n.includes('mc.')) return 'Machine number';
+                                if (n.includes('raw material lot') || n.includes('lot no')) return 'Lot number';
+                                if (n.includes('raw material grade') || n.includes('grade')) return 'Grade';
+                                if (n.includes('coordination')) return 'e.g. 050 (13 A)';
+                                if (n.includes('product description') || n.includes('desc')) return 'Enter Product Description';
+                                if (n.includes('item code')) return 'e.g. MSFZ 13-13A...';
+                                if (n.includes('weight') || n.includes('shot') || n.includes('runner')) return 'Auto / enter';
+                                return `Enter ${element.name}`;
+                              })();
 
-                                {element.type === 'data_field' && (
-                                  element.id === 'el-item-code' || /item\s*code/i.test(element.name) ? (
-                                    <ItemCodeSmartInput
-                                      value={currVal}
-                                      placeholder={placeholder}
-                                      itemsList={studioDbItems}
-                                      onChange={(code, item) => {
-                                        handlePreviewFieldChange(savedSection.id, element.id, code);
-                                        const resolvedItem = item || lookupDatabaseItem(code, studioDbItems);
-                                        if (resolvedItem) {
+                              return (
+                                <div key={element.id} className="space-y-1.5 flex flex-col justify-start">
+                                  <label className="block text-xs font-semibold text-slate-700">
+                                    {element.name}
+                                  </label>
+
+                                  {element.type === 'data_field' && (
+                                    element.id === 'el-item-code' || /item\s*code/i.test(element.name) ? (
+                                      <ItemCodeSmartInput
+                                        value={currVal}
+                                        placeholder={placeholder}
+                                        itemsList={studioDbItems}
+                                        onChange={(code, item) => {
+                                          handlePreviewFieldChange(savedSection.id, element.id, code);
+                                          const resolvedItem = item || lookupDatabaseItem(code, studioDbItems);
+                                          if (resolvedItem) {
+                                            const descEl = savedSection.elements.find(
+                                              (el) => el.id === 'el-desc' || /product\s*desc|description/i.test(el.name)
+                                            );
+                                            if (descEl) {
+                                              handlePreviewFieldChange(savedSection.id, descEl.id, resolvedItem.description);
+                                            }
+                                            handleUpdateHeaderField('productType', resolvedItem.description);
+                                          }
+                                        }}
+                                        onSelectDescription={(desc) => {
                                           const descEl = savedSection.elements.find(
                                             (el) => el.id === 'el-desc' || /product\s*desc|description/i.test(el.name)
                                           );
                                           if (descEl) {
-                                            handlePreviewFieldChange(savedSection.id, descEl.id, resolvedItem.description);
+                                            handlePreviewFieldChange(savedSection.id, descEl.id, desc);
                                           }
-                                          handleUpdateHeaderField('productType', resolvedItem.description);
-                                        }
-                                      }}
-                                      onSelectDescription={(desc) => {
-                                        const descEl = savedSection.elements.find(
-                                          (el) => el.id === 'el-desc' || /product\s*desc|description/i.test(el.name)
-                                        );
-                                        if (descEl) {
-                                          handlePreviewFieldChange(savedSection.id, descEl.id, desc);
-                                        }
-                                        handleUpdateHeaderField('productType', desc);
-                                      }}
-                                    />
-                                  ) : (
+                                          handleUpdateHeaderField('productType', desc);
+                                        }}
+                                      />
+                                    ) : (
+                                      <input
+                                        type="text"
+                                        value={currVal}
+                                        onChange={(e) => handlePreviewFieldChange(savedSection.id, element.id, e.target.value)}
+                                        placeholder={placeholder}
+                                        className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-300 bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 shadow-2xs transition"
+                                      />
+                                    )
+                                  )}
+
+                                  {element.type === 'date_picker' && (
                                     <input
-                                      type="text"
-                                      value={currVal}
+                                      type="date"
+                                      value={currVal || '2026-10-10'}
                                       onChange={(e) => handlePreviewFieldChange(savedSection.id, element.id, e.target.value)}
-                                      placeholder={placeholder}
-                                      className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-300 bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 shadow-2xs transition"
+                                      className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 shadow-2xs transition cursor-pointer"
                                     />
-                                  )
-                                )}
+                                  )}
 
-                                {element.type === 'date_picker' && (
-                                  <input
-                                    type="date"
-                                    value={currVal || '2026-10-10'}
-                                    onChange={(e) => handlePreviewFieldChange(savedSection.id, element.id, e.target.value)}
-                                    className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 shadow-2xs transition cursor-pointer"
-                                  />
-                                )}
-
-                                {element.type === 'dropdown' && (
-                                  <div className="relative">
-                                    <select
-                                      value={currVal}
-                                      onChange={(e) => handlePreviewFieldChange(savedSection.id, element.id, e.target.value)}
-                                      className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-300 bg-white text-slate-800 appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 shadow-2xs transition cursor-pointer"
-                                    >
-                                      <option value="">Select {element.name}</option>
-                                      {element.subItems.map((opt, i) => (
-                                        <option key={i} value={opt}>
-                                          {opt}
-                                        </option>
-                                      ))}
-                                    </select>
-                                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                                  </div>
-                                )}
-
-                                {element.type === 'radio' && (
-                                  <div className="flex flex-wrap gap-2 pt-0.5">
-                                    {element.subItems.map((opt, i) => (
-                                      <label
-                                        key={i}
-                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs cursor-pointer transition ${
-                                          currVal === opt
-                                            ? 'border-blue-500 bg-blue-50 text-blue-800 font-semibold'
-                                            : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-                                        }`}
+                                  {element.type === 'dropdown' && (
+                                    <div className="relative">
+                                      <select
+                                        value={currVal}
+                                        onChange={(e) => handlePreviewFieldChange(savedSection.id, element.id, e.target.value)}
+                                        className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-300 bg-white text-slate-800 appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 shadow-2xs transition cursor-pointer"
                                       >
-                                        <input
-                                          type="radio"
-                                          name={`live-radio-${savedSection.id}-${element.id}`}
-                                          value={opt}
-                                          checked={currVal === opt}
-                                          onChange={() => handlePreviewFieldChange(savedSection.id, element.id, opt)}
-                                          className="text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
-                                        />
-                                        <span>{opt}</span>
-                                      </label>
-                                    ))}
-                                  </div>
-                                )}
+                                        <option value="">Select {element.name}</option>
+                                        {element.subItems.map((opt, i) => (
+                                          <option key={i} value={opt}>
+                                            {opt}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                    </div>
+                                  )}
+
+                                  {element.type === 'radio' && (
+                                    <div className="flex flex-wrap gap-2 pt-0.5">
+                                      {element.subItems.map((opt, i) => (
+                                        <label
+                                          key={i}
+                                          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs cursor-pointer transition ${
+                                            currVal === opt
+                                              ? 'border-blue-500 bg-blue-50 text-blue-800 font-semibold'
+                                              : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                                          }`}
+                                        >
+                                          <input
+                                            type="radio"
+                                            name={`live-radio-${savedSection.id}-${element.id}`}
+                                            value={opt}
+                                            checked={currVal === opt}
+                                            onChange={() => handlePreviewFieldChange(savedSection.id, element.id, opt)}
+                                            className="text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
+                                          />
+                                          <span>{opt}</span>
+                                        </label>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* IMD Production Items on Machine: Separate row with Add Item button */}
+                          {isImd && isInspectionLog && (
+                            <div className="mt-4 p-4 bg-slate-50/80 rounded-xl border border-slate-200/90 shadow-2xs space-y-3">
+                              <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-xs shrink-0" />
+                                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-800">
+                                    Production Items on Machine
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setStudioImdItemCount(prev => prev + 1);
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold transition shadow-xs cursor-pointer select-none"
+                                  title="Add another item produced on this machine"
+                                >
+                                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                                  <span>Add Item</span>
+                                </button>
                               </div>
-                            );
-                          })}
+
+                              <div className="space-y-3">
+                                {Array.from({ length: studioImdItemCount }).map((_, idx) => {
+                                  const itemNum = idx + 1;
+                                  const codeKey = itemNum === 1 ? 'el-item-code' : `el-item-code-${itemNum}`;
+                                  const descKey = itemNum === 1 ? 'el-desc' : `el-desc-${itemNum}`;
+                                  const currCode = savedSection.savedData?.[codeKey] ?? '';
+                                  const currDesc = savedSection.savedData?.[descKey] ?? '';
+
+                                  return (
+                                    <div
+                                      key={`studio-imd-item-row-${itemNum}`}
+                                      className={`p-3 rounded-xl border transition-all ${
+                                        itemNum === 1
+                                          ? 'bg-white border-slate-200 shadow-2xs'
+                                          : 'bg-blue-50/40 border-blue-200/80 shadow-2xs'
+                                      }`}
+                                    >
+                                      {studioImdItemCount > 1 && (
+                                        <div className="flex items-center justify-between mb-2">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-blue-100 text-blue-800">
+                                              {itemNum === 1 ? '1st Item' : itemNum === 2 ? '2nd Item' : itemNum === 3 ? '3rd Item' : `${itemNum}th Item`}
+                                            </span>
+                                          </div>
+                                          {itemNum > 1 && (
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setStudioImdItemCount(prev => Math.max(1, prev - 1));
+                                              }}
+                                              className="inline-flex items-center gap-1 text-xs text-rose-600 hover:text-rose-800 p-1 px-2 rounded-md hover:bg-rose-100/70 transition cursor-pointer font-semibold"
+                                              title={`Remove Item #${itemNum}`}
+                                            >
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                              <span>Remove</span>
+                                            </button>
+                                          )}
+                                        </div>
+                                      )}
+
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+                                        <div className="space-y-1">
+                                          <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                                            <span>Item Code Reference</span>
+                                            <span className="text-rose-500 font-bold">*</span>
+                                          </label>
+                                          <ItemCodeSmartInput
+                                            value={currCode}
+                                            placeholder="e.g. MSFZ 13-13A..."
+                                            itemsList={studioDbItems}
+                                            onChange={(code, item) => {
+                                              handlePreviewFieldChange(savedSection.id, codeKey, code);
+                                              const resolvedItem = item || lookupDatabaseItem(code, studioDbItems);
+                                              if (resolvedItem) {
+                                                handlePreviewFieldChange(savedSection.id, descKey, resolvedItem.description);
+                                                if (itemNum === 1) {
+                                                  handleUpdateHeaderField('productType', resolvedItem.description);
+                                                }
+                                              }
+                                            }}
+                                            onSelectDescription={(desc) => {
+                                              handlePreviewFieldChange(savedSection.id, descKey, desc);
+                                              if (itemNum === 1) {
+                                                handleUpdateHeaderField('productType', desc);
+                                              }
+                                            }}
+                                          />
+                                        </div>
+
+                                        <div className="space-y-1">
+                                          <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                                            <span>Product Description</span>
+                                            <span className="text-rose-500 font-bold">*</span>
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={currDesc}
+                                            onChange={(e) => {
+                                              handlePreviewFieldChange(savedSection.id, descKey, e.target.value);
+                                              if (itemNum === 1) {
+                                                handleUpdateHeaderField('productType', e.target.value);
+                                              }
+                                            }}
+                                            placeholder="Enter Product Description"
+                                            className="w-full px-3.5 py-2 text-xs rounded-lg border border-slate-300 bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 shadow-2xs transition"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
 
                   {/* Section 1 Table Grids (if any) */}

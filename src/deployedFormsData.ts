@@ -5,6 +5,8 @@ import {
   DEFAULT_FORM_FOOTER,
   REFERENCE_SECTION_1_ELEMENTS,
   REFERENCE_SECTION_1_SAVED_DATA,
+  TESTING_1_SECTION_1_ELEMENTS,
+  TESTING_1_SECTION_1_SAVED_DATA,
   REFERENCE_SECTION_2_ONLINE_ELEMENTS,
   REFERENCE_SECTION_3_FINAL_ELEMENTS,
   IMD_FORM_INITIAL,
@@ -56,9 +58,9 @@ export const INITIAL_DEFAULT_DEPLOYED_FORMS: DeployedInspectionForm[] = [
         id: 'section-1',
         sectionNumber: 1,
         title: 'INSPECTION LOG',
-        elements: REFERENCE_SECTION_1_ELEMENTS,
+        elements: TESTING_1_SECTION_1_ELEMENTS,
         isSaved: true,
-        savedData: REFERENCE_SECTION_1_SAVED_DATA,
+        savedData: TESTING_1_SECTION_1_SAVED_DATA,
       },
       {
         id: 'section-2',
@@ -306,12 +308,48 @@ export function getStoredDeployedForms(): DeployedInspectionForm[] {
             });
           }
         });
+
+        // Ensure Testing_1 and Modular Switch deployed forms have the Cordination radio button element
+        const isTesting1 = f.sourceFormId === 'form-testing-1' || f.id === 'deployed-white-series-testing-1' || f.name?.toLowerCase().includes('testing_1') || f.name?.toLowerCase().includes('testing 1');
+        const isModular2 = f.sourceFormId === 'form-modular-2' || f.name?.toLowerCase().includes('modular_switch_qa_2') || f.name?.toLowerCase().includes('modular switch');
+        if (isTesting1 || isModular2) {
+          const sec1 = f.sections?.find(s => s.id === 'section-1' || s.sectionNumber === 1 || /inspection log/i.test(s.title || ''));
+          if (sec1) {
+            const targetSubItems = isTesting1
+              ? [
+                  'SSO (13 A)',
+                  'SSO - Neon Indicator (13 A) All parts should be correctly assembled.',
+                  'SSO - Twin (With / Without neon)',
+                ]
+              : [
+                  'Switch (10 A)',
+                  'Switch - Bell press (10 A)',
+                  'Switch - Bell push (4 A)',
+                  'Switch - Double pole (20 A)',
+                ];
+            const cordId = isTesting1 ? 'el-cordination-sso' : 'el-cordination-modular';
+            const cordEl = {
+              id: cordId,
+              name: 'Cordination',
+              type: 'radio' as const,
+              subItems: targetSubItems,
+            };
+            if (!Array.isArray(sec1.elements)) {
+              sec1.elements = isTesting1 ? TESTING_1_SECTION_1_ELEMENTS : REFERENCE_SECTION_1_ELEMENTS;
+            } else {
+              const existingIdx = sec1.elements.findIndex(el => /cordination/i.test(el.name) || el.id.includes('cordination'));
+              if (existingIdx >= 0) {
+                sec1.elements[existingIdx] = cordEl;
+              } else {
+                sec1.elements.push(cordEl);
+              }
+            }
+          }
+        }
       });
 
-      // Synchronize back if filtered out deleted ones
-      if (validForms.length !== parsed.length) {
-        localStorage.setItem(LOCAL_STORAGE_DEPLOYED_FORMS_KEY, JSON.stringify(validForms));
-      }
+      // Synchronize back to localStorage
+      localStorage.setItem(LOCAL_STORAGE_DEPLOYED_FORMS_KEY, JSON.stringify(validForms));
 
       return validForms;
     }

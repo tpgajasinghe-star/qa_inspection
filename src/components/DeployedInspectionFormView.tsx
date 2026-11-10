@@ -23,7 +23,8 @@ import {
   AlertCircle,
   ArrowRight,
   Plus,
-  Trash2
+  Trash2,
+  Calculator
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { DeployedInspectionForm } from '../deployedFormsData';
@@ -453,6 +454,91 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
     toast.success(`Online Inspection checkpoint for "${colHeader}" submitted successfully (${timeStr})!`);
   };
 
+  // End Run: calculate quantitative averages across all Online Result columns and auto-fill Quantitative Data
+  const handleEndRun = (sectionId: string, _tableElId?: string) => {
+    const targetSec = form.sections.find(s => s.id === sectionId) || form.sections.find(s => s.id === 'sec-imd-2');
+    if (!targetSec) return;
+    const targetTable = targetSec.elements.find(el => el.type === 'table_grid');
+    if (!targetTable || !targetTable.tableConfig) return;
+
+    const cols = targetTable.tableConfig.columns;
+    const onlineCols = cols.filter(c => (c.id.includes('online') || /online/i.test(c.header)) && !(/final/i.test(c.header) || c.id === 'col-final'));
+    const finalCol = cols.find(c => c.id === 'col-final' || /final/i.test(c.header));
+    const finalColId = finalCol ? finalCol.id : 'col-final';
+
+    const onlineColCount = onlineCols.length;
+    if (onlineColCount === 0) {
+      toast.error('No Online Result columns found to calculate averages.');
+      return;
+    }
+
+    const updatedCellValues: Record<string, string> = {};
+    const rowAverages: Record<string, number> = {};
+
+    targetTable.tableConfig.rows.forEach(row => {
+      if (row.isGroupHeader) return;
+
+      const isWeightRow = row.id.startsWith('row-imd-q-') || row.id.includes('-q-') || /weight|shot|runner|no\.\s*of\s*items|good|dam/i.test(row.cells['col-param'] || '');
+
+      if (isWeightRow) {
+        const values: number[] = [];
+        onlineCols.forEach(col => {
+          const key = `${targetSec.id}-${row.id}-${col.id}`;
+          const val = cellValues[key];
+          const num = parseFloat(String(val).trim());
+          if (!isNaN(num) && num > 0) {
+            values.push(num);
+          }
+        });
+
+        if (values.length > 0) {
+          const sum = values.reduce((a, b) => a + b, 0);
+          const avg = sum / onlineColCount;
+          rowAverages[row.id] = avg;
+          const avgFormatted = avg.toFixed(2);
+          updatedCellValues[`${targetSec.id}-${row.id}-${finalColId}`] = avgFormatted;
+        }
+      } else {
+        const results = onlineCols.map(col => cellValues[`${targetSec.id}-${row.id}-${col.id}`]).filter(Boolean);
+        if (results.length > 0) {
+          if (results.some(r => r === 'Fail' || r === 'NG' || r === 'Unsatisfactory')) {
+            updatedCellValues[`${targetSec.id}-${row.id}-${finalColId}`] = 'Fail';
+          } else if (results.every(r => r === 'Pass' || r === 'OK' || r === 'Satisfactory')) {
+            updatedCellValues[`${targetSec.id}-${row.id}-${finalColId}`] = 'Pass';
+          }
+        }
+      }
+    });
+
+    setCellValues(prev => ({
+      ...prev,
+      ...updatedCellValues,
+    }));
+
+    // Auto-fill Section 3 QUANTITATIVE DATA elements
+    const updatedFieldValues: Record<string, string> = {};
+    const shotAvg = rowAverages['row-imd-q-07'];
+    const item1Avg = rowAverages['row-imd-q-7-1'];
+    const runnerAvg = rowAverages['row-imd-q-10'];
+
+    if (shotAvg !== undefined) {
+      updatedFieldValues['el-imd-avg-shot'] = shotAvg.toFixed(2);
+    }
+    if (item1Avg !== undefined) {
+      updatedFieldValues['el-imd-avg-item'] = item1Avg.toFixed(2);
+    }
+    if (runnerAvg !== undefined) {
+      updatedFieldValues['el-imd-runner-weight'] = runnerAvg.toFixed(2);
+    }
+
+    setFieldValues(prev => ({
+      ...prev,
+      ...updatedFieldValues,
+    }));
+
+    toast.success(`End Run completed! Averages calculated across ${onlineColCount} Online Result run(s) and auto-filled.`);
+  };
+
   // General field values for non-table elements (e.g. Section 1 data fields)
   const [fieldValues, setFieldValues] = useState<Record<string, string>>(() => {
     const vals: Record<string, string> = {};
@@ -465,7 +551,9 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
         const opts = (Array.isArray(el.subItems) && el.subItems.length > 0)
           ? el.subItems
           : /cordination/i.test(el.name)
-          ? ['SSO (13 A)', 'SSO - Neon Indicator (13 A)', 'SSO - Twin (With / Without neon)']
+          ? (/modular|switch/i.test(form.name || form.productType || '')
+              ? ['Switch (10 A)', 'Switch - Bell press (10 A)', 'Switch - Bell push (4 A)', 'Switch - Double pole (20 A)']
+              : ['SSO (13 A)', 'SSO - Neon Indicator (13 A) All parts should be correctly assembled.', 'SSO - Twin (With / Without neon)'])
           : [];
         if (isRadio && opts.length > 0) {
           if (!vals[el.id] || !opts.includes(vals[el.id])) {
@@ -536,12 +624,54 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
     }
   }, [fieldValues, itemCode, itemsList, childCard.name, form.sections, productDesc]);
 
-  // Handle cell change
+  // Number of items produced on this machine for IMD form (1 to 4 items)
+  const [imdItemCount, setImdItemCount] = useState<number>(() => {
+    for (const sec of form.sections) {
+      if (sec.savedData) {
+        const dyn = sec.savedData as Record<string, any>;
+        if (dyn.imd_item_count) return Math.min(4, Math.max(1, parseInt(String(dyn.imd_item_count), 10) || 1));
+        if (dyn['el-item-code-4'] || dyn['el-desc-4']) return 4;
+        if (dyn['el-item-code-3'] || dyn['el-desc-3']) return 3;
+        if (dyn['el-item-code-2'] || dyn['el-desc-2']) return 2;
+      }
+    }
+    return 1;
+  });
+
+  // Handle cell change with auto-calculation for IMD Weight Details
   const handleCellChange = (sectionId: string, rowId: string, colId: string, val: string) => {
-    setCellValues(prev => ({
-      ...prev,
-      [`${sectionId}-${rowId}-${colId}`]: val,
-    }));
+    setCellValues(prev => {
+      const next = {
+        ...prev,
+        [`${sectionId}-${rowId}-${colId}`]: val,
+      };
+
+      const isImd = form.id.includes('imd') || /imd/i.test(form.name || form.productType || '');
+      if (isImd) {
+        // Business logic:
+        // If item is NOT Sunk Box or Plug top,
+        // AND machine is running single item (imdItemCount <= 1),
+        // AND good items > 2,
+        // Auto-fill Item weight - 1 [Avg] = (Shot weight [Avg] - Runner weight) / No. of Items Good
+        // If cavity has 1 or 2 good items, user manually inputs weight details.
+        const item1Desc = (fieldValues['el-desc'] || productDesc || '').trim();
+        const isExcludedItem = /sunk\s*box|plog\s*top|plug\s*top/i.test(item1Desc);
+        const isMultiItem = imdItemCount > 1;
+
+        if (!isExcludedItem && !isMultiItem && (rowId === 'row-imd-q-07' || rowId === 'row-imd-q-08' || rowId === 'row-imd-q-10')) {
+          const shotVal = parseFloat(rowId === 'row-imd-q-07' ? val : (next[`${sectionId}-row-imd-q-07-${colId}`] || ''));
+          const goodVal = parseFloat(rowId === 'row-imd-q-08' ? val : (next[`${sectionId}-row-imd-q-08-${colId}`] || ''));
+          const runnerVal = parseFloat(rowId === 'row-imd-q-10' ? val : (next[`${sectionId}-row-imd-q-10-${colId}`] || ''));
+
+          if (goodVal > 2 && !isNaN(shotVal) && !isNaN(runnerVal) && shotVal > runnerVal) {
+            const calculatedItemWeight = ((shotVal - runnerVal) / goodVal).toFixed(2);
+            next[`${sectionId}-row-imd-q-7-1-${colId}`] = calculatedItemWeight;
+          }
+        }
+      }
+
+      return next;
+    });
   };
 
   // Handle real file attachments & previews
@@ -601,6 +731,23 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
           }
         }
       });
+
+      // If IMD form with multiple items, validate extra items
+      const isImd = form.id.includes('imd') || /imd/i.test(form.name || form.productType || '');
+      if (isImd && imdItemCount > 1) {
+        for (let i = 2; i <= imdItemCount; i++) {
+          const cKey = `el-item-code-${i}`;
+          const dKey = `el-desc-${i}`;
+          if (!fieldValues[cKey]?.trim()) {
+            errors[cKey] = `Mandatory: Item #${i} Item Code is required`;
+            if (!firstErrorId) firstErrorId = `field-container-${cKey}`;
+          }
+          if (!fieldValues[dKey]?.trim()) {
+            errors[dKey] = `Mandatory: Item #${i} Product Description is required`;
+            if (!firstErrorId) firstErrorId = `field-container-${dKey}`;
+          }
+        }
+      }
     }
 
     // 2. Validate Footer Sign-off (Online Inspector Name & EMP No.)
@@ -707,6 +854,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
       remarks,
       status,
       hasFailures,
+      imd_item_count: imdItemCount,
       submittedAt: new Date().toISOString(),
     };
 
@@ -1080,10 +1228,15 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                 );
               }
 
+              const isInspectionLog = section.sectionNumber === 1 || section.id === 'sec-imd-1' || /log/i.test(section.title);
+              const isImd = form.id.includes('imd') || /imd/i.test(form.name || form.productType || '');
+              const displayElements = (isImd && isInspectionLog)
+                ? nonTableEls.filter(el => el.id !== 'el-item-code' && el.id !== 'el-desc' && !/item\s*code|product\s*desc/i.test(el.name))
+                : nonTableEls;
+
               return (
-                <div className={`p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 ${nonTableEls.length >= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4 border-b border-slate-100 bg-slate-50/50`}>
-                  {nonTableEls.map(el => {
-                    const isInspectionLog = section.sectionNumber === 1 || section.id === 'sec-imd-1' || /log/i.test(section.title);
+                <div className={`p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 ${displayElements.length >= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4 border-b border-slate-100 bg-slate-50/50`}>
+                  {displayElements.map(el => {
                     const isWeightField = el.id === 'el-imd-avg-shot' || el.id === 'el-imd-avg-item' || el.id === 'el-imd-runner-weight' || /average shot|average item|runner weight/i.test(el.name);
                     const autoVal = isWeightField
                       ? (el.id === 'el-imd-avg-shot' || /shot/i.test(el.name)
@@ -1225,7 +1378,9 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                 const opts = (Array.isArray(el.subItems) && el.subItems.length > 0)
                                   ? el.subItems
                                   : /cordination/i.test(el.name)
-                                  ? ['SSO (13 A)', 'SSO - Neon Indicator (13 A)', 'SSO - Twin (With / Without neon)']
+                                  ? (/modular|switch/i.test(form.name || form.productType || '')
+                                      ? ['Switch (10 A)', 'Switch - Bell press (10 A)', 'Switch - Bell push (4 A)', 'Switch - Double pole (20 A)']
+                                      : ['SSO (13 A)', 'SSO - Neon Indicator (13 A) All parts should be correctly assembled.', 'SSO - Twin (With / Without neon)'])
                                   : [];
                                 const currVal = fieldValues[el.id] !== undefined
                                   ? fieldValues[el.id]
@@ -1323,7 +1478,170 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                         </div>
                       );
                     })}
-                  </div>
+
+                  {/* IMD Production Items on Machine: Separate row with Add Item button */}
+                  {isImd && isInspectionLog && (
+                    <div className="col-span-full mt-2 p-4 bg-white rounded-xl border border-slate-200/90 shadow-2xs space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shadow-xs shrink-0" />
+                          <span className="text-xs font-extrabold uppercase tracking-wider text-slate-800">
+                            Production Items on Machine
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextCount = imdItemCount + 1;
+                            setImdItemCount(nextCount);
+                            setFieldValues(prev => ({ ...prev, imd_item_count: String(nextCount) }));
+                            toast.success(`Item #${nextCount} added for this machine!`);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold transition shadow-xs cursor-pointer select-none"
+                          title="Add another item produced on this machine"
+                        >
+                          <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                          <span>Add Item</span>
+                        </button>
+                      </div>
+
+                      <div className="space-y-3">
+                        {Array.from({ length: imdItemCount }).map((_, idx) => {
+                          const itemNum = idx + 1;
+                          const codeKey = itemNum === 1 ? 'el-item-code' : `el-item-code-${itemNum}`;
+                          const descKey = itemNum === 1 ? 'el-desc' : `el-desc-${itemNum}`;
+                          const currCode = fieldValues[codeKey] || '';
+                          const currDesc = fieldValues[descKey] || (itemNum === 1 ? productDesc : '');
+                          const codeHasError = Boolean(validationErrors[codeKey]);
+                          const descHasError = Boolean(validationErrors[descKey]);
+
+                          return (
+                            <div
+                              key={`imd-item-row-${itemNum}`}
+                              className={`p-3 rounded-xl border transition-all ${
+                                codeHasError || descHasError
+                                  ? 'bg-rose-50/70 border-rose-300 ring-1 ring-rose-200'
+                                  : itemNum === 1
+                                  ? 'bg-slate-50/80 border-slate-200'
+                                  : 'bg-blue-50/30 border-blue-200/80'
+                              }`}
+                            >
+                              {imdItemCount > 1 && (
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-blue-100 text-blue-800">
+                                      {itemNum === 1 ? '1st Item' : itemNum === 2 ? '2nd Item' : itemNum === 3 ? '3rd Item' : `${itemNum}th Item`}
+                                    </span>
+                                  </div>
+                                  {itemNum > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setFieldValues(prev => {
+                                          const next = { ...prev };
+                                          delete next[codeKey];
+                                          delete next[descKey];
+                                          const nextCount = Math.max(1, imdItemCount - 1);
+                                          next.imd_item_count = String(nextCount);
+                                          return next;
+                                        });
+                                        setImdItemCount(prev => Math.max(1, prev - 1));
+                                        toast(`Item #${itemNum} removed`);
+                                      }}
+                                      className="inline-flex items-center gap-1 text-xs text-rose-600 hover:text-rose-800 p-1 px-2 rounded-md hover:bg-rose-100/70 transition cursor-pointer font-semibold"
+                                      title={`Remove Item #${itemNum}`}
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                      <span>Remove</span>
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+                                <div id={`field-container-${codeKey}`} className="space-y-1">
+                                  <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                                    <span>Item Code Reference</span>
+                                    <span className="text-rose-500 font-bold">*</span>
+                                  </label>
+                                  <div className={codeHasError ? 'border-2 border-rose-500 rounded-xl ring-2 ring-rose-300' : ''}>
+                                    <ItemCodeSmartInput
+                                      value={currCode}
+                                      itemsList={itemsList}
+                                      contextHint={childCard.name}
+                                      placeholder="e.g. MSFZ 13-13A..."
+                                      onChange={(code, item) => {
+                                        clearFieldError(codeKey);
+                                        const resolvedItem = item || lookupDatabaseItem(code, itemsList, childCard.name);
+                                        setFieldValues(prev => ({
+                                          ...prev,
+                                          [codeKey]: resolvedItem ? resolvedItem.item_code : code,
+                                          ...(resolvedItem ? { [descKey]: resolvedItem.description } : {}),
+                                        }));
+                                        if (itemNum === 1) {
+                                          setItemCode(code);
+                                          if (resolvedItem) {
+                                            setProductDesc(resolvedItem.description);
+                                            setMatchedDbItem(resolvedItem);
+                                          }
+                                        }
+                                      }}
+                                      onSelectDescription={(desc, item) => {
+                                        clearFieldError(descKey);
+                                        setFieldValues(prev => ({
+                                          ...prev,
+                                          [codeKey]: item.item_code,
+                                          [descKey]: desc,
+                                        }));
+                                        if (itemNum === 1) {
+                                          setProductDesc(desc);
+                                          setMatchedDbItem(item);
+                                        }
+                                      }}
+                                    />
+                                  </div>
+                                  {codeHasError && (
+                                    <div className="flex items-center gap-1 mt-1 text-rose-600 text-[10px] font-bold">
+                                      <AlertCircle className="w-3 h-3 shrink-0" />
+                                      <span>{validationErrors[codeKey]}</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div id={`field-container-${descKey}`} className="space-y-1">
+                                  <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                                    <span>Product Description</span>
+                                    <span className="text-rose-500 font-bold">*</span>
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={currDesc}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setFieldValues(prev => ({ ...prev, [descKey]: val }));
+                                      clearFieldError(descKey);
+                                      if (itemNum === 1) setProductDesc(val);
+                                    }}
+                                    placeholder={`Enter Product Description for Item #${itemNum}`}
+                                    className={`w-full px-3 py-2 bg-white rounded-xl border text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 transition ${
+                                      descHasError ? 'border-rose-500 ring-2 ring-rose-300 bg-rose-50/50' : 'border-slate-200 focus:ring-blue-500/30'
+                                    }`}
+                                  />
+                                  {descHasError && (
+                                    <div className="flex items-center gap-1 mt-1 text-rose-600 text-[10px] font-bold">
+                                      <AlertCircle className="w-3 h-3 shrink-0" />
+                                      <span>{validationErrors[descKey]}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
                 );
               };
 
@@ -1346,12 +1664,18 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                             return (
                               <th 
                                 key={col.id} 
-                                className="px-3.5 py-3 text-center first:text-left last:text-left border-r border-slate-300/80 last:border-r-0"
-                                style={{ width: col.width }}
+                                className={`px-2 py-3 text-center first:text-left last:text-left border-r border-slate-300/80 last:border-r-0 ${
+                                  isFinalCol ? 'bg-slate-50/70 text-slate-600' : ''
+                                }`}
+                                style={{
+                                  width: isFinalCol ? '75px' : col.width,
+                                  minWidth: isFinalCol ? '70px' : undefined,
+                                  maxWidth: isFinalCol ? '85px' : undefined
+                                }}
                               >
                                 <div className="flex flex-col items-center gap-1">
                                   <div className="flex items-center justify-center gap-1">
-                                    <span className="block text-[11px] uppercase tracking-wider font-bold">{col.header}</span>
+                                    <span className={`block uppercase tracking-wider ${isFinalCol ? 'text-[10px] font-bold text-slate-600' : 'text-[11px] font-bold'}`}>{col.header}</span>
                                     {isCustomOnlineCol && (
                                       <button
                                         type="button"
@@ -1392,9 +1716,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                     </div>
                                   )}
                                   {isFinalCol && (
-                                    <span className="mt-1 text-[9px] px-2 py-0.5 rounded bg-blue-100 border border-blue-300 text-blue-800 font-bold uppercase tracking-wider">
-                                      Final Shift Check
-                                    </span>
+                                    <span className="text-[9px] text-slate-400 font-medium">Final</span>
                                   )}
                                   {isLastOnlineCol && (
                                     <button
@@ -1512,10 +1834,36 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                 }
 
                                 if (isParamCol) {
+                                  let displayParam = row.cells[col.id] || '-';
+                                  const isImd = form.id.includes('imd') || /imd/i.test(form.name || form.productType || '');
+                                  if (isImd && imdItemCount > 1) {
+                                    const item1Name = (fieldValues['el-desc'] || fieldValues['el-item-code'] || '1st Item').trim();
+                                    const item2Name = (fieldValues['el-desc-2'] || fieldValues['el-item-code-2'] || '2nd Item').trim();
+                                    const item3Name = (fieldValues['el-desc-3'] || fieldValues['el-item-code-3'] || '3rd Item').trim();
+                                    const item4Name = (fieldValues['el-desc-4'] || fieldValues['el-item-code-4'] || '4th Item').trim();
+
+                                    if (row.id === 'row-imd-q-07') {
+                                      displayParam = `7. ${item1Name} weight [Avg]`;
+                                    } else if (row.id === 'row-imd-q-7-1') {
+                                      displayParam = `7.1 ${item2Name} weight [Avg]`;
+                                    } else if (row.id === 'row-imd-q-7-2') {
+                                      displayParam = `7.2 ${item3Name} weight [Avg]`;
+                                    } else if (row.id === 'row-imd-q-7-3') {
+                                      displayParam = `7.3 ${item4Name} weight [Avg]`;
+                                    }
+                                  }
+
                                   return (
                                     <td key={col.id} className="px-3.5 py-2.5 font-bold text-slate-900 text-xs border-r border-slate-200/80">
                                       <div className="flex items-center justify-between">
-                                        <span>{row.cells[col.id] || '-'}</span>
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span>{displayParam}</span>
+                                          {isImd && row.id === 'row-imd-q-7-1' && imdItemCount <= 1 && (
+                                            <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-blue-50 text-blue-700 border border-blue-200" title="Auto-calculated: (Shot - Runner) / Good (>2) or Manual">
+                                              Auto-calc
+                                            </span>
+                                          )}
+                                        </div>
                                         {row.unit && (
                                           <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 font-bold ml-1">
                                             {row.unit}
@@ -1527,9 +1875,18 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                 }
 
                                 if (isSpecCol) {
+                                  let displaySpec = row.cells[col.id] || '-';
+                                  const isImd = form.id.includes('imd') || /imd/i.test(form.name || form.productType || '');
+                                  if (isImd && row.id === 'row-imd-q-7-1') {
+                                    if (imdItemCount > 1) {
+                                      displaySpec = 'Multi-item production (Manual weight record)';
+                                    } else {
+                                      displaySpec = 'Auto: (Shot - Runner) / Good (>2) or Manual';
+                                    }
+                                  }
                                   return (
                                     <td key={col.id} className="px-3.5 py-2.5 text-slate-600 text-[11px] leading-relaxed border-r border-slate-200/80">
-                                      {row.cells[col.id] || '-'}
+                                      {displaySpec}
                                     </td>
                                   );
                                 }
@@ -1554,30 +1911,18 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                 const isFinalColCell = col.id === 'col-final' || /final/i.test(col.header);
 
                                 if (isFinalColCell && isWeightRow) {
-                                  const currentVal = cellValues[cellKey] || '--Select--';
-                                  const isSatisfactory = currentVal === 'Satisfactory' || currentVal === 'Pass' || currentVal === 'OK';
-                                  const isUnsatisfactory = currentVal === 'Unsatisfactory' || currentVal === 'Fail' || currentVal === 'NG';
+                                  const currentVal = cellValues[cellKey] ?? '';
 
                                   return (
-                                    <td key={col.id} className="px-2 py-2 text-center border-r border-slate-200/80">
-                                      <select
+                                    <td key={col.id} className="px-1 py-2 text-center border-r border-slate-200/80 bg-slate-50/20">
+                                      <input
+                                        type="text"
                                         value={currentVal}
                                         onChange={(e) => handleCellChange(section.id, row.id, col.id, e.target.value)}
-                                        className={`px-2.5 py-1 rounded text-xs font-bold border transition-colors shadow-2xs cursor-pointer ${
-                                          isSatisfactory
-                                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                                            : isUnsatisfactory
-                                            ? 'bg-rose-50 text-rose-800 border-rose-300'
-                                            : currentVal === 'N/A'
-                                            ? 'bg-slate-100 text-slate-700 border-slate-300'
-                                            : 'bg-white text-slate-700 border-slate-300'
-                                        }`}
-                                      >
-                                        <option value="--Select--">--Select--</option>
-                                        <option value="Satisfactory">Satisfactory</option>
-                                        <option value="Unsatisfactory">Unsatisfactory</option>
-                                        <option value="N/A">N/A</option>
-                                      </select>
+                                        placeholder="Avg"
+                                        className="w-14 px-1 py-1 bg-white border border-slate-300 rounded text-center text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs"
+                                        title="Final Average"
+                                      />
                                     </td>
                                   );
                                 }
@@ -1677,7 +2022,27 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                 );
                               }
 
-                              // Non-online columns (MIC, Parameter, Final Result, Specifications): empty cell
+                              const isFinalCol = col.id === 'col-final' || /final/i.test(col.header);
+
+                              if (isFinalCol) {
+                                return (
+                                  <td key={col.id} className="px-1 py-2.5 text-center border-r border-slate-200 last:border-r-0 bg-blue-50/30">
+                                    <div className="flex flex-col items-center gap-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleEndRun(section.id, tableEl.id)}
+                                        className="w-full px-1.5 py-1.5 rounded-lg text-[10px] font-bold shadow-2xs flex items-center justify-center gap-1 transition cursor-pointer bg-blue-600 hover:bg-blue-700 active:scale-95 text-white whitespace-nowrap"
+                                        title="End Run: Calculate averages across all Online Result columns and auto-fill Quantitative Data"
+                                      >
+                                        <Calculator className="w-3 h-3" />
+                                        <span>End Run</span>
+                                      </button>
+                                    </div>
+                                  </td>
+                                );
+                              }
+
+                              // Non-online columns (MIC, Parameter, Specifications): empty cell
                               return (
                                 <td key={col.id} className="px-2 py-2 border-r border-slate-200 last:border-r-0" />
                               );
