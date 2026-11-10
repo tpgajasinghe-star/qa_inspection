@@ -1317,6 +1317,35 @@ export interface SectionBlockSchema {
 }
 
 export const LOCAL_STORAGE_FORMS_KEY = 'qc_inspection_forms_v2';
+export const LOCAL_STORAGE_DELETED_TEMPLATES_KEY = 'qc_deleted_form_template_ids';
+
+export function getDeletedTemplateIds(): string[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_DELETED_TEMPLATES_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+  return [];
+}
+
+export function markTemplateAsDeleted(templateId: string, additionalKeys: string[] = []): void {
+  try {
+    const current = getDeletedTemplateIds();
+    const updated = Array.from(new Set([...current, templateId, ...additionalKeys]));
+    localStorage.setItem(LOCAL_STORAGE_DELETED_TEMPLATES_KEY, JSON.stringify(updated));
+  } catch {}
+}
+
+export function unmarkTemplateAsDeleted(templateId: string, additionalKeys: string[] = []): void {
+  try {
+    const current = getDeletedTemplateIds();
+    const keysToRemove = new Set([templateId, ...additionalKeys]);
+    const updated = current.filter(id => !keysToRemove.has(id));
+    localStorage.setItem(LOCAL_STORAGE_DELETED_TEMPLATES_KEY, JSON.stringify(updated));
+  } catch {}
+}
 
 export const DEFAULT_FORMS_INITIAL: InspectionFormCardData[] = [
   IMD_FORM_INITIAL,
@@ -1483,66 +1512,64 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
   // Multi-Form collection: Ongoing form is explicitly named and saved as card "Testing_1"
   const [forms, setForms] = useState<InspectionFormCardData[]>(() => {
     try {
+      const deletedTemplateIds = new Set(getDeletedTemplateIds());
       const stored = localStorage.getItem(LOCAL_STORAGE_FORMS_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Explicit requirement: Ongoing form must be named and saved as card "Testing_1"
-          const hasTesting1 = parsed.some(f => f.name === 'Testing_1');
-          if (!hasTesting1) {
-            parsed[0].name = 'Testing_1';
-            parsed[0].isOngoing = true;
+          // Filter out templates explicitly deleted by the user
+          let validForms = parsed.filter(
+            (f: InspectionFormCardData) => !deletedTemplateIds.has(f.id) && !deletedTemplateIds.has(f.name)
+          );
+
+          if (validForms.length === 0) {
+            validForms = DEFAULT_FORMS_INITIAL.filter(
+              f => !deletedTemplateIds.has(f.id) && !deletedTemplateIds.has(f.name)
+            );
           }
 
-          // Ensure IMD form is present and updated with the calibrated 3 sections (Inspection Log, Online Grid, Quantitative Grid)
-          const imdIdx = parsed.findIndex((f: InspectionFormCardData) => 
+          // If an existing form is present in the collection, update sections without re-inserting deleted forms
+          const imdIdx = validForms.findIndex((f: InspectionFormCardData) => 
             f.name?.toLowerCase().trim() === 'imd' || f.id === 'form-imd'
           );
           if (imdIdx !== -1) {
-            parsed[imdIdx] = {
-              ...parsed[imdIdx],
+            validForms[imdIdx] = {
+              ...validForms[imdIdx],
               ...IMD_FORM_INITIAL,
-              id: parsed[imdIdx].id || 'form-imd',
+              id: validForms[imdIdx].id || 'form-imd',
               name: 'IMD',
               sections: IMD_FORM_INITIAL.sections,
-              footer: parsed[imdIdx].footer || IMD_FORM_INITIAL.footer,
+              footer: validForms[imdIdx].footer || IMD_FORM_INITIAL.footer,
               documentHeader: {
                 ...IMD_FORM_INITIAL.documentHeader,
-                ...(parsed[imdIdx].documentHeader || {}),
+                ...(validForms[imdIdx].documentHeader || {}),
               },
             };
-          } else {
-            // Add IMD form directly visible in the Form Directory gallery
-            parsed.splice(1, 0, IMD_FORM_INITIAL);
           }
 
-          // Ensure Incoming 10A Terminal form is present and updated
-          const incomingTerminalIdx = parsed.findIndex((f: InspectionFormCardData) => 
+          const incomingTerminalIdx = validForms.findIndex((f: InspectionFormCardData) => 
             f.id === 'form-incoming-10a-terminal' || 
             f.name?.toLowerCase().includes("10a 'l' terminal") || 
             f.name?.toLowerCase().includes("10 a, 'l' terminal") ||
             f.name?.toLowerCase().includes("incoming - 10a")
           );
           if (incomingTerminalIdx !== -1) {
-            parsed[incomingTerminalIdx] = {
-              ...parsed[incomingTerminalIdx],
+            validForms[incomingTerminalIdx] = {
+              ...validForms[incomingTerminalIdx],
               ...INCOMING_TERMINAL_FORM_INITIAL,
-              id: parsed[incomingTerminalIdx].id || 'form-incoming-10a-terminal',
+              id: validForms[incomingTerminalIdx].id || 'form-incoming-10a-terminal',
               name: "Incoming - 10A 'L' Terminal",
               sections: INCOMING_TERMINAL_FORM_INITIAL.sections,
-              footer: parsed[incomingTerminalIdx].footer || INCOMING_TERMINAL_FORM_INITIAL.footer,
+              footer: validForms[incomingTerminalIdx].footer || INCOMING_TERMINAL_FORM_INITIAL.footer,
               documentHeader: {
                 ...INCOMING_TERMINAL_FORM_INITIAL.documentHeader,
-                ...(parsed[incomingTerminalIdx].documentHeader || {}),
+                ...(validForms[incomingTerminalIdx].documentHeader || {}),
               },
             };
-          } else {
-            // Add Incoming form directly visible in the Form Directory gallery
-            parsed.splice(2, 0, INCOMING_TERMINAL_FORM_INITIAL);
           }
 
-          // Sanitize table grids: dropdowns default to --Select--, manual text rows have blank space (no dummy values)
-          parsed.forEach((form: InspectionFormCardData) => {
+          // Sanitize table grids: dropdowns default to --Select--, manual text rows have blank space
+          validForms.forEach((form: InspectionFormCardData) => {
             if (form.footer) {
               if (form.footer.onlineInspectorName === 'H. P. Karunaratne' || form.footer.onlineInspectorName?.includes('Karunaratne')) form.footer.onlineInspectorName = '';
               if (form.footer.onlineEmpNo === 'EMP-4102' || form.footer.onlineEmpNo?.includes('4102')) form.footer.onlineEmpNo = '';
@@ -1988,20 +2015,60 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
     showToast(`Renamed form to "${newName}".`);
   };
 
-  // Delete form
+  // Delete form template permanently
   const handleDeleteForm = (formId: string) => {
-    if (forms.length <= 1) {
-      showToast('Cannot delete the last remaining form.');
-      return;
-    }
     const target = forms.find(f => f.id === formId);
     const remaining = forms.filter(f => f.id !== formId);
-    setForms(remaining);
-    if (activeFormId === formId && remaining.length > 0) {
-      setActiveFormId(remaining[0].id);
-      setHeaderData(remaining[0].documentHeader);
-      setSections(remaining[0].sections);
-      const rawFooter = remaining[0].footer || DEFAULT_FORM_FOOTER;
+
+    // Record template ID and name in deleted templates registry
+    const extraKeys: string[] = [];
+    if (target?.name) extraKeys.push(target.name);
+    markTemplateAsDeleted(formId, extraKeys);
+
+    let nextForms = remaining;
+    if (nextForms.length === 0) {
+      // If user deletes the last template, provide a fresh blank template so studio remains operational
+      const freshBlankForm: InspectionFormCardData = {
+        id: `form-custom-${Date.now()}`,
+        name: 'Untitled Inspection Form',
+        isOngoing: true,
+        status: 'Draft',
+        createdAt: new Date().toISOString().split('T')[0],
+        updatedAt: 'Just now',
+        documentHeader: {
+          documentNo: 'F 17/3-2.1',
+          dateOfIssue: new Date().toISOString().split('T')[0],
+          revisionNo: '01',
+          documentType: 'Online & Final Inspection Report',
+          productType: 'White Series – Switched Socket Outlet',
+          refStandard: 'SLS 734',
+        },
+        sections: [
+          {
+            id: 'section-1',
+            sectionNumber: 1,
+            title: '1. GENERAL INSPECTION SPECIFICATIONS',
+            elements: [],
+            isSaved: true,
+            savedData: {},
+          }
+        ],
+        notes: 'New blank inspection template.',
+        footer: DEFAULT_FORM_FOOTER,
+      };
+      nextForms = [freshBlankForm];
+    }
+
+    setForms(nextForms);
+    try {
+      localStorage.setItem(LOCAL_STORAGE_FORMS_KEY, JSON.stringify(nextForms));
+    } catch {}
+
+    if (activeFormId === formId) {
+      setActiveFormId(nextForms[0].id);
+      setHeaderData(nextForms[0].documentHeader);
+      setSections(nextForms[0].sections);
+      const rawFooter = nextForms[0].footer || DEFAULT_FORM_FOOTER;
       setFooterData({
         ...rawFooter,
         onlineInspectorName: (rawFooter.onlineInspectorName === 'H. P. Karunaratne' ? '' : rawFooter.onlineInspectorName) || '',
@@ -2010,7 +2077,7 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
         finalEmpNo: (rawFooter.finalEmpNo === 'QC-Lead-09' ? '' : rawFooter.finalEmpNo) || '',
       });
     }
-    showToast(`Deleted form "${target?.name || ''}".`);
+    showToast(`Deleted form template "${target?.name || ''}".`);
   };
 
   // Switch form while in editor mode

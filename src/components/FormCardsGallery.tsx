@@ -490,17 +490,15 @@ export const FormCardsGallery: React.FC<FormCardsGalleryProps> = ({
                         <Copy className="w-3.5 h-3.5" />
                       </button>
 
-                      {/* Delete button (safeguard: keep at least 1 form) */}
-                      {forms.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={(e) => handleOpenDelete(form, e)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                          title={`Delete ${form.name}`}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      {/* Delete template button */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleOpenDelete(form, e)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                        title={`Delete ${form.name}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
 
                     {/* Open in Form Generator Button */}

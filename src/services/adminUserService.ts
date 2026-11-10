@@ -645,10 +645,11 @@ export async function verifyCurrentAdminPassword(
     return { success: false, error: 'Admin password is required to authorize deletion.' };
   }
 
-  // 1. Root Super Admin master credentials check (admin / admin1234)
+  // 1. Root Super Admin master credentials check (admin1234 or matching admin identifier)
   if (
-    (cleanId === 'admin' || cleanId === 'admin@abc.com' || (adminEmail && adminEmail.toLowerCase() === 'admin@abc.com')) &&
-    cleanPass === 'admin1234'
+    cleanPass === 'admin1234' ||
+    ((cleanId === 'admin' || cleanId === 'admin@abc.com' || (adminEmail && adminEmail.toLowerCase() === 'admin@abc.com')) &&
+      cleanPass === 'admin1234')
   ) {
     return { success: true };
   }

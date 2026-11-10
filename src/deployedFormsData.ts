@@ -208,61 +208,73 @@ export const INITIAL_DEFAULT_DEPLOYED_FORMS: DeployedInspectionForm[] = [
   },
 ];
 
+export const LOCAL_STORAGE_DELETED_DEPLOYED_FORMS_KEY = 'inspection_deleted_deployed_form_ids';
+
+export function getDeletedDeployedFormIds(): string[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_DELETED_DEPLOYED_FORMS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+  return [];
+}
+
+export function markDeployedFormAsDeleted(formId: string, additionalKeys: string[] = []): void {
+  try {
+    const current = getDeletedDeployedFormIds();
+    const updated = Array.from(new Set([...current, formId, ...additionalKeys]));
+    localStorage.setItem(LOCAL_STORAGE_DELETED_DEPLOYED_FORMS_KEY, JSON.stringify(updated));
+  } catch {}
+}
+
+export function unmarkDeployedFormAsDeleted(formId: string, additionalKeys: string[] = []): void {
+  try {
+    const current = getDeletedDeployedFormIds();
+    const keysToRemove = new Set([formId, ...additionalKeys]);
+    const updated = current.filter(id => !keysToRemove.has(id));
+    localStorage.setItem(LOCAL_STORAGE_DELETED_DEPLOYED_FORMS_KEY, JSON.stringify(updated));
+  } catch {}
+}
+
+// Desired order for Inspection Log section elements:
+// 1. Date, 2. Item Code, 3. Product Description, 4. Machine No, 5. Raw Material Lot, 6. Raw Material Grade, 7. Batch No
+const getFieldRank = (id: string, name: string): number => {
+  if (id === 'el-date' || /date/i.test(name)) return 1;
+  if (id === 'el-item-code' || /item\s*code/i.test(name)) return 2;
+  if (id === 'el-desc' || /product\s*desc|description/i.test(name)) return 3;
+  if (id === 'el-mc-no' || /machine/i.test(name)) return 4;
+  if (id === 'el-raw-lot' || /raw.*lot/i.test(name)) return 5;
+  if (id === 'el-raw-grade' || /raw.*grade/i.test(name)) return 6;
+  if (id === 'el-batch' || /batch/i.test(name)) return 7;
+  return 99;
+};
+
 // Helper to retrieve all deployed forms from localStorage
 export function getStoredDeployedForms(): DeployedInspectionForm[] {
   try {
+    const deletedIds = new Set(getDeletedDeployedFormIds());
     const raw = localStorage.getItem(LOCAL_STORAGE_DEPLOYED_FORMS_KEY);
+    
+    // First-time visit: initialize with defaults, excluding any marked as deleted
     if (!raw) {
-      localStorage.setItem(LOCAL_STORAGE_DEPLOYED_FORMS_KEY, JSON.stringify(INITIAL_DEFAULT_DEPLOYED_FORMS));
-      return INITIAL_DEFAULT_DEPLOYED_FORMS;
-    }
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      // Ensure deployed IMD form is present and updated
-      const imdFormIdx = parsed.findIndex((f: DeployedInspectionForm) => f.id === 'deployed-imd-1' || f.name.toLowerCase().includes('imd'));
-      if (imdFormIdx === -1) {
-        const defaultImd = INITIAL_DEFAULT_DEPLOYED_FORMS.find(f => f.id === 'deployed-imd-1');
-        if (defaultImd) parsed.push(defaultImd);
-      } else {
-        parsed[imdFormIdx] = {
-          ...parsed[imdFormIdx],
-          sections: IMD_FORM_INITIAL.sections,
-          productType: 'In-Mold Decoration (IMD) Series',
-        };
-      }
-
-      // Ensure deployed Incoming 10A Terminal form is present and updated
-      const inTermIdx = parsed.findIndex((f: DeployedInspectionForm) => 
-        f.id === 'deployed-incoming-terminal-1' || 
-        f.name.toLowerCase().includes("10a 'l' terminal") ||
-        f.name.toLowerCase().includes("10 a, 'l' terminal")
+      const initial = INITIAL_DEFAULT_DEPLOYED_FORMS.filter(
+        f => !deletedIds.has(f.id) && !deletedIds.has(f.sourceFormId)
       );
-      if (inTermIdx === -1) {
-        const defaultInTerm = INITIAL_DEFAULT_DEPLOYED_FORMS.find(f => f.id === 'deployed-incoming-terminal-1');
-        if (defaultInTerm) parsed.push(defaultInTerm);
-      } else {
-        parsed[inTermIdx] = {
-          ...parsed[inTermIdx],
-          sections: INCOMING_TERMINAL_FORM_INITIAL.sections,
-          productType: "10 A, 'L' Terminal",
-        };
-      }
-      // Desired order for Inspection Log section elements:
-      // 1. Date, 2. Item Code, 3. Product Description, 4. Machine No, 5. Raw Material Lot, 6. Raw Material Grade, 7. Batch No
-      const getFieldRank = (id: string, name: string): number => {
-        if (id === 'el-date' || /date/i.test(name)) return 1;
-        if (id === 'el-item-code' || /item\s*code/i.test(name)) return 2;
-        if (id === 'el-desc' || /product\s*desc|description/i.test(name)) return 3;
-        if (id === 'el-mc-no' || /machine/i.test(name)) return 4;
-        if (id === 'el-raw-lot' || /raw.*lot/i.test(name)) return 5;
-        if (id === 'el-raw-grade' || /raw.*grade/i.test(name)) return 6;
-        if (id === 'el-batch' || /batch/i.test(name)) return 7;
-        return 99;
-      };
+      localStorage.setItem(LOCAL_STORAGE_DEPLOYED_FORMS_KEY, JSON.stringify(initial));
+      return initial;
+    }
 
-      // Ensure inspector name, emp no, item code, batch reference are clean of dummy data
-      // and ensure Section 1 elements follow the requested order: Date -> Item Code -> Product Description -> Batch Number
-      parsed.forEach((f: DeployedInspectionForm) => {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      // Filter out any explicitly deleted forms
+      const validForms = parsed.filter(
+        (f: DeployedInspectionForm) => !deletedIds.has(f.id) && (!f.sourceFormId || !deletedIds.has(f.sourceFormId))
+      );
+
+      // Sanitize fields on existing active forms
+      validForms.forEach((f: DeployedInspectionForm) => {
         if (f.footer) {
           if (f.footer.onlineInspectorName === 'H. P. Karunaratne' || f.footer.onlineInspectorName?.includes('Karunaratne') || f.footer.onlineInspectorName === 'admin') f.footer.onlineInspectorName = '';
           if (f.footer.onlineEmpNo === 'EMP-4102' || f.footer.onlineEmpNo?.includes('4102') || f.footer.onlineEmpNo === 'admin') f.footer.onlineEmpNo = '';
@@ -274,7 +286,6 @@ export function getStoredDeployedForms(): DeployedInspectionForm[] {
             sec.title = sec.title.replace(/DIGITAL FACTORY\s*/i, '');
           }
 
-          // If this section has standard reference elements (e.g. section-1 or contains date/item-code/batch), sort elements
           if (Array.isArray(sec.elements) && sec.elements.some(el => el.id === 'el-item-code' || el.id === 'el-batch')) {
             sec.elements.sort((a, b) => getFieldRank(a.id, a.name) - getFieldRank(b.id, b.name));
           }
@@ -296,12 +307,18 @@ export function getStoredDeployedForms(): DeployedInspectionForm[] {
           }
         });
       });
-      return parsed;
+
+      // Synchronize back if filtered out deleted ones
+      if (validForms.length !== parsed.length) {
+        localStorage.setItem(LOCAL_STORAGE_DEPLOYED_FORMS_KEY, JSON.stringify(validForms));
+      }
+
+      return validForms;
     }
   } catch (err) {
     console.error('Failed to parse deployed forms from localStorage:', err);
   }
-  return INITIAL_DEFAULT_DEPLOYED_FORMS;
+  return [];
 }
 
 // Helper to save deployed forms to localStorage and broadcast event
@@ -338,6 +355,12 @@ export function deployInspectionForm(formInput: Omit<DeployedInspectionForm, 'id
     ? allForms[existingIdx].id 
     : `deployed-${formInput.targetChildCardId}-${Date.now()}`;
 
+  // Unmark as deleted if it was previously deleted by the user
+  unmarkDeployedFormAsDeleted(deployedId, [
+    formInput.sourceFormId,
+    `deleted-source-${formInput.sourceFormId}-${formInput.targetChildCardId}`
+  ]);
+
   const fullDeployedForm: DeployedInspectionForm = {
     ...formInput,
     id: deployedId,
@@ -367,10 +390,20 @@ export function getDeployedFormsForChildCard(childCardId: string, mainCardId?: s
   });
 }
 
-// Delete a deployed form
+// Delete a deployed form from operational location
 export function deleteDeployedForm(formId: string): DeployedInspectionForm[] {
   const all = getStoredDeployedForms();
+  const formToDelete = all.find(f => f.id === formId);
   const remaining = all.filter(f => f.id !== formId);
+
+  // Permanently record as deleted so default seeds or stale cache never resurrect it
+  const extraKeys: string[] = [];
+  if (formToDelete?.sourceFormId) {
+    extraKeys.push(formToDelete.sourceFormId);
+    extraKeys.push(`deleted-source-${formToDelete.sourceFormId}-${formToDelete.targetChildCardId}`);
+  }
+  markDeployedFormAsDeleted(formId, extraKeys);
+
   saveStoredDeployedForms(remaining);
   return remaining;
 }
