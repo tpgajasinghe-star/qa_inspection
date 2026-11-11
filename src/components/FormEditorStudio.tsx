@@ -43,11 +43,13 @@ import {
 } from 'lucide-react';
 import { InspectionSpecItem } from './AddRemoveInspectionPortal';
 import { FormCardsGallery, InspectionFormCardData } from './FormCardsGallery';
+export type { InspectionFormCardData };
 import { getMainCards, getChildCards, InspectionHierarchyCard } from '../inspectionHierarchyData';
 import { deployInspectionForm } from '../deployedFormsData';
 import { RoundClockTimePickerModal } from './RoundClockTimePickerModal';
 import { ItemCodeSmartInput } from './ItemCodeSmartInput';
 import { lookupDatabaseItem, fetchItems, DbItem, SEED_FACTORY_ITEMS } from '../services/itemService';
+import { syncTemplatesToCloud, TEMPLATES_UPDATED_EVENT } from '../services/formsSyncService';
 
 // Footer Section Block Data Model (matching user's reference image)
 export interface FormFooterAttachment {
@@ -1565,23 +1567,26 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
             );
           }
 
-          // If an existing form is present in the collection, update sections without re-inserting deleted forms
+          // If an existing form is present in the collection, preserve user template sections
           const imdIdx = validForms.findIndex((f: InspectionFormCardData) => 
             f.name?.toLowerCase().trim() === 'imd' || f.id === 'form-imd'
           );
           if (imdIdx !== -1) {
             validForms[imdIdx] = {
               ...validForms[imdIdx],
-              ...IMD_FORM_INITIAL,
               id: validForms[imdIdx].id || 'form-imd',
-              name: 'IMD',
-              sections: IMD_FORM_INITIAL.sections,
+              name: validForms[imdIdx].name || 'IMD',
+              sections: (validForms[imdIdx].sections && validForms[imdIdx].sections.length > 0)
+                ? validForms[imdIdx].sections 
+                : IMD_FORM_INITIAL.sections,
               footer: validForms[imdIdx].footer || IMD_FORM_INITIAL.footer,
               documentHeader: {
                 ...IMD_FORM_INITIAL.documentHeader,
                 ...(validForms[imdIdx].documentHeader || {}),
               },
             };
+          } else if (!deletedTemplateIds.has('form-imd') && !deletedTemplateIds.has('IMD')) {
+            validForms.unshift({ ...IMD_FORM_INITIAL });
           }
 
           const incomingTerminalIdx = validForms.findIndex((f: InspectionFormCardData) => 
@@ -1593,16 +1598,19 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
           if (incomingTerminalIdx !== -1) {
             validForms[incomingTerminalIdx] = {
               ...validForms[incomingTerminalIdx],
-              ...INCOMING_TERMINAL_FORM_INITIAL,
               id: validForms[incomingTerminalIdx].id || 'form-incoming-10a-terminal',
-              name: "Incoming - 10A 'L' Terminal",
-              sections: INCOMING_TERMINAL_FORM_INITIAL.sections,
+              name: validForms[incomingTerminalIdx].name || "Incoming - 10A 'L' Terminal",
+              sections: (validForms[incomingTerminalIdx].sections && validForms[incomingTerminalIdx].sections.length > 0)
+                ? validForms[incomingTerminalIdx].sections 
+                : INCOMING_TERMINAL_FORM_INITIAL.sections,
               footer: validForms[incomingTerminalIdx].footer || INCOMING_TERMINAL_FORM_INITIAL.footer,
               documentHeader: {
                 ...INCOMING_TERMINAL_FORM_INITIAL.documentHeader,
                 ...(validForms[incomingTerminalIdx].documentHeader || {}),
               },
             };
+          } else if (!deletedTemplateIds.has('form-incoming-10a-terminal')) {
+            validForms.push({ ...INCOMING_TERMINAL_FORM_INITIAL });
           }
 
           // Sanitize table grids and update Cordination radio elements for Testing_1 & Modular switch
@@ -1915,14 +1923,29 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
     showToast(`✓ End Run completed! Averages calculated across Online Result columns and auto-filled.`);
   };
 
-  // Persist forms to localStorage
+  // Persist forms to localStorage and synchronize with Supabase Cloud
   useEffect(() => {
     try {
       localStorage.setItem(LOCAL_STORAGE_FORMS_KEY, JSON.stringify(forms));
+      syncTemplatesToCloud(forms, getDeletedTemplateIds());
     } catch (e) {
       console.error('Failed saving forms to storage', e);
     }
   }, [forms]);
+
+  // Realtime subscription: updates when another computer creates/updates/deletes a template
+  useEffect(() => {
+    const handleTemplatesUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<InspectionFormCardData[]>;
+      if (customEvent.detail && Array.isArray(customEvent.detail)) {
+        setForms(customEvent.detail);
+      }
+    };
+    window.addEventListener(TEMPLATES_UPDATED_EVENT, handleTemplatesUpdated);
+    return () => {
+      window.removeEventListener(TEMPLATES_UPDATED_EVENT, handleTemplatesUpdated);
+    };
+  }, []);
 
   // Keep active form in forms array synced with editor state
   useEffect(() => {
@@ -4445,19 +4468,30 @@ export const FormEditorStudio: React.FC<FormEditorStudioProps> = ({
                                 const isImd = activeForm.id.includes('imd') || /imd/i.test(activeForm.name || headerData.productType || '');
                                 if (isImd && studioImdItemCount > 1) {
                                   const sec1 = sections.find(s => s.id === 'sec-imd-1' || /inspection log/i.test(s.title || ''));
-                                  const item1Name = (sec1?.savedData?.['el-desc'] || sec1?.savedData?.['el-item-code'] || '1st Item').trim();
-                                  const item2Name = (sec1?.savedData?.['el-desc-2'] || sec1?.savedData?.['el-item-code-2'] || '2nd Item').trim();
-                                  const item3Name = (sec1?.savedData?.['el-desc-3'] || sec1?.savedData?.['el-item-code-3'] || '3rd Item').trim();
-                                  const item4Name = (sec1?.savedData?.['el-desc-4'] || sec1?.savedData?.['el-item-code-4'] || '4th Item').trim();
+                                  const item1Desc = (sec1?.savedData?.['el-desc'] || '').trim();
+                                  const item1Code = (sec1?.savedData?.['el-item-code'] || '').trim();
+                                  const item1Label = item1Desc || (item1Code ? `${item1Code}` : '1st Item');
 
-                                  if (row.id === 'row-imd-q-07') {
-                                    return `7. ${item1Name} weight [Avg]`;
-                                  } else if (row.id === 'row-imd-q-7-1') {
-                                    return `7.1 ${item2Name} weight [Avg]`;
+                                  const item2Desc = (sec1?.savedData?.['el-desc-2'] || '').trim();
+                                  const item2Code = (sec1?.savedData?.['el-item-code-2'] || '').trim();
+                                  const item2Label = item2Desc || (item2Code ? `${item2Code}` : '2nd Item');
+
+                                  const item3Desc = (sec1?.savedData?.['el-desc-3'] || '').trim();
+                                  const item3Code = (sec1?.savedData?.['el-item-code-3'] || '').trim();
+                                  const item3Label = item3Desc || (item3Code ? `${item3Code}` : '3rd Item');
+
+                                  const item4Desc = (sec1?.savedData?.['el-desc-4'] || '').trim();
+                                  const item4Code = (sec1?.savedData?.['el-item-code-4'] || '').trim();
+                                  const item4Label = item4Desc || (item4Code ? `${item4Code}` : '4th Item');
+
+                                  if (row.id === 'row-imd-q-7-1') {
+                                    return `${item1Label} weight`;
                                   } else if (row.id === 'row-imd-q-7-2') {
-                                    return `7.2 ${item3Name} weight [Avg]`;
+                                    return `${item2Label} weight`;
+                                  } else if (row.id === 'row-imd-q-09') {
+                                    return `${item3Label} weight`;
                                   } else if (row.id === 'row-imd-q-7-3') {
-                                    return `7.3 ${item4Name} weight [Avg]`;
+                                    return `${item4Label} weight`;
                                   }
                                 }
                                 return currVal || row.cells[col.id] || '-';

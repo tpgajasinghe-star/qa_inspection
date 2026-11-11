@@ -766,12 +766,18 @@ export const FormCardsGallery: React.FC<FormCardsGalleryProps> = ({
                           <span className="text-blue-300 font-normal">›</span>
                           <span className="text-blue-700 font-extrabold">{deployedForm.targetChildCardName}</span>
                         </div>
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          <span>Active in Operations</span>
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-mono font-semibold">
-                          {deployedForm.version || deployedForm.documentHeader?.revisionNo || 'Rev 01'}
+                        {deployedForm.status === 'Active' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span>Active in Operations (Current Revision)</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-semibold">
+                            <span>Previous Revision (Superseded)</span>
+                          </span>
+                        )}
+                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-mono font-bold">
+                          {deployedForm.version || (deployedForm.documentHeader?.revisionNo ? `Rev ${deployedForm.documentHeader.revisionNo}` : 'Rev 01')}
                         </span>
                       </div>
 
@@ -783,6 +789,10 @@ export const FormCardsGallery: React.FC<FormCardsGalleryProps> = ({
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 font-medium mt-1">
                           <span>
                             Doc No: <strong className="text-slate-800 font-bold font-mono">{deployedForm.documentHeader?.documentNo || 'N/A'}</strong>
+                          </span>
+                          <span>•</span>
+                          <span>
+                            Revision: <strong className="text-indigo-700 font-bold font-mono">{deployedForm.version || deployedForm.documentHeader?.revisionNo || 'Rev 01'}</strong>
                           </span>
                           <span>•</span>
                           <span>
@@ -815,10 +825,10 @@ export const FormCardsGallery: React.FC<FormCardsGalleryProps> = ({
                           setShowDeletePassword(false);
                         }}
                         className="w-full md:w-auto px-4 py-2.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-700 text-xs sm:text-sm font-bold shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer group-hover:border-rose-300"
-                        title={`Delete this deployed form from ${deployedForm.targetChildCardName}`}
+                        title={deployedForm.status === 'Superseded' ? `Delete previous revision (${deployedForm.version}) from ${deployedForm.targetChildCardName}` : `Delete this deployed form from ${deployedForm.targetChildCardName}`}
                       >
                         <Trash2 className="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" />
-                        <span>Delete from Location</span>
+                        <span>{deployedForm.status === 'Superseded' ? `Delete Previous ${deployedForm.version || 'Rev'}` : 'Delete from Location'}</span>
                       </button>
                     </div>
                   </div>
@@ -874,6 +884,13 @@ export const FormCardsGallery: React.FC<FormCardsGalleryProps> = ({
               <div className="flex items-start gap-1.5">
                 <span className="text-slate-400 font-semibold shrink-0">Form:</span>
                 <span className="font-bold text-slate-800 truncate">{deletingDeployedForm.name}</span>
+              </div>
+              <div className="flex items-start gap-1.5">
+                <span className="text-slate-400 font-semibold shrink-0">Revision:</span>
+                <span className="font-mono font-bold text-indigo-700">
+                  {deletingDeployedForm.version || (deletingDeployedForm.documentHeader?.revisionNo ? `Rev ${deletingDeployedForm.documentHeader.revisionNo}` : 'Rev 01')}
+                  {deletingDeployedForm.status === 'Superseded' ? ' (Previous Revision)' : ' (Active Revision)'}
+                </span>
               </div>
               <div className="flex items-start gap-1.5">
                 <span className="text-slate-400 font-semibold shrink-0">Doc No:</span>

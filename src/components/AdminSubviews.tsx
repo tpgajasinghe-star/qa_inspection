@@ -21,6 +21,7 @@ import {
 import { SpecificationItem, AdminUser, InspectionRecord, DefectMetric } from '../types';
 import { UserManagement } from './UserManagement';
 import { PastRecordsList } from './PastRecordsList';
+import { AdminPastRecordsExplorer } from './AdminPastRecordsExplorer';
 
 interface AdminSubviewsProps {
   activeView: 'admin-specs' | 'admin-records' | 'admin-analytics' | 'admin-users';
@@ -152,12 +153,10 @@ export const AdminSubviews: React.FC<AdminSubviewsProps> = ({
     );
   }
 
-  // 3. Inspection Records & Audit Trail View (Shared Reusable PastRecordsList)
+  // 3. Inspection Records & Audit Trail Explorer (Main Cards -> Child Cards -> Direct Past Records List)
   if (activeView === 'admin-records') {
     return (
-      <PastRecordsList
-        isAdmin={true}
-        moduleName="Regulatory QA Ledger"
+      <AdminPastRecordsExplorer
         onBack={() => navigate('/admin')}
       />
     );

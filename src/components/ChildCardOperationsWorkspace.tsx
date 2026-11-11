@@ -50,6 +50,27 @@ interface ChildCardOperationsWorkspaceProps {
   onBackToChildCards: () => void;
 }
 
+export interface ImdMachineInfo {
+  id: string;
+  name: string;
+  bay: string;
+  tonnage: string;
+  model: string;
+  status: 'Online' | 'Ready' | 'In-Cycle';
+  desc: string;
+}
+
+export const IMD_MACHINES: ImdMachineInfo[] = [
+  { id: 'MC-1', name: 'Machine MC-1', bay: 'Bay 1', tonnage: '160 Ton', model: 'Nissei FNX140', status: 'Online', desc: 'Single & Multi-Cavity IMD' },
+  { id: 'MC-2', name: 'Machine MC-2', bay: 'Bay 1', tonnage: '160 Ton', model: 'Nissei FNX140', status: 'Online', desc: 'Single & Multi-Cavity IMD' },
+  { id: 'MC-3', name: 'Machine MC-3', bay: 'Bay 2', tonnage: '200 Ton', model: 'Toshiba IS200', status: 'Online', desc: 'High-Gloss Switch Covers' },
+  { id: 'MC-4', name: 'Machine MC-4', bay: 'Bay 2', tonnage: '200 Ton', model: 'Toshiba IS200', status: 'Online', desc: 'SSO Socket Faceplates' },
+  { id: 'MC-5', name: 'Machine MC-5', bay: 'Bay 3', tonnage: '250 Ton', model: 'Sumitomo SE250', status: 'Online', desc: 'Modular Gang Frames' },
+  { id: 'MC-6', name: 'Machine MC-6', bay: 'Bay 3', tonnage: '250 Ton', model: 'Sumitomo SE250', status: 'Online', desc: 'Precision Rocker Buttons' },
+  { id: 'MC-7', name: 'Machine MC-7', bay: 'Bay 4', tonnage: '280 Ton', model: 'Fanuc Roboshot', status: 'Online', desc: 'Dual-Color Injection' },
+  { id: 'MC-8', name: 'Machine MC-8', bay: 'Bay 4', tonnage: '280 Ton', model: 'Fanuc Roboshot', status: 'Online', desc: 'High Precision Micro-Tolerances' },
+];
+
 export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspaceProps> = ({
   mainCard,
   childCard,
@@ -66,6 +87,12 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
 
   // Deployed form ID parameter from URL (?form=...)
   const formIdParam = searchParams.get('form');
+
+  // Selected Machine parameter from URL (?mc=MC-1..MC-8)
+  const selectedMachine = searchParams.get('mc') || '';
+
+  // Is this category IMD / Injection Molding?
+  const isImd = childCard.id === 'child-injection' || /injection|imd/i.test(childCard.name);
 
   // Standard single-checkpoint fallback parameter (?standard=true)
   const showStandardFallbackForm = searchParams.get('standard') === 'true';
@@ -89,11 +116,28 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
     getDeployedFormsForChildCard(childCard.id, mainCard.id)
   );
 
-  // Selected deployed form resolved automatically from URL parameter ?form=...
+  // Selected deployed form resolved automatically from URL parameter ?form=... or machine context
   const selectedDeployedForm = useMemo(() => {
-    if (!formIdParam) return null;
-    return deployedForms.find(f => f.id === formIdParam) || null;
-  }, [formIdParam, deployedForms]);
+    if (formIdParam) {
+      const found = deployedForms.find(f => f.id === formIdParam);
+      if (found) {
+        // If this child card is IMD / Injection Molding, and the found form is not an IMD form,
+        // prevent contamination from other forms (e.g. from copy-pasting a testing-1 link)
+        if (isImd && !/imd|injection|in-mold/i.test(found.name + ' ' + (found.productType || ''))) {
+          const imdForm = deployedForms.find(f => f.id === 'deployed-imd-1' || /imd/i.test(f.name || f.productType || ''));
+          if (imdForm) return imdForm;
+        }
+        return found;
+      }
+    }
+    // If inside an IMD machine and navigating to new-inspection, auto-open active calibrated IMD form
+    if (isImd && currentView === 'new-inspection') {
+      const activeImdForm = deployedForms.find(f => (f.id === 'deployed-imd-1' || /imd/i.test(f.name || f.productType || '')) && f.status === 'Active') ||
+                            deployedForms.find(f => f.id === 'deployed-imd-1' || /imd/i.test(f.name || f.productType || ''));
+      if (activeImdForm) return activeImdForm;
+    }
+    return null;
+  }, [formIdParam, deployedForms, isImd, currentView]);
 
   const [selectedFormStartTime, setSelectedFormStartTime] = useState<string>('');
   const [formInspectionTime, setFormInspectionTime] = useState<string>('08:30 AM');
@@ -381,9 +425,328 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
   const passRate = totalCount > 0 ? ((passCount / totalCount) * 100).toFixed(1) : '100.0';
 
   // =========================================================================
-  // RENDER 1: OPERATION SELECTION VIEW (THE TWO CARDS)
+  // RENDER 1: OPERATION SELECTION VIEW (8 Machine Cards for IMD or 2 Operation Cards)
   // =========================================================================
   if (currentView === 'operation-cards') {
+    // -----------------------------------------------------------------------
+    // CASE A: IMD Category & NO Machine Selected -> Render 8 MACHINE CARDS (MC-1 to MC-8)
+    // -----------------------------------------------------------------------
+    if (isImd && !selectedMachine) {
+      const imdForm = deployedForms.find(f => f.id === 'deployed-imd-1' || /imd/i.test(f.name || f.productType || ''));
+
+      return (
+        <div className="w-full flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-4 sm:py-6 z-10 max-w-6xl mx-auto my-auto animate-in fade-in duration-300">
+          
+          {/* Header & Breadcrumbs */}
+          <div className="w-full flex flex-col items-center text-center mb-6">
+            {/* Breadcrumb Trail */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-slate-100/90 text-slate-600 text-xs font-semibold mb-3 border border-slate-200/80 shadow-2xs">
+              <span 
+                onClick={onBackToChildCards} 
+                className="hover:text-blue-600 cursor-pointer transition-colors"
+              >
+                {mainCard.name}
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-blue-700 font-bold flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                {childCard.name}
+              </span>
+            </div>
+
+            {/* Title & Tag */}
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/25 ring-3 ring-white">
+                <InspectionCardIconRenderer iconName={childCard.iconName} className="w-6 h-6 stroke-[1.9]" />
+              </div>
+              <div className="text-left">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">
+                    IMD Machine Stations (MC-1 to MC-8)
+                  </h1>
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                    8 Operational Units
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+                  Select a molding machine station below to record live online inspections or inspect historical batch records.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* 8 MACHINE CARDS GRID */}
+          <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-6">
+            {IMD_MACHINES.map((mc) => {
+              return (
+                <div
+                  key={mc.id}
+                  onClick={() => navigate(`?mc=${mc.id}&view=operation-cards`)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigate(`?mc=${mc.id}&view=operation-cards`);
+                    }
+                  }}
+                  className="portal-glass-card rounded-2xl p-5 flex flex-col justify-between relative group transition-all duration-200 hover:-translate-y-1 hover:shadow-xl cursor-pointer select-none border border-slate-200/90 hover:border-blue-400 bg-white/95 focus:outline-none focus:ring-3 focus:ring-blue-500/20"
+                  id={`card-machine-${mc.id.toLowerCase()}`}
+                >
+                  {/* Card Top: Machine Badge & Status */}
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className="font-mono text-xs font-extrabold px-3 py-1 rounded-lg bg-blue-600 text-white shadow-xs tracking-wider">
+                        {mc.id}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>{mc.status}</span>
+                      </span>
+                    </div>
+
+                    {/* Machine Name */}
+                    <h3 className="text-base font-bold text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors mb-4">
+                      {mc.name}
+                    </h3>
+                  </div>
+
+                  {/* Action Buttons for this Machine */}
+                  <div className="space-y-2 pt-3 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (imdForm) {
+                          navigate(`?mc=${mc.id}&view=new-inspection&form=${imdForm.id}`);
+                        } else {
+                          navigate(`?mc=${mc.id}&view=new-inspection`);
+                        }
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                      id={`btn-new-inspect-${mc.id.toLowerCase()}`}
+                    >
+                      <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <span>Make New Inspection</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`?mc=${mc.id}&view=past-records`);
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-indigo-700 font-semibold text-xs border border-slate-200/90 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      id={`btn-past-records-${mc.id.toLowerCase()}`}
+                    >
+                      <History className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>View Past Data</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    // -----------------------------------------------------------------------
+    // CASE B: IMD Category & Machine IS Selected -> Render Dedicated Machine Workspace
+    // -----------------------------------------------------------------------
+    if (isImd && selectedMachine) {
+      const imdForm = deployedForms.find(f => f.id === 'deployed-imd-1' || /imd/i.test(f.name || f.productType || ''));
+      const machineMeta = IMD_MACHINES.find(m => m.id === selectedMachine);
+
+      return (
+        <div className="w-full flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-2 sm:py-4 z-10 max-w-5xl mx-auto my-auto animate-in fade-in duration-300">
+          
+          {/* Header & Breadcrumbs */}
+          <div className="w-full max-w-5xl flex flex-col items-center text-center mb-4 sm:mb-5">
+            
+            {/* Breadcrumb Trail */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-slate-100/90 text-slate-600 text-xs font-semibold mb-2 sm:mb-3 border border-slate-200/80 shadow-2xs">
+              <span 
+                onClick={onBackToChildCards} 
+                className="hover:text-blue-600 cursor-pointer transition-colors"
+              >
+                {mainCard.name}
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+              <button
+                type="button"
+                onClick={() => navigate('?view=operation-cards')}
+                className="hover:text-blue-600 cursor-pointer transition-colors"
+              >
+                {childCard.name}
+              </button>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-blue-700 font-bold flex items-center gap-1.5 font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                Machine {selectedMachine}
+              </span>
+            </div>
+
+            {/* Machine Heading */}
+            <div className="flex flex-col items-center justify-center gap-1.5 mb-2">
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-sm sm:text-base font-extrabold px-3.5 py-1.5 rounded-xl bg-blue-600 text-white shadow-sm tracking-wider">
+                  {selectedMachine}
+                </span>
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">
+                  Machine {selectedMachine} Station Operations
+                </h1>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                Dedicated Injection Molding Quality Station
+              </p>
+            </div>
+
+            {/* Machine Switcher Quick Bar */}
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => navigate('?view=operation-cards')}
+                className="px-2.5 py-1 rounded-xl text-xs font-bold text-slate-600 hover:text-blue-700 hover:bg-white transition cursor-pointer flex items-center gap-1"
+                id="btn-switch-to-all-machines"
+              >
+                <ArrowLeft className="w-3 h-3" />
+                <span>All MC-1 to MC-8</span>
+              </button>
+              <span className="text-slate-300">|</span>
+              {IMD_MACHINES.map(m => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => navigate(`?mc=${m.id}&view=operation-cards`)}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-mono font-bold transition cursor-pointer ${
+                    selectedMachine === m.id
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white'
+                  }`}
+                  id={`btn-tab-mc-${m.id.toLowerCase()}`}
+                >
+                  {m.id}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* THE TWO OPERATION CARDS CUSTOMIZED FOR THIS MACHINE */}
+          <div className="w-full max-w-xl mx-auto my-auto grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4 mb-4 sm:mb-6 justify-center">
+            
+            {/* CARD 1: MAKE TO NEW INSPECTION FOR SELECTED MACHINE */}
+            <div
+              onClick={() => {
+                if (imdForm) {
+                  navigate(`?mc=${selectedMachine}&view=new-inspection&form=${imdForm.id}`);
+                } else {
+                  navigate(`?mc=${selectedMachine}&view=new-inspection`);
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  if (imdForm) {
+                    navigate(`?mc=${selectedMachine}&view=new-inspection&form=${imdForm.id}`);
+                  } else {
+                    navigate(`?mc=${selectedMachine}&view=new-inspection`);
+                  }
+                }
+              }}
+              className="portal-glass-card rounded-2xl p-5 sm:p-6 flex flex-col items-center text-center justify-between relative group transition-all duration-200 hover:-translate-y-1 hover:shadow-xl cursor-pointer select-none border border-slate-200/90 hover:border-blue-400 bg-white/95 focus:outline-none focus:ring-3 focus:ring-blue-500/20"
+              id="card-make-new-inspection"
+            >
+              <div className="flex flex-col items-center w-full py-2">
+                <div className="relative mb-3.5">
+                  <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-200/80 flex items-center justify-center text-blue-600 group-hover:scale-105 group-hover:bg-blue-600 group-hover:text-white transition-all duration-200 shadow-2xs group-hover:shadow-blue-500/25">
+                    <ClipboardCheck className="w-7 h-7 stroke-[1.9]" />
+                  </div>
+                  <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full shadow-2xs group-hover:scale-110 transition-transform" />
+                </div>
+
+                <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">
+                  Make New Inspection
+                </h2>
+                <p className="text-xs text-slate-500 mt-1 font-medium">
+                  Record inspection for <strong className="font-mono text-blue-700">{selectedMachine}</strong>
+                </p>
+              </div>
+
+              <div className="w-full mt-3">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (imdForm) {
+                      navigate(`?mc=${selectedMachine}&view=new-inspection&form=${imdForm.id}`);
+                    } else {
+                      navigate(`?mc=${selectedMachine}&view=new-inspection`);
+                    }
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs sm:text-sm transition-all duration-200 shadow-sm shadow-blue-500/25 flex items-center justify-center gap-2 group-hover:shadow-md cursor-pointer"
+                  id="btn-open-make-new-inspection"
+                >
+                  <span>Start {selectedMachine} Inspection</span>
+                  <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-1" />
+                </button>
+              </div>
+            </div>
+
+            {/* CARD 2: VIEW PAST INSPECTION RECORDS FOR SELECTED MACHINE */}
+            <div
+              onClick={() => navigate(`?mc=${selectedMachine}&view=past-records`)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  navigate(`?mc=${selectedMachine}&view=past-records`);
+                }
+              }}
+              className="portal-glass-card rounded-2xl p-5 sm:p-6 flex flex-col items-center text-center justify-between relative group transition-all duration-200 hover:-translate-y-1 hover:shadow-xl cursor-pointer select-none border border-slate-200/90 hover:border-indigo-400 bg-white/95 focus:outline-none focus:ring-3 focus:ring-indigo-500/20"
+              id="card-view-past-inspection-records"
+            >
+              <div className="flex flex-col items-center w-full py-2">
+                <div className="relative mb-3.5">
+                  <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-200/80 flex items-center justify-center text-indigo-600 group-hover:scale-105 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-200 shadow-2xs group-hover:shadow-indigo-500/25">
+                    <History className="w-7 h-7 stroke-[1.9]" />
+                  </div>
+                  <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-indigo-500 border-2 border-white rounded-full shadow-2xs group-hover:scale-110 transition-transform" />
+                </div>
+
+                <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight group-hover:text-indigo-600 transition-colors">
+                  View Past Inspection Records
+                </h2>
+                <p className="text-xs text-slate-500 mt-1 font-medium">
+                  Historical data for <strong className="font-mono text-indigo-700">{selectedMachine}</strong>
+                </p>
+              </div>
+
+              <div className="w-full mt-3">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`?mc=${selectedMachine}&view=past-records`);
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold text-xs sm:text-sm transition-all duration-200 shadow-sm shadow-indigo-500/25 flex items-center justify-center gap-2 group-hover:shadow-md cursor-pointer"
+                  id="btn-open-view-past-records"
+                >
+                  <span>View {selectedMachine} Records</span>
+                  <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-1" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // -----------------------------------------------------------------------
+    // CASE C: Standard Non-IMD Child Cards -> Standard 2 Operation Cards
+    // -----------------------------------------------------------------------
     return (
       <div className="w-full flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-2 sm:py-4 z-10 max-w-5xl mx-auto my-auto animate-in fade-in duration-300">
         
@@ -529,22 +892,24 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
     if (selectedDeployedForm) {
       return (
         <DeployedInspectionFormView
+          key={`${selectedDeployedForm.id}-${selectedMachine || 'global'}`}
           form={selectedDeployedForm}
           initialAuditTime={selectedFormStartTime}
+          initialMachineNumber={selectedMachine || undefined}
           mainCard={mainCard}
           childCard={childCard}
           userId={userId}
           dbItems={dbItems}
           onBackToList={() => {
             // Explicitly clear form parameter from URL to cleanly return to forms list
-            navigate('?view=new-inspection');
+            navigate(selectedMachine ? `?mc=${selectedMachine}&view=new-inspection` : '?view=new-inspection');
           }}
           onBackToOperations={() => {
-            navigate('?view=operation-cards');
+            navigate(selectedMachine ? `?mc=${selectedMachine}&view=operation-cards` : '?view=operation-cards');
           }}
           onBackToMainCards={() => {
             if (onBackToChildCards) onBackToChildCards();
-            else navigate('?view=operation-cards');
+            else navigate(selectedMachine ? `?mc=${selectedMachine}&view=operation-cards` : '?view=operation-cards');
           }}
           onSubmitRecord={(record) => {
             setLocalRecords(prev => [record, ...prev]);
@@ -1119,15 +1484,15 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
       <div className="w-full flex items-center justify-between mb-4 sm:mb-6 pb-3 border-b border-slate-200/70">
         <button 
           type="button"
-          onClick={() => navigate('?view=operation-cards')}
+          onClick={() => navigate(selectedMachine ? `?mc=${selectedMachine}&view=operation-cards` : '?view=operation-cards')}
           className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-blue-600 transition-colors cursor-pointer"
           id="btn-back-to-operations"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back to {childCard.name} Operations</span>
+          <span>Back to {selectedMachine ? `Machine ${selectedMachine}` : childCard.name} Operations</span>
         </button>
         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-          Make New Inspection • Select Form
+          {selectedMachine ? `Machine ${selectedMachine} • Select Inspection Form` : 'Make New Inspection • Select Form'}
         </span>
       </div>
 
@@ -1154,32 +1519,61 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
             <div className="divide-y divide-slate-200">
               {currentListForms.map((form) => {
                 const productTypeName = form.productType || form.documentHeader?.productType || childCard.name;
+                const isActiveRev = form.status === 'Active';
 
                 return (
                   <div
                     key={form.id}
-                    className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-slate-50/70 transition-colors"
+                    className={`px-6 py-4 flex items-center justify-between gap-4 transition-colors ${
+                      isActiveRev ? 'hover:bg-slate-50/70 bg-white' : 'bg-slate-50/60 hover:bg-slate-100/60'
+                    }`}
                   >
-                    {/* Product Description / Type Name */}
+                    {/* Product Description / Type Name & Badges */}
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0" />
+                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${isActiveRev ? 'bg-blue-600' : 'bg-slate-400'}`} />
                       <div className="truncate">
-                        <span className="text-sm sm:text-base font-bold text-slate-900 tracking-tight block truncate">
-                          {productTypeName}
-                        </span>
-                        {form.documentHeader?.documentNo && (
-                          <span className="text-[11px] font-mono text-slate-400 block mt-0.5">
-                            Doc: {form.documentHeader.documentNo} • Rev: {form.documentHeader.revisionNo || '01'}
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm sm:text-base font-bold text-slate-900 tracking-tight block truncate">
+                            {productTypeName}
                           </span>
-                        )}
+                          {isActiveRev ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold shrink-0">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <span>Active (Current Rev)</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-semibold shrink-0">
+                              <span>Previous Revision</span>
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {form.documentHeader?.documentNo && (
+                            <span className="text-[11px] font-mono text-slate-400 block">
+                              Doc: {form.documentHeader.documentNo}
+                            </span>
+                          )}
+                          <span className="text-[11px] font-mono font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-100">
+                            {form.version || (form.documentHeader?.revisionNo ? `Rev ${form.documentHeader.revisionNo}` : 'Rev 01')}
+                          </span>
+                          {form.deployedAt && (
+                            <span className="text-[10px] text-slate-400 hidden sm:inline">
+                              • Deployed: {form.deployedAt}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
                     {/* ONLY Start Button */}
                     <button
                       type="button"
-                      onClick={() => navigate(`?view=new-inspection&form=${form.id}`)}
-                      className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs sm:text-sm shadow-xs hover:shadow-md transition-all flex items-center gap-2 cursor-pointer shrink-0"
+                      onClick={() => navigate(selectedMachine ? `?mc=${selectedMachine}&view=new-inspection&form=${form.id}` : `?view=new-inspection&form=${form.id}`)}
+                      className={`px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm shadow-xs hover:shadow-md transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
+                        isActiveRev 
+                          ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white' 
+                          : 'bg-slate-700 hover:bg-slate-800 text-white'
+                      }`}
                       id={`btn-start-inspect-${form.id}`}
                     >
                       <span>Start Inspection</span>
@@ -1220,6 +1614,18 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
           >
             {childCard.name}
           </button>
+          {selectedMachine && (
+            <>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+              <button
+                type="button"
+                onClick={() => navigate(`?mc=${selectedMachine}&view=operation-cards`)}
+                className="hover:text-blue-600 cursor-pointer transition-colors font-mono font-bold text-slate-700"
+              >
+                Machine {selectedMachine}
+              </button>
+            </>
+          )}
           <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
           <span className="text-indigo-700 font-bold">
             Past Inspection Records
@@ -1230,8 +1636,18 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
       <PastRecordsList
         categoryName={childCard.name}
         moduleName={mainCard.name}
-        onBack={() => navigate('?view=operation-cards')}
-        onNewInspection={() => navigate('?view=new-inspection')}
+        machineFilter={selectedMachine || undefined}
+        onBack={() => navigate(selectedMachine ? `?mc=${selectedMachine}&view=operation-cards` : '?view=operation-cards')}
+        onNewInspection={() => {
+          const imdForm = deployedForms.find(f => f.id === 'deployed-imd-1' || /imd/i.test(f.name || f.productType || ''));
+          if (selectedMachine && imdForm) {
+            navigate(`?mc=${selectedMachine}&view=new-inspection&form=${imdForm.id}`);
+          } else if (selectedMachine) {
+            navigate(`?mc=${selectedMachine}&view=new-inspection`);
+          } else {
+            navigate('?view=new-inspection');
+          }
+        }}
         dbItems={dbItems}
       />
     </div>

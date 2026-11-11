@@ -30,6 +30,7 @@ import { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
 import { ProtectedRoute, PublicAuthRoute } from './components/ProtectedRoute';
 import { VersionUpdateBanner } from './components/VersionUpdateBanner';
+import { initFormsCloudSync } from './services/formsSyncService';
 
 
 // Wrapper to extract moduleId and childCardId from URL route parameters
@@ -107,6 +108,12 @@ export default function App() {
     return () => {
       window.removeEventListener('qc_auth_logout', handleGlobalLogout);
     };
+  }, []);
+
+  // Initialize cross-computer realtime sync for deployed forms & directory templates
+  useEffect(() => {
+    const cleanup = initFormsCloudSync();
+    return cleanup;
   }, []);
 
 

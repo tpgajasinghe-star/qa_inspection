@@ -43,6 +43,7 @@ interface DeployedInspectionFormViewProps {
   childCard: InspectionHierarchyCard;
   userId: string;
   initialAuditTime?: string;
+  initialMachineNumber?: string;
   dbItems?: DbItem[];
   onBackToList: () => void;
   onBackToOperations?: () => void;
@@ -56,6 +57,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
   childCard,
   userId,
   initialAuditTime,
+  initialMachineNumber,
   dbItems,
   onBackToList,
   onBackToOperations,
@@ -577,8 +579,21 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
         vals[k] = '';
       }
     });
+    if (initialMachineNumber) {
+      vals['el-mc-no'] = initialMachineNumber;
+    }
     return vals;
   });
+
+  // Keep machine number synced when initialMachineNumber prop changes
+  useEffect(() => {
+    if (initialMachineNumber) {
+      setFieldValues(prev => ({
+        ...prev,
+        'el-mc-no': initialMachineNumber,
+      }));
+    }
+  }, [initialMachineNumber]);
 
   // Submission state
   const [submitted, setSubmitted] = useState(false);
@@ -841,6 +856,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
         onlineEmpNo: finalOnlineEmp,
         finalInspectorName: finalInspectorName.trim(),
         finalEmpNo: finalEmpNo.trim(),
+        machineNumber: (initialMachineNumber || fieldValues['el-mc-no'] || '').trim(),
       },
       // Dynamic table cell inputs across all sections
       cellValues,
@@ -875,7 +891,9 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
         partNumber: finalItemCode,
         partName: finalProductDesc,
         module: (mainCard.moduleId as any) || 'in-process',
-        supplierOrLine: `${childCard.name} Station`,
+        supplierOrLine: (initialMachineNumber || fieldValues['el-mc-no'])
+          ? `${(initialMachineNumber || fieldValues['el-mc-no']).trim()} Station`
+          : `${childCard.name} Station`,
         nominalValue: 100,
         toleranceMin: 98,
         toleranceMax: 102,
@@ -1090,6 +1108,12 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                 <span className="w-2 h-2 rounded-full bg-emerald-400" />
                 <span>ACTIVE INSPECTION LOG</span>
               </div>
+              {initialMachineNumber && (
+                <div className="flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-blue-950/80 border border-blue-500 text-blue-200 text-[11px] font-extrabold tracking-wider shadow-2xs font-mono">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                  <span>MACHINE STATION: {initialMachineNumber}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1837,21 +1861,39 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                   let displayParam = row.cells[col.id] || '-';
                                   const isImd = form.id.includes('imd') || /imd/i.test(form.name || form.productType || '');
                                   if (isImd && imdItemCount > 1) {
-                                    const item1Name = (fieldValues['el-desc'] || fieldValues['el-item-code'] || '1st Item').trim();
-                                    const item2Name = (fieldValues['el-desc-2'] || fieldValues['el-item-code-2'] || '2nd Item').trim();
-                                    const item3Name = (fieldValues['el-desc-3'] || fieldValues['el-item-code-3'] || '3rd Item').trim();
-                                    const item4Name = (fieldValues['el-desc-4'] || fieldValues['el-item-code-4'] || '4th Item').trim();
+                                    const item1Desc = (fieldValues['el-desc'] || productDesc || '').trim();
+                                    const item1Code = (fieldValues['el-item-code'] || itemCode || '').trim();
+                                    const item1Label = item1Desc || (item1Code ? `${item1Code}` : '1st Item');
 
-                                    if (row.id === 'row-imd-q-07') {
-                                      displayParam = `7. ${item1Name} weight [Avg]`;
-                                    } else if (row.id === 'row-imd-q-7-1') {
-                                      displayParam = `7.1 ${item2Name} weight [Avg]`;
+                                    const item2Desc = (fieldValues['el-desc-2'] || '').trim();
+                                    const item2Code = (fieldValues['el-item-code-2'] || '').trim();
+                                    const item2Label = item2Desc || (item2Code ? `${item2Code}` : '2nd Item');
+
+                                    const item3Desc = (fieldValues['el-desc-3'] || '').trim();
+                                    const item3Code = (fieldValues['el-item-code-3'] || '').trim();
+                                    const item3Label = item3Desc || (item3Code ? `${item3Code}` : '3rd Item');
+
+                                    const item4Desc = (fieldValues['el-desc-4'] || '').trim();
+                                    const item4Code = (fieldValues['el-item-code-4'] || '').trim();
+                                    const item4Label = item4Desc || (item4Code ? `${item4Code}` : '4th Item');
+
+                                    // Rule:
+                                    // Item weight - 1 [Avg] (row-imd-q-7-1) => 1st Item weight
+                                    // Item weight - 2 [Avg] (row-imd-q-7-2) => 2nd Item weight
+                                    // No. of Items (Dam.or close) (row-imd-q-09) => 3rd Item weight
+                                    if (row.id === 'row-imd-q-7-1') {
+                                      displayParam = `${item1Label} weight`;
                                     } else if (row.id === 'row-imd-q-7-2') {
-                                      displayParam = `7.2 ${item3Name} weight [Avg]`;
+                                      displayParam = `${item2Label} weight`;
+                                    } else if (row.id === 'row-imd-q-09') {
+                                      displayParam = `${item3Label} weight`;
                                     } else if (row.id === 'row-imd-q-7-3') {
-                                      displayParam = `7.3 ${item4Name} weight [Avg]`;
+                                      displayParam = `${item4Label} weight`;
                                     }
                                   }
+
+                                  // When row-imd-q-09 is used as 3rd Item weight in multi-item production, its unit is 'g' (grams)
+                                  const displayUnit = (isImd && imdItemCount > 1 && row.id === 'row-imd-q-09') ? 'g' : row.unit;
 
                                   return (
                                     <td key={col.id} className="px-3.5 py-2.5 font-bold text-slate-900 text-xs border-r border-slate-200/80">
@@ -1864,9 +1906,9 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                             </span>
                                           )}
                                         </div>
-                                        {row.unit && (
+                                        {displayUnit && (
                                           <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 font-bold ml-1">
-                                            {row.unit}
+                                            {displayUnit}
                                           </span>
                                         )}
                                       </div>
@@ -1877,12 +1919,16 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                                 if (isSpecCol) {
                                   let displaySpec = row.cells[col.id] || '-';
                                   const isImd = form.id.includes('imd') || /imd/i.test(form.name || form.productType || '');
-                                  if (isImd && row.id === 'row-imd-q-7-1') {
-                                    if (imdItemCount > 1) {
-                                      displaySpec = 'Multi-item production (Manual weight record)';
-                                    } else {
-                                      displaySpec = 'Auto: (Shot - Runner) / Good (>2) or Manual';
+                                  if (isImd && imdItemCount > 1) {
+                                    if (row.id === 'row-imd-q-7-1') {
+                                      displaySpec = '1st item weight (Manual record)';
+                                    } else if (row.id === 'row-imd-q-7-2') {
+                                      displaySpec = '2nd item weight (Manual record)';
+                                    } else if (row.id === 'row-imd-q-09') {
+                                      displaySpec = '3rd item weight (Manual record)';
                                     }
+                                  } else if (isImd && row.id === 'row-imd-q-7-1') {
+                                    displaySpec = 'Auto: (Shot - Runner) / Good (>2) or Manual';
                                   }
                                   return (
                                     <td key={col.id} className="px-3.5 py-2.5 text-slate-600 text-[11px] leading-relaxed border-r border-slate-200/80">

@@ -189,14 +189,14 @@ export const DEFAULT_INSPECTION_CARDS: InspectionHierarchyCard[] = [
   },
   {
     id: 'child-injection',
-    name: 'Injection Molding',
-    description: 'Melt flow index, tool dimensional shrinkage, clamp pressure, gate vestige, sink mark depth and flash inspection.',
+    name: 'IMD / Injection Molding',
+    description: 'Melt flow index, tool dimensional shrinkage, clamp pressure, gate vestige, sink mark depth and flash inspection across Machines MC-1 to MC-8.',
     iconName: 'Factory',
     location: 'child',
     parentId: 'main-inprocess',
     order: 5,
-    tag: 'Polymer Processing',
-    itemCount: 7,
+    tag: 'IMD • 8 Machines (MC-1 to MC-8)',
+    itemCount: 8,
   },
 
   // ==================== CHILD CARDS: SUBCONTRACTING ====================
@@ -246,7 +246,6 @@ export const DEFAULT_INSPECTION_CARDS: InspectionHierarchyCard[] = [
   },
 ];
 
-// Helper to retrieve all cards from localStorage with fallback to defaults
 export function getStoredInspectionCards(): InspectionHierarchyCard[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_HIERARCHY_KEY);
@@ -256,7 +255,27 @@ export function getStoredInspectionCards(): InspectionHierarchyCard[] {
     }
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
+      // Ensure all standard system cards exist and have latest names/tags
+      const merged = DEFAULT_INSPECTION_CARDS.map(def => {
+        const found = parsed.find((p: InspectionHierarchyCard) => p.id === def.id);
+        if (!found) return def;
+        return {
+          ...found,
+          name: def.name,
+          tag: def.tag,
+          itemCount: def.itemCount,
+          description: def.description,
+          iconName: def.iconName,
+        };
+      });
+      // Preserve any custom cards added by users
+      parsed.forEach((p: InspectionHierarchyCard) => {
+        if (!merged.some(m => m.id === p.id)) {
+          merged.push(p);
+        }
+      });
+      localStorage.setItem(LOCAL_STORAGE_HIERARCHY_KEY, JSON.stringify(merged));
+      return merged;
     }
   } catch (err) {
     console.error('Failed to parse inspection hierarchy from localStorage:', err);

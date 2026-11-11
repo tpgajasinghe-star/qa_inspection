@@ -12,6 +12,7 @@ import {
   IMD_FORM_INITIAL,
   INCOMING_TERMINAL_FORM_INITIAL
 } from './components/FormEditorStudio';
+import { syncDeployedFormsToCloud } from './services/formsSyncService';
 
 export interface DeployedInspectionForm {
   id: string;
@@ -27,12 +28,16 @@ export interface DeployedInspectionForm {
   footer?: FormFooterData;
   deployedAt: string;
   deployedBy?: string;
-  status: 'Active' | 'Under Review' | 'Draft';
+  status: 'Active' | 'Under Review' | 'Draft' | 'Superseded';
   version: string;
+  revisionNumber?: number; // Numeric revision counter (e.g. 1, 2, 3...)
+  previousRevisionId?: string; // Links to prior superseded revision ID
   notes?: string;
 }
 
-export const LOCAL_STORAGE_DEPLOYED_FORMS_KEY = 'qc_deployed_inspection_forms_v1';
+export const DEPLOYED_FORMS_SCHEMA_VERSION = 'v6_2026_11_11_revisions_calibrated';
+export const LOCAL_STORAGE_DEPLOYED_FORMS_KEY = 'qc_deployed_inspection_forms_v2';
+export const LOCAL_STORAGE_DEPLOYED_VERSION_KEY = 'qc_deployed_forms_schema_ver';
 export const DEPLOYED_FORMS_UPDATED_EVENT = 'inspection_deployed_forms_updated';
 
 export const INITIAL_DEFAULT_DEPLOYED_FORMS: DeployedInspectionForm[] = [
@@ -90,6 +95,7 @@ export const INITIAL_DEFAULT_DEPLOYED_FORMS: DeployedInspectionForm[] = [
     deployedBy: 'QC Lead Engineer',
     status: 'Active',
     version: 'Rev 04',
+    revisionNumber: 4,
     notes: 'Calibrated factory standard form for White Series Switched Socket Outlets with manual Voltage Drop text field & dropdown checkpoints.',
   },
   {
@@ -151,6 +157,7 @@ export const INITIAL_DEFAULT_DEPLOYED_FORMS: DeployedInspectionForm[] = [
     deployedBy: 'QA Lab Tech',
     status: 'Active',
     version: 'Rev 02',
+    revisionNumber: 2,
     notes: 'Incoming acceptance for LED chip reels, chromatic binning and ESD barriers.',
   },
   {
@@ -182,6 +189,7 @@ export const INITIAL_DEFAULT_DEPLOYED_FORMS: DeployedInspectionForm[] = [
     deployedBy: 'QC Lead Engineer',
     status: 'Active',
     version: 'Rev 04',
+    revisionNumber: 4,
     notes: 'Calibrated factory standard form for IMD / Injection Molding with swapped Result/Specification columns and quantitative metrics.',
   },
   {
@@ -206,6 +214,7 @@ export const INITIAL_DEFAULT_DEPLOYED_FORMS: DeployedInspectionForm[] = [
     deployedBy: 'QC Lead Engineer',
     status: 'Active',
     version: 'Rev 01',
+    revisionNumber: 1,
     notes: "Incoming material quality inspection report for 10 A, 'L' Terminal as per Doc F17/1 with Dimensional Inspection (mm) and Master Inspection Characteristics.",
   },
 ];
@@ -258,22 +267,39 @@ export function getStoredDeployedForms(): DeployedInspectionForm[] {
   try {
     const deletedIds = new Set(getDeletedDeployedFormIds());
     const raw = localStorage.getItem(LOCAL_STORAGE_DEPLOYED_FORMS_KEY);
+    const storedVersion = localStorage.getItem(LOCAL_STORAGE_DEPLOYED_VERSION_KEY);
+    const isOutdatedVersion = storedVersion !== DEPLOYED_FORMS_SCHEMA_VERSION;
     
-    // First-time visit: initialize with defaults, excluding any marked as deleted
+    // First-time visit: no raw in storage
     if (!raw) {
-      const initial = INITIAL_DEFAULT_DEPLOYED_FORMS.filter(
-        f => !deletedIds.has(f.id) && !deletedIds.has(f.sourceFormId)
+      // Seed fresh defaults excluding explicitly deleted ones
+      const calibratedDefaults = INITIAL_DEFAULT_DEPLOYED_FORMS.filter(
+        f => !deletedIds.has(f.id) && (!f.sourceFormId || !deletedIds.has(f.sourceFormId))
       );
-      localStorage.setItem(LOCAL_STORAGE_DEPLOYED_FORMS_KEY, JSON.stringify(initial));
-      return initial;
+      localStorage.setItem(LOCAL_STORAGE_DEPLOYED_FORMS_KEY, JSON.stringify(calibratedDefaults));
+      localStorage.setItem(LOCAL_STORAGE_DEPLOYED_VERSION_KEY, DEPLOYED_FORMS_SCHEMA_VERSION);
+      return calibratedDefaults;
     }
 
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
       // Filter out any explicitly deleted forms
-      const validForms = parsed.filter(
+      let validForms = parsed.filter(
         (f: DeployedInspectionForm) => !deletedIds.has(f.id) && (!f.sourceFormId || !deletedIds.has(f.sourceFormId))
       );
+
+      // System updates: only introduce brand-new developmental defaults that were NEVER in the system before and not deleted
+      if (isOutdatedVersion) {
+        INITIAL_DEFAULT_DEPLOYED_FORMS.forEach(defaultForm => {
+          if (!deletedIds.has(defaultForm.id) && (!defaultForm.sourceFormId || !deletedIds.has(defaultForm.sourceFormId))) {
+            const exists = validForms.some(f => f.id === defaultForm.id || (f.sourceFormId && f.sourceFormId === defaultForm.sourceFormId));
+            if (!exists) {
+              validForms.push({ ...defaultForm });
+            }
+          }
+        });
+        localStorage.setItem(LOCAL_STORAGE_DEPLOYED_VERSION_KEY, DEPLOYED_FORMS_SCHEMA_VERSION);
+      }
 
       // Sanitize fields on existing active forms
       validForms.forEach((f: DeployedInspectionForm) => {
@@ -308,6 +334,24 @@ export function getStoredDeployedForms(): DeployedInspectionForm[] {
             });
           }
         });
+
+        // Ensure IMD deployed form has target card and documentHeader defaults without overwriting deployed updates
+        const isImdForm = f.id === 'deployed-imd-1' || f.sourceFormId === 'form-imd' || /imd/i.test(f.name || '') || /in-mold/i.test(f.productType || '');
+        if (isImdForm) {
+          f.targetChildCardId = 'child-injection';
+          f.targetChildCardName = 'Injection Molding';
+          if (!f.productType) f.productType = 'In-Mold Decoration (IMD) Series';
+          // Preserve deployed sections! Only initialize from default if sections are missing or empty
+          if (!Array.isArray(f.sections) || f.sections.length === 0) {
+            f.sections = IMD_FORM_INITIAL.sections;
+          }
+          if (!f.documentHeader) {
+            f.documentHeader = {
+              ...IMD_FORM_INITIAL.documentHeader,
+              productType: 'In-Mold Decoration (IMD) Series',
+            };
+          }
+        }
 
         // Ensure Testing_1 and Modular Switch deployed forms have the Cordination radio button element
         const isTesting1 = f.sourceFormId === 'form-testing-1' || f.id === 'deployed-white-series-testing-1' || f.name?.toLowerCase().includes('testing_1') || f.name?.toLowerCase().includes('testing 1');
@@ -350,6 +394,7 @@ export function getStoredDeployedForms(): DeployedInspectionForm[] {
 
       // Synchronize back to localStorage
       localStorage.setItem(LOCAL_STORAGE_DEPLOYED_FORMS_KEY, JSON.stringify(validForms));
+      localStorage.setItem(LOCAL_STORAGE_DEPLOYED_VERSION_KEY, DEPLOYED_FORMS_SCHEMA_VERSION);
 
       return validForms;
     }
@@ -366,53 +411,103 @@ export function saveStoredDeployedForms(forms: DeployedInspectionForm[]): void {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent(DEPLOYED_FORMS_UPDATED_EVENT, { detail: forms }));
     }
+    // Instant Cross-Computer Cloud Sync via Supabase
+    syncDeployedFormsToCloud(forms, getDeletedDeployedFormIds());
   } catch (err) {
     console.error('Failed to save deployed forms to localStorage:', err);
   }
 }
 
-// Deploy a form: inserts or updates
+// Deploy a form: inserts or updates with revision tracking
 export function deployInspectionForm(formInput: Omit<DeployedInspectionForm, 'id' | 'deployedAt'>): DeployedInspectionForm {
   const allForms = getStoredDeployedForms();
   const now = new Date();
   const dateFormatted = `${now.toISOString().split('T')[0]} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   
-  // Ensure productType is updated in documentHeader
-  const updatedHeader: DocumentHeaderData = {
-    ...formInput.documentHeader,
-    productType: formInput.productType,
-  };
-
-  // Check if this source form was already deployed to the same target child card
-  const existingIdx = allForms.findIndex(
+  // Find all previous deployed versions for this sourceFormId or form name at the SAME target child card
+  const existingRevisions = allForms.filter(
     f => (f.sourceFormId === formInput.sourceFormId || f.name === formInput.name) && 
          f.targetChildCardId === formInput.targetChildCardId
   );
 
-  const deployedId = existingIdx >= 0 
-    ? allForms[existingIdx].id 
-    : `deployed-${formInput.targetChildCardId}-${Date.now()}`;
+  // Determine next revision number
+  let finalRevNumber = 1;
+  let finalVersionStr = formInput.version || 'Rev 01';
+
+  // If user set an explicit revision number in documentHeader or version (e.g. "05", "Rev 05")
+  let parsedUserRev: number | null = null;
+  if (formInput.documentHeader?.revisionNo) {
+    const match = formInput.documentHeader.revisionNo.match(/\d+/);
+    if (match) parsedUserRev = parseInt(match[0], 10);
+  } else if (formInput.version) {
+    const match = formInput.version.match(/\d+/);
+    if (match) parsedUserRev = parseInt(match[0], 10);
+  }
+
+  if (existingRevisions.length > 0) {
+    // Find maximum revision number among existing deployed versions
+    const maxExistingRev = existingRevisions.reduce((max, rev) => {
+      const num = rev.revisionNumber || (rev.version?.match(/\d+/) ? parseInt(rev.version.match(/\d+/)![0], 10) : 1);
+      return Math.max(max, num);
+    }, 0);
+
+    if (parsedUserRev && parsedUserRev > maxExistingRev) {
+      finalRevNumber = parsedUserRev;
+    } else {
+      finalRevNumber = maxExistingRev + 1;
+    }
+    finalVersionStr = `Rev ${String(finalRevNumber).padStart(2, '0')}`;
+  } else {
+    if (parsedUserRev) {
+      finalRevNumber = parsedUserRev;
+      finalVersionStr = `Rev ${String(finalRevNumber).padStart(2, '0')}`;
+    }
+  }
+
+  // Ensure documentHeader has updated revision and productType
+  const updatedHeader: DocumentHeaderData = {
+    ...formInput.documentHeader,
+    revisionNo: String(finalRevNumber).padStart(2, '0'),
+    productType: formInput.productType,
+  };
+
+  // Generate a distinct unique ID for this newly deployed revision
+  const newRevisionId = `deployed-${formInput.targetChildCardId}-rev-${finalRevNumber}-${Date.now()}`;
 
   // Unmark as deleted if it was previously deleted by the user
-  unmarkDeployedFormAsDeleted(deployedId, [
+  unmarkDeployedFormAsDeleted(newRevisionId, [
     formInput.sourceFormId,
     `deleted-source-${formInput.sourceFormId}-${formInput.targetChildCardId}`
   ]);
 
   const fullDeployedForm: DeployedInspectionForm = {
     ...formInput,
-    id: deployedId,
+    id: newRevisionId,
     documentHeader: updatedHeader,
     deployedAt: dateFormatted,
+    status: 'Active',
+    version: finalVersionStr,
+    revisionNumber: finalRevNumber,
+    previousRevisionId: existingRevisions[0]?.id,
+    notes: formInput.notes || `Revision ${finalVersionStr} deployed to ${formInput.targetChildCardName}`,
   };
 
-  let updatedList: DeployedInspectionForm[];
-  if (existingIdx >= 0) {
-    updatedList = [...allForms];
-    updatedList[existingIdx] = fullDeployedForm;
-  } else {
-    updatedList = [fullDeployedForm, ...allForms];
-  }
+  // Mark all previous deployed versions for this form at this location as 'Superseded'
+  // (Preserving them in storage so admins can inspect or delete them individually)
+  const updatedAllForms = allForms.map(f => {
+    if (
+      (f.sourceFormId === formInput.sourceFormId || f.name === formInput.name) && 
+      f.targetChildCardId === formInput.targetChildCardId
+    ) {
+      return {
+        ...f,
+        status: 'Superseded' as const,
+      };
+    }
+    return f;
+  });
+
+  const updatedList = [fullDeployedForm, ...updatedAllForms];
 
   saveStoredDeployedForms(updatedList);
   return fullDeployedForm;
@@ -421,11 +516,22 @@ export function deployInspectionForm(formInput: Omit<DeployedInspectionForm, 'id
 // Get deployed forms for a specific child card (or matching category)
 export function getDeployedFormsForChildCard(childCardId: string, mainCardId?: string): DeployedInspectionForm[] {
   const all = getStoredDeployedForms();
-  return all.filter(f => {
+  let matched = all.filter(f => {
     if (f.targetChildCardId === childCardId) return true;
     if (mainCardId && f.targetMainCardId === mainCardId && (!f.targetChildCardId || f.targetChildCardId === 'all')) return true;
     return false;
   });
+
+  // Sort: Active revision first, then revisionNumber descending, then deployedAt descending
+  matched.sort((a, b) => {
+    if (a.status === 'Active' && b.status !== 'Active') return -1;
+    if (b.status === 'Active' && a.status !== 'Active') return 1;
+    const revA = a.revisionNumber || (a.version?.match(/\d+/) ? parseInt(a.version.match(/\d+/)![0], 10) : 0);
+    const revB = b.revisionNumber || (b.version?.match(/\d+/) ? parseInt(b.version.match(/\d+/)![0], 10) : 0);
+    return revB - revA;
+  });
+
+  return matched;
 }
 
 // Delete a deployed form from operational location
@@ -434,9 +540,34 @@ export function deleteDeployedForm(formId: string): DeployedInspectionForm[] {
   const formToDelete = all.find(f => f.id === formId);
   const remaining = all.filter(f => f.id !== formId);
 
-  // Permanently record as deleted so default seeds or stale cache never resurrect it
+  // If the deleted form was 'Active', and there are previous revisions for the same form at the same location,
+  // automatically promote the highest remaining previous revision to 'Active'
+  if (formToDelete && formToDelete.status === 'Active') {
+    const matchingRemaining = remaining
+      .filter(
+        f => (f.sourceFormId === formToDelete.sourceFormId || f.name === formToDelete.name) &&
+             f.targetChildCardId === formToDelete.targetChildCardId
+      )
+      .sort((a, b) => {
+        const revA = a.revisionNumber || (a.version?.match(/\d+/) ? parseInt(a.version.match(/\d+/)![0], 10) : 0);
+        const revB = b.revisionNumber || (b.version?.match(/\d+/) ? parseInt(b.version.match(/\d+/)![0], 10) : 0);
+        return revB - revA;
+      });
+
+    if (matchingRemaining.length > 0) {
+      matchingRemaining[0].status = 'Active';
+    }
+  }
+
+  // Check if any other revisions of this form remain at this location
+  const hasOtherRevisions = remaining.some(
+    f => (f.sourceFormId === formToDelete?.sourceFormId || f.name === formToDelete?.name) &&
+         f.targetChildCardId === formToDelete?.targetChildCardId
+  );
+
+  // Permanently record as deleted ONLY if NO revisions remain for this form at this location
   const extraKeys: string[] = [];
-  if (formToDelete?.sourceFormId) {
+  if (!hasOtherRevisions && formToDelete?.sourceFormId) {
     extraKeys.push(formToDelete.sourceFormId);
     extraKeys.push(`deleted-source-${formToDelete.sourceFormId}-${formToDelete.targetChildCardId}`);
   }

@@ -59,6 +59,14 @@ export interface PastRecordsListProps {
   onNewInspection?: () => void;
   /** Optional preloaded items list */
   dbItems?: DbItem[];
+  /** Optional machine filter for IMD / Machine stations (e.g. 'MC-1', 'MC-2') */
+  machineFilter?: string;
+  /** If true, hides the bulky top title header banner */
+  hideHeader?: boolean;
+  /** Default view mode: 'tiles' or 'list' */
+  defaultViewMode?: 'tiles' | 'list';
+  /** Child card ID for category matching */
+  childCardId?: string;
 }
 
 // Bulletproof date and time formatters that never throw
@@ -167,6 +175,10 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
   onBack,
   onNewInspection,
   dbItems: propDbItems,
+  machineFilter,
+  hideHeader = false,
+  defaultViewMode = 'tiles',
+  childCardId,
 }) => {
   // 1. Data States (ONLY genuine records from database, zero dummy data)
   const [summaries, setSummaries] = useState<InspectionSummary[]>([]);
@@ -174,11 +186,21 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
   const [itemsList, setItemsList] = useState<DbItem[]>(propDbItems || SEED_FACTORY_ITEMS);
   const [selectedItemFilter, setSelectedItemFilter] = useState<string>(initialItemCode || 'all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedDateFilter, setSelectedDateFilter] = useState<string>('');
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
-  const [viewMode, setViewMode] = useState<'tiles' | 'list'>('tiles');
+  const [viewMode, setViewMode] = useState<'tiles' | 'list'>(defaultViewMode);
 
   // 2. Full Sheet View State (NO POPUP MODAL! Opens full in-place inspection sheet)
   const [searchParams, setSearchParams] = useSearchParams();
+  const urlMachine = searchParams.get('mc') || searchParams.get('machine') || '';
+  const [selectedMachineFilter, setSelectedMachineFilter] = useState<string>(machineFilter || urlMachine || '');
+
+  useEffect(() => {
+    if (machineFilter !== undefined) {
+      setSelectedMachineFilter(machineFilter);
+    }
+  }, [machineFilter]);
+
   const recordIdParam = searchParams.get('recordId');
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(recordIdParam || null);
   const [fullRecordData, setFullRecordData] = useState<InspectionRecordResponse | null>(null);
@@ -402,33 +424,67 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
   const groupedData = useMemo(() => {
     const q = (searchQuery || '').toLowerCase().trim();
 
-    // Step A: Filter by category if in inspection child card view
+    // Step A: Filter by category if categoryName is provided
     let scopedSummaries = summaries || [];
-    if (categoryName && !isAdmin) {
+    if (categoryName) {
       scopedSummaries = scopedSummaries.filter((s) =>
         isRecordMatchingCategory(s, categoryName, itemsList)
       );
     }
 
-    // Step B: Filter by search query
+    // Step A2: Filter by machine station if machine is selected
+    if (selectedMachineFilter) {
+      const mc = selectedMachineFilter.toLowerCase().trim();
+      const mcMatches = scopedSummaries.filter((s) => {
+        const lot = (s.lot_number || '').toLowerCase();
+        const batch = (s.batch_id || '').toLowerCase();
+        const child = (s.child_card_name || '').toLowerCase();
+        const desc = (s.product_desc || '').toLowerCase();
+        return lot.includes(mc) || batch.includes(mc) || child.includes(mc) || desc.includes(mc);
+      });
+      if (mcMatches.length > 0) {
+        scopedSummaries = mcMatches;
+      }
+    }
+
+    // Step B: Filter by submission date if a date is selected via Date Picker
+    if (selectedDateFilter) {
+      scopedSummaries = scopedSummaries.filter((s) => {
+        if (!s || !s.created_at) return false;
+        if (s.created_at.startsWith(selectedDateFilter)) return true;
+        try {
+          const d = new Date(s.created_at);
+          if (isNaN(d.getTime())) return false;
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${y}-${m}-${day}` === selectedDateFilter;
+        } catch {
+          return false;
+        }
+      });
+    }
+
+    // Step C: Filter by search query (Item code keyword OR item description name keyword OR inspector)
     const filtered = scopedSummaries.filter((s) => {
       if (!s) return false;
       if (!q) return true;
+      const keywords = q.split(/\s+/).filter(Boolean);
       const sItemCode = String(s.item_code || '').toLowerCase();
       const sInspector = String(s.inspector_name || '').toLowerCase();
       const sId = String(s.id || '').toLowerCase();
       const itemMatch = lookupDatabaseItem(s.item_code, itemsList);
       const desc = String(itemMatch?.description || s.product_desc || '').toLowerCase();
+      const series = String(itemMatch?.series || '').toLowerCase();
+      const cat = String(itemMatch?.category || '').toLowerCase();
+      const lot = String(s.lot_number || '').toLowerCase();
+      const batch = String(s.batch_id || '').toLowerCase();
 
-      return (
-        sItemCode.includes(q) ||
-        sInspector.includes(q) ||
-        sId.includes(q) ||
-        desc.includes(q)
-      );
+      const combinedText = `${sItemCode} ${desc} ${sInspector} ${sId} ${series} ${cat} ${lot} ${batch}`;
+      return keywords.every((kw) => combinedText.includes(kw));
     });
 
-    // Step C: Grouping structure: Map<CategoryName, Map<ItemCode, InspectionSummary[]>>
+    // Step D: Grouping structure: Map<CategoryName, Map<ItemCode, InspectionSummary[]>>
     const groups: Record<
       string,
       Record<
@@ -448,7 +504,7 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
       
       // Determine display category
       let resolvedCategory = categoryName || 'Standard Production QA';
-      if (isAdmin) {
+      if (!categoryName) {
         resolvedCategory = rec.child_card_name || itemMeta?.category || itemMeta?.series || 'General QA Ledger';
       }
 
@@ -468,7 +524,7 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
     });
 
     return groups;
-  }, [summaries, itemsList, categoryName, isAdmin, searchQuery]);
+  }, [summaries, itemsList, categoryName, isAdmin, searchQuery, selectedDateFilter, selectedMachineFilter]);
 
   // Pre-expand all categories by default
   useEffect(() => {
@@ -1011,55 +1067,111 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
   return (
     <div className="w-full flex-1 flex flex-col items-center px-4 sm:px-6 py-6 z-10 max-w-7xl mx-auto min-h-[calc(100vh-7rem)] animate-in fade-in duration-300">
       
-      {/* Top Header Banner */}
-      <div className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-200/80">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
-            <span>Past Inspection Records</span>
-            {categoryName && (
-              <span className="text-indigo-600 font-bold text-xl sm:text-2xl">
-                : {categoryName}
-              </span>
-            )}
-          </h1>
-        </div>
+      {/* Top Header Banner (Hidden when hideHeader is true) */}
+      {!hideHeader && (
+        <div className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-200/80">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
+              <span>Past Inspection Records</span>
+              {categoryName && (
+                <span className="text-indigo-600 font-bold text-xl sm:text-2xl">
+                  : {categoryName}
+                </span>
+              )}
+            </h1>
+          </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => fetchSummaries(selectedItemFilter)}
-            disabled={isLoadingSummaries}
-            title="Refresh inspection summaries"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm font-semibold shadow-2xs transition cursor-pointer disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-slate-600 ${isLoadingSummaries ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Refresh</span>
-          </button>
-
-          {onNewInspection && (
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={onNewInspection}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-500/20 transition cursor-pointer"
+              onClick={() => fetchSummaries(selectedItemFilter)}
+              disabled={isLoadingSummaries}
+              title="Refresh inspection summaries"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm font-semibold shadow-2xs transition cursor-pointer disabled:opacity-50"
             >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>Make New Inspection</span>
+              <RefreshCw className={`w-3.5 h-3.5 text-slate-600 ${isLoadingSummaries ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
             </button>
-          )}
-        </div>
-      </div>
 
-      {/* Filter, Search Bar & Windows File Manager Style View Switcher */}
-      <div className="w-full bg-white rounded-2xl border border-slate-200/90 p-3.5 mb-6 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3">
-        {/* Search Input */}
-        <div className="relative w-full md:w-80">
+            {onNewInspection && (
+              <button
+                type="button"
+                onClick={onNewInspection}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-500/20 transition cursor-pointer"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span>Make New Inspection</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Machine Station Active Filter Toolbar */}
+      {selectedMachineFilter && (
+        <div className="w-full mb-4 px-4 py-3 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/90 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
+            <div className="text-xs">
+              <span className="font-extrabold text-blue-900 uppercase tracking-wide mr-1.5">Machine Station:</span>
+              <span className="font-mono font-extrabold text-white bg-blue-600 px-2 py-0.5 rounded-md text-[11px] shadow-2xs">
+                {selectedMachineFilter}
+              </span>
+              <span className="text-slate-600 ml-2 hidden sm:inline">
+                Viewing past inspection records certified on {selectedMachineFilter}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedMachineFilter('');
+                const next = new URLSearchParams(searchParams);
+                next.delete('mc');
+                setSearchParams(next, { replace: true });
+              }}
+              className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200 shadow-2xs transition cursor-pointer"
+            >
+              Show All Machines
+            </button>
+            <div className="inline-flex items-center gap-1 bg-white/90 p-1 rounded-xl border border-blue-200 shadow-2xs">
+              {['MC-1', 'MC-2', 'MC-3', 'MC-4', 'MC-5', 'MC-6', 'MC-7', 'MC-8'].map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => {
+                    setSelectedMachineFilter(m);
+                    const next = new URLSearchParams(searchParams);
+                    next.set('mc', m);
+                    setSearchParams(next, { replace: true });
+                  }}
+                  className={`px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold transition cursor-pointer ${
+                    selectedMachineFilter === m
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50'
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filter, Search Bar with Middle Date Picker & View Switcher */}
+      <div className="w-full bg-white rounded-2xl border border-slate-200/90 p-3 sm:p-3.5 mb-5 shadow-2xs flex flex-col lg:flex-row items-center justify-between gap-3">
+        {/* Search Input (Item Code OR Item Description Keyword) */}
+        <div className="relative w-full lg:w-72 xl:w-80">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search by Item Code or Inspector..."
+            placeholder="Search item code or description keyword..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-8 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
+            className="w-full pl-10 pr-8 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
           />
           {searchQuery && (
             <button
@@ -1069,6 +1181,38 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
             >
               <X className="w-3.5 h-3.5" />
             </button>
+          )}
+        </div>
+
+        {/* MIDDLE: Submission Date Picker Filter */}
+        <div className="flex items-center gap-2 w-full lg:w-auto justify-start lg:justify-center flex-wrap">
+          <div className="relative flex items-center">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+              <Calendar className="w-3.5 h-3.5 text-blue-600" />
+            </div>
+            <input
+              type="date"
+              aria-label="Filter by Submission Date"
+              value={selectedDateFilter}
+              onChange={(e) => setSelectedDateFilter(e.target.value)}
+              className="pl-9 pr-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200 text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer transition shadow-2xs"
+            />
+          </div>
+
+          {selectedDateFilter ? (
+            <button
+              type="button"
+              onClick={() => setSelectedDateFilter('')}
+              title="Clear date filter"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold transition cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Clear Date</span>
+            </button>
+          ) : (
+            <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">
+              Filter by submit date
+            </span>
           )}
         </div>
 
@@ -1220,24 +1364,24 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
 
                 {/* Category Content: Items Sub-groups */}
                 {isCategoryExpanded && (
-                  <div className="p-5 sm:p-6 space-y-6 bg-slate-50/50">
+                  <div className={hideHeader ? "p-3 sm:p-4 space-y-3.5 bg-slate-50/50" : "p-5 sm:p-6 space-y-6 bg-slate-50/50"}>
                     {categoryItems.map(({ itemCode, itemMeta, records }) => {
                       const description = itemMeta?.description || records[0]?.product_desc || 'Factory Component Specification';
 
                       return (
                         <div 
                           key={itemCode}
-                          className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs space-y-4"
+                          className={hideHeader ? "bg-white rounded-xl border border-slate-200/90 p-3 sm:p-3.5 shadow-2xs space-y-3" : "bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs space-y-4"}
                         >
                           {/* Item Sub-header */}
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                            <div className="flex items-start sm:items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 font-mono font-bold text-xs">
-                                <Tag className="w-4 h-4 text-indigo-600" />
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-100">
+                            <div className="flex items-start sm:items-center gap-2.5">
+                              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 font-mono font-bold text-xs">
+                                <Tag className="w-3.5 h-3.5 text-blue-600" />
                               </div>
                               <div>
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-mono font-extrabold text-sm sm:text-base text-slate-900 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200">
+                                  <span className="font-mono font-extrabold text-xs sm:text-sm text-slate-900 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">
                                     {itemCode}
                                   </span>
                                   <span className="text-xs sm:text-sm font-bold text-slate-800">
@@ -1245,7 +1389,7 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
                                   </span>
                                 </div>
                                 {itemMeta?.series && (
-                                  <span className="text-[11px] font-mono text-indigo-600 font-semibold block mt-0.5">
+                                  <span className="text-[10px] sm:text-[11px] font-mono text-blue-600 font-semibold block mt-0.5">
                                     Series: {itemMeta.series}
                                   </span>
                                 )}
@@ -1253,15 +1397,15 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
                             </div>
 
                             <div className="flex items-center gap-2 self-start sm:self-auto">
-                              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              <span className="text-[11px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                                 {records.length} {records.length === 1 ? 'Record' : 'Records'}
                               </span>
                             </div>
                           </div>
 
-                          {/* Records Display: Tiles View or List View */}
+                          {/* Records Display: Compact Details List Mode or Compact Tiles */}
                           {viewMode === 'list' ? (
-                            /* Windows File Manager Details List Mode */
+                            /* Sleek Compact Details List Mode */
                             <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
                               {records.map((rec) => {
                                 const dateFormatted = formatDateSafe(rec.created_at);
@@ -1272,19 +1416,28 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
                                   <div
                                     key={rec.id}
                                     onClick={() => handleOpenFullSheet(rec)}
-                                    className="px-3.5 py-2 hover:bg-indigo-50/60 transition-colors flex items-center justify-between gap-3 text-xs cursor-pointer group select-none"
+                                    className="px-3 py-1.5 sm:py-2 hover:bg-blue-50/70 transition-colors flex items-center justify-between gap-2.5 text-xs cursor-pointer group select-none"
                                   >
                                     {/* Date & Time */}
-                                    <div className="flex items-center gap-1.5 text-slate-600 min-w-[150px] shrink-0 font-mono">
+                                    <div className="flex items-center gap-1.5 text-slate-600 min-w-[130px] sm:min-w-[150px] shrink-0 font-mono text-[11px] sm:text-xs">
                                       <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                                       <span className="font-semibold text-slate-800">{dateFormatted}</span>
-                                      <span className="text-slate-400 text-[11px]">{timeFormatted}</span>
+                                      <span className="text-slate-400 text-[10px] sm:text-[11px]">{timeFormatted}</span>
                                     </div>
+
+                                    {/* Optional Lot / Machine station badge */}
+                                    {(rec.lot_number || rec.batch_id) && (
+                                      <div className="hidden sm:flex items-center gap-1 shrink-0">
+                                        <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                                          {rec.lot_number || rec.batch_id}
+                                        </span>
+                                      </div>
+                                    )}
 
                                     {/* Inspector / Auditor */}
                                     <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                                      <User className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                                      <span className="font-semibold text-slate-800 truncate">
+                                      <User className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                      <span className="font-medium text-slate-800 truncate text-[11px] sm:text-xs">
                                         {rec.inspector_name || 'QC Inspector'}
                                       </span>
                                     </div>
@@ -1292,15 +1445,15 @@ const PastRecordsListInner: React.FC<PastRecordsListProps> = ({
                                     {/* Status Badge */}
                                     <div className="shrink-0">
                                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                        <CheckCircle2 className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-600" />
                                         <span>Certified</span>
                                       </span>
                                     </div>
 
                                     {/* Open Arrow */}
-                                    <div className="shrink-0 text-slate-400 group-hover:text-indigo-600 pl-1">
+                                    <div className="shrink-0 text-slate-400 group-hover:text-blue-600 pl-1">
                                       {isOpeningThis ? (
-                                        <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
                                       ) : (
                                         <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                                       )}
