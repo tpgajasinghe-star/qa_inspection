@@ -1,6 +1,20 @@
 @import "tailwindcss";
 
 @layer base {
+  /* Standard 16px root baseline for mobile, tablet, and 1366x768 screens */
+  html {
+    font-size: 16px;
+  }
+
+  /* Proportionately scale root font-size on high-resolution screens (> 1366px)
+     matching 1366x768 visual density (16px / 1366px = 1.1713vw, capped by 2.5vh
+     to avoid vertical clipping on ultrawide monitors). */
+  @media screen and (min-width: 1367px) {
+    html {
+      font-size: clamp(16px, min(1.1713vw, 2.5vh), 45px);
+    }
+  }
+
   body {
     font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
   }
