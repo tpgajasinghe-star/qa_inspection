@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
-  ArrowLeft, 
   ArrowRight, 
   ChevronRight, 
   CheckCircle2, 
@@ -104,17 +103,6 @@ export const AdminPastRecordsExplorer: React.FC<AdminPastRecordsExplorerProps> =
           <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-600 flex-wrap">
             <button
               type="button"
-              onClick={handleBackToChildCards}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold transition cursor-pointer"
-            >
-              <ArrowLeft className="w-4 h-4 text-slate-600" />
-              <span>Back</span>
-            </button>
-
-            <span className="text-slate-300">/</span>
-
-            <button
-              type="button"
               onClick={handleBackToMainCards}
               className="hover:text-blue-600 transition cursor-pointer text-slate-500 font-medium"
             >
@@ -169,25 +157,14 @@ export const AdminPastRecordsExplorer: React.FC<AdminPastRecordsExplorerProps> =
         
         {/* Navigation Breadcrumb Bar */}
         <div className="w-full flex items-center justify-between mb-4 pb-3 border-b border-slate-200/80">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={handleBackToMainCards}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm font-semibold shadow-2xs transition cursor-pointer"
-            >
-              <ArrowLeft className="w-4 h-4 text-slate-600" />
-              <span>Back to Modules</span>
-            </button>
-
-            <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 font-medium">
-              <span className="cursor-pointer hover:text-blue-600" onClick={handleBackToMainCards}>
-                Past Records
-              </span>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
-              <span className="font-bold text-slate-900">
-                {activeMainCard.name.replace(/#\s*\d*/g, '').replace(/#/g, '').trim()}
-              </span>
-            </div>
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 font-medium">
+            <span className="cursor-pointer hover:text-blue-600" onClick={handleBackToMainCards}>
+              Past Records
+            </span>
+            <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+            <span className="font-bold text-slate-900">
+              {activeMainCard.name.replace(/#\s*\d*/g, '').replace(/#/g, '').trim()}
+            </span>
           </div>
 
           <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
@@ -267,18 +244,6 @@ export const AdminPastRecordsExplorer: React.FC<AdminPastRecordsExplorerProps> =
               })}
             </div>
           )}
-        </div>
-
-        {/* Back button at bottom */}
-        <div className="w-full flex justify-center pt-2">
-          <button
-            type="button"
-            onClick={handleBackToMainCards}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-blue-700 font-semibold text-xs shadow-2xs border border-slate-200/80 backdrop-blur-md transition-all cursor-pointer"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 text-slate-500" />
-            <span>Back to Module Selection</span>
-          </button>
         </div>
       </div>
     );
@@ -362,20 +327,6 @@ export const AdminPastRecordsExplorer: React.FC<AdminPastRecordsExplorerProps> =
             );
           })}
         </div>
-      </div>
-
-      {/* Return to Admin Dashboard Button */}
-      <div className="w-full flex justify-center pt-2">
-        <button
-          type="button"
-          onClick={onBack}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-blue-700 font-semibold text-xs shadow-2xs border border-slate-200/80 backdrop-blur-md transition-all cursor-pointer group hover:shadow-xs"
-          id="btn-return-to-admin-dashboard"
-          title="Back to Admin Dashboard"
-        >
-          <ArrowLeft className="w-3.5 h-3.5 text-slate-500 group-hover:text-blue-600 transition-transform group-hover:-translate-x-0.5" />
-          <span>Back to Admin Dashboard</span>
-        </button>
       </div>
     </div>
   );

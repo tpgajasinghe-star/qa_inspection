@@ -12,7 +12,6 @@ import {
   CheckCircle2, 
   AlertTriangle,
   ArrowRight,
-  ArrowLeft,
   TrendingUp,
   FileCheck2,
   Lock,

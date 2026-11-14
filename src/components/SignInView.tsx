@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
-import { Check, Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft, ShieldCheck, ClipboardCheck, Loader2, Sparkles } from 'lucide-react';
+import { Check, Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, ClipboardCheck, Loader2, Sparkles } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { getStoredUserPassword } from '../services/adminUserService';
 import { ProfileRole } from '../types';

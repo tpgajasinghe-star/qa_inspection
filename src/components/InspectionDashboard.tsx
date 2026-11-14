@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, ArrowRight } from 'lucide-react';
 import { InspectionModule } from '../types';
 import {
   getMainCards,
@@ -119,20 +119,6 @@ export const InspectionDashboard: React.FC<InspectionDashboardProps> = ({
             );
           })}
         </div>
-      </div>
-
-      {/* Return to Workspace Selection Button */}
-      <div className="w-full flex justify-center pt-2">
-        <button
-          type="button"
-          onClick={() => navigate('/')}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-blue-700 font-semibold text-xs shadow-2xs border border-slate-200/80 backdrop-blur-md transition-all cursor-pointer group hover:shadow-xs"
-          id="btn-return-from-inspection-dashboard"
-          title="Back to Previous Screen"
-        >
-          <ArrowLeft className="w-3.5 h-3.5 text-slate-500 group-hover:text-blue-600 transition-transform group-hover:-translate-x-0.5" />
-          <span>Back to Workspaces</span>
-        </button>
       </div>
     </div>
   );

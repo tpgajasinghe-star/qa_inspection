@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Users, Sliders, FileSpreadsheet, BarChart3, ArrowRight, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, Users, Sliders, FileSpreadsheet, BarChart3, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { WorkspaceMode } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -204,20 +204,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </button>
           </div>
         </div>
-      </div>
-
-      {/* Return to Workspace Selection Button */}
-      <div className="w-full flex justify-center pt-3">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-blue-700 font-semibold text-xs shadow-2xs border border-slate-200/80 backdrop-blur-md transition-all cursor-pointer group hover:shadow-xs"
-          id="btn-return-from-admin"
-          title="Back to Previous Screen"
-        >
-          <ArrowLeft className="w-3.5 h-3.5 text-slate-500 group-hover:text-blue-600 transition-transform group-hover:-translate-x-0.5" />
-          <span>Back to Workspaces</span>
-        </button>
       </div>
     </div>
   );

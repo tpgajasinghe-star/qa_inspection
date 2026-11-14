@@ -31,6 +31,7 @@ import { useAuth } from './context/AuthContext';
 import { ProtectedRoute, PublicAuthRoute } from './components/ProtectedRoute';
 import { VersionUpdateBanner } from './components/VersionUpdateBanner';
 import { initFormsCloudSync } from './services/formsSyncService';
+import { BackNavigationProvider } from './context/BackNavigationContext';
 
 
 // Wrapper to extract moduleId and childCardId from URL route parameters
@@ -270,6 +271,7 @@ export default function App() {
 
 
   return (
+    <BackNavigationProvider>
     <div className="min-h-screen text-slate-800 font-sans flex flex-col justify-between selection:bg-blue-500 selection:text-white relative overflow-x-hidden">
       {/* Vercel Live Deployment Auto-Update Detector Banner */}
       <VersionUpdateBanner />
@@ -638,5 +640,6 @@ export default function App() {
         </div>
       </footer>
     </div>
+    </BackNavigationProvider>
   );
 }

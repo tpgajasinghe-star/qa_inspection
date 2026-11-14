@@ -6,7 +6,6 @@ import {
   Plus,
   ShieldCheck, 
   UserCheck, 
-  ArrowLeft, 
   ArrowRight, 
   Eye, 
   EyeOff, 
@@ -1012,18 +1011,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 </tbody>
               </table>
             </div>
-          </div>
-
-          {/* Bottom Back Button */}
-          <div className="w-full flex justify-center pt-1">
-            <button
-              type="button"
-              onClick={() => setActiveView('cards')}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-blue-700 font-semibold text-xs sm:text-sm shadow-sm border border-slate-200/80 backdrop-blur-md transition-all cursor-pointer group hover:shadow-md"
-            >
-              <ArrowLeft className="w-4 h-4 text-slate-500 group-hover:text-blue-600 transition-transform group-hover:-translate-x-0.5" />
-              <span>Back to User Management Cards</span>
-            </button>
           </div>
         </div>
       )}

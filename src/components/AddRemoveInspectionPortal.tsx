@@ -6,7 +6,6 @@ import {
   Search, 
   Trash2, 
   CheckCircle2, 
-  ArrowLeft, 
   ArrowRight,
   Zap, 
   Cpu, 
@@ -1327,19 +1326,6 @@ export const AddRemoveInspectionPortal: React.FC<AddRemoveInspectionPortalProps>
           </div>
         </div>
       )}
-
-      {/* Bottom Navigation Button matching before pages conditions */}
-      <div className="w-full flex justify-center mt-8 pb-4">
-        <button
-          type="button"
-          onClick={onBack}
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-slate-950 font-semibold text-xs sm:text-sm shadow-md hover:shadow-lg border border-slate-200/80 transition-all duration-200 cursor-pointer group"
-          id="btn-back-to-admin-dashboard"
-        >
-          <ArrowLeft className="w-4 h-4 text-slate-500 group-hover:text-blue-600 transition-transform group-hover:-translate-x-1" />
-          <span>Back to QA Admin Dashboard</span>
-        </button>
-      </div>
     </div>
   );
 };

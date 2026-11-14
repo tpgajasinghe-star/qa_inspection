@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  ArrowLeft, 
   CheckCircle2, 
   Printer, 
   FileText, 
@@ -988,16 +987,6 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
                 The inspection audit record has been certified and logged into the quality register for Product: <strong>{productDesc || form.productType || form.documentHeader.productType}</strong> (Item Code: <strong className="font-mono">{itemCode || matchedDbItem?.item_code || 'N/A'}</strong>).
               </p>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={onBackToList}
-              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition cursor-pointer"
-            >
-              Done • Return to Forms List &rarr;
-            </button>
           </div>
         </div>
       )}
@@ -2333,16 +2322,7 @@ export const DeployedInspectionFormView: React.FC<DeployedInspectionFormViewProp
           </div>
 
           {/* Form Actions Toolbar */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200 no-print print:hidden">
-            <button
-              type="button"
-              onClick={onBackToList}
-              className="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-2"
-            >
-              <ArrowLeft className="w-4 h-4 text-slate-500" />
-              <span>Back to Deployed Forms List</span>
-            </button>
-
+          <div className="flex flex-col sm:flex-row items-center justify-end gap-4 pt-4 border-t border-slate-200 no-print print:hidden">
             <div className="w-full sm:w-auto flex items-center gap-3">
               <button
                 type="button"

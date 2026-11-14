@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Wifi, LogOut, RefreshCw, UserCheck, Shield, Sparkles } from 'lucide-react';
 import { WorkspaceMode } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useBackNavigationContext } from '../context/BackNavigationContext';
 
 interface PortalHeaderProps {
   currentMode: WorkspaceMode;
@@ -26,6 +27,7 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   const { fullName, employeeId, role: authRole, isSuperAdmin, signOut: authSignOut, isAuthenticated: isAuthLoggedIn } = useAuth();
+  const { override: backOverride } = useBackNavigationContext();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   // Derive effective role from props or AuthContext
@@ -69,17 +71,26 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
 
   const isRoot = location.pathname === '/' || location.pathname === '/workspace-selection';
 
-  // Return contextual label based on current route - strictly goes to immediately preceding step
-  const getBackLabel = () => {
+  // Single Source of Truth for step-by-step Back Navigation across all routes & future sub-steps
+  const resolveBackStep = (): { label: string; destination: string; onBack?: () => void } => {
+    // 0. Allow future or multi-step views to register custom step-back overrides on the single button
+    if (backOverride) {
+      return {
+        label: backOverride.label,
+        destination: backOverride.destination || '/',
+        onBack: backOverride.onBack,
+      };
+    }
+
     const p = location.pathname;
-    const search = location.search;
+    const params = new URLSearchParams(location.search);
 
     // 1. Sub-level views inside Specification Controls (Form Generator or Inspection Editor)
     if (p.startsWith('/admin/specs/')) {
-      if (p.includes('/admin/specs/form') && search.includes('mode=editor')) {
-        return 'Back to Form Directory';
+      if (p.includes('/admin/specs/form') && params.get('mode') === 'editor') {
+        return { label: 'Back to Form Directory', destination: '/admin/specs/form' };
       }
-      return 'Back to Specification Controls';
+      return { label: 'Back to Specification Controls', destination: '/admin/specs' };
     }
 
     // 2. Child card level under Inspection modules (e.g. /inspection/module/:moduleId/:childCardId)
@@ -88,139 +99,145 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
     const inProcessChildMatch = p.match(/^\/inspection\/in-process\/([^/]+)/);
 
     if (moduleChildMatch || incomingChildMatch || inProcessChildMatch) {
-      if (search.includes('form=') || search.includes('standard=true')) {
-        return 'Back to Forms List';
-      }
-      if (search.includes('recordId=')) {
-        return 'Back to Past Records List';
-      }
-      if (search.includes('view=new-inspection') || search.includes('view=past-records')) {
-        return 'Back to Operations';
-      }
-      return 'Back to Categories';
-    }
+      const childCardId = (moduleChildMatch?.[2] || incomingChildMatch?.[1] || inProcessChildMatch?.[1] || '').toLowerCase();
+      const mc = params.get('mc');
+      const view = params.get('view');
+      const formParam = params.get('form');
+      const standardParam = params.get('standard') === 'true';
+      const recordIdParam = params.get('recordId');
+      const isImdContext = Boolean(mc) || childCardId === 'child-injection' || /imd|injection/.test(childCardId);
 
-    // 3. Category level views (e.g. /inspection/incoming, /inspection/in-process, /inspection/module/:moduleId, /inspection/live)
-    if (p.startsWith('/inspection/module/') || p === '/inspection/incoming' || p === '/inspection/in-process' || p.startsWith('/inspection/live')) {
-      return 'Back to QA Inspection';
-    }
-
-    // 4. Admin top subviews (e.g. /admin/specs, /admin/users, /admin/records, /admin/analytics)
-    if (p.startsWith('/admin/') && p !== '/admin') {
-      if (p.includes('/admin/users') && (search.includes('view=') || search.includes('sub='))) {
-        return 'Back to User Management Cards';
+      // Step 2a: Full past inspection sheet open -> return to Past Records List (preserving mc)
+      if (recordIdParam) {
+        const dest = mc
+          ? `${p}?mc=${encodeURIComponent(mc)}&view=past-records`
+          : `${p}?view=past-records`;
+        return { label: 'Back to Past Records List', destination: dest };
       }
-      if (p.includes('/admin/records') && search.includes('recordId=')) {
-        return 'Back to Past Records List';
+
+      // Step 2b: Active inspection form open
+      if (formParam || standardParam || (isImdContext && mc && view === 'new-inspection')) {
+        // For IMD machines, new-inspection goes straight into the IMD form, so previous step is Machine Station Operations
+        if (isImdContext && mc) {
+          return {
+            label: `Back to Machine ${mc}`,
+            destination: `${p}?mc=${encodeURIComponent(mc)}&view=operation-cards`,
+          };
+        }
+        return {
+          label: 'Back to Forms List',
+          destination: `${p}?view=new-inspection`,
+        };
       }
-      return 'Back to QA Admin Dashboard';
-    }
 
-    // 5. Top-level dashboards go to workspace selection
-    if (p === '/inspection' || p === '/admin') {
-      return 'Back to Workspace Selection';
-    }
-
-    // 6. Sign in / login screens go to workspace selection
-    if (p.startsWith('/sign-in') || p.startsWith('/login')) {
-      return 'Back to Workspace Selection';
-    }
-
-    return 'Back';
-  };
-
-  // Return contextual destination for 100% reliable single-click back navigation
-  const getBackDestination = (): string => {
-    const p = location.pathname;
-    const search = location.search;
-
-    // 1. Sub-level views inside Specification Controls
-    if (p.startsWith('/admin/specs/')) {
-      if (p.includes('/admin/specs/form') && search.includes('mode=editor')) {
-        return '/admin/specs/form'; // Return to Form Directory cards gallery
+      // Step 2c: Deployed Forms List or Past Records List -> return to Machine Operations or Child Operations
+      if (view === 'new-inspection' || view === 'past-records') {
+        if (mc) {
+          return {
+            label: `Back to Machine ${mc}`,
+            destination: `${p}?mc=${encodeURIComponent(mc)}&view=operation-cards`,
+          };
+        }
+        return { label: 'Back to Operations', destination: p };
       }
-      return '/admin/specs'; // Return to Specification Controls
-    }
 
-    // 2. Child card level in inspection returns to category level or operations base
-    const moduleChildMatch = p.match(/^\/inspection\/module\/([^/]+)\/([^/]+)/);
-    const incomingChildMatch = p.match(/^\/inspection\/incoming\/([^/]+)/);
-    const inProcessChildMatch = p.match(/^\/inspection\/in-process\/([^/]+)/);
+      // Step 2d: Machine Station Operations (mc selected, operation-cards) -> return to All IMD Machines grid
+      if (mc) {
+        return { label: 'Back to All IMD Machines', destination: p };
+      }
 
-    if (moduleChildMatch || incomingChildMatch || inProcessChildMatch) {
-      if (search.includes('form=') || search.includes('standard=true')) {
-        return `${p}?view=new-inspection`; // Return to Forms list
-      }
-      if (search.includes('recordId=')) {
-        return `${p}?view=past-records`; // Return to Past Records list
-      }
-      if (search.includes('view=')) {
-        return p; // Strips search parameters, returning to child card operations base view
-      }
+      // Step 2e: Base Child Card Operations (or IMD MC-1..MC-8 grid) -> return to Parent Module Categories
       if (moduleChildMatch) {
-        return `/inspection/module/${moduleChildMatch[1]}`;
+        return { label: 'Back to Categories', destination: `/inspection/module/${moduleChildMatch[1]}` };
       }
       if (incomingChildMatch) {
-        return '/inspection/incoming';
+        return { label: 'Back to Categories', destination: '/inspection/incoming' };
       }
-      if (inProcessChildMatch) {
-        return '/inspection/in-process';
-      }
+      return { label: 'Back to Categories', destination: '/inspection/in-process' };
     }
 
-    // 3. Category level views return to QA Inspection dashboard
-    if (p.startsWith('/inspection/module/')) {
-      return '/inspection';
-    }
-    if (p.startsWith('/inspection/') && p !== '/inspection') {
-      return '/inspection';
+    // 3. Category level views -> return to QA Inspection Dashboard
+    if (
+      p.startsWith('/inspection/module/') ||
+      p === '/inspection/incoming' ||
+      p === '/inspection/in-process' ||
+      p.startsWith('/inspection/live')
+    ) {
+      return { label: 'Back to QA Inspection', destination: '/inspection' };
     }
 
-    // 4. Admin top subviews return to QA Admin dashboard or base subview
+    // 4. Admin subviews (/admin/specs, /admin/users, /admin/records, /admin/analytics)
     if (p.startsWith('/admin/') && p !== '/admin') {
-      if (p.includes('/admin/users') && (search.includes('view=') || search.includes('sub='))) {
-        return '/admin/users';
+      if (p.includes('/admin/users') && (params.has('sub') || params.has('view'))) {
+        return { label: 'Back to User Management Cards', destination: '/admin/users' };
       }
-      if (p.includes('/admin/records') && search.includes('recordId=')) {
-        return '/admin/records';
+
+      if (p.includes('/admin/records')) {
+        if (params.has('recordId')) {
+          const next = new URLSearchParams(params);
+          next.delete('recordId');
+          const qs = next.toString();
+          return {
+            label: 'Back to Past Records List',
+            destination: qs ? `${p}?${qs}` : p,
+          };
+        }
+        if (params.has('mainCard') && params.has('childCard')) {
+          const next = new URLSearchParams(params);
+          next.delete('childCard');
+          const qs = next.toString();
+          return {
+            label: 'Back to Categories',
+            destination: qs ? `${p}?${qs}` : p,
+          };
+        }
+        if (params.has('mainCard')) {
+          return { label: 'Back to Modules', destination: '/admin/records' };
+        }
       }
-      return '/admin';
+
+      return { label: 'Back to QA Admin Dashboard', destination: '/admin' };
     }
 
-    // 5. Top-level dashboards go to workspace selection
-    if (p === '/admin' || p === '/inspection') {
-      return '/';
+    // 5. Top-level dashboards -> Workspace Selection
+    if (p === '/inspection' || p === '/admin') {
+      return { label: 'Back to Workspace Selection', destination: '/' };
     }
 
-    // 6. Authentication screens go to workspace selection
+    // 6. Authentication screens -> Workspace Selection
     if (p.startsWith('/sign-in') || p.startsWith('/login')) {
-      return '/';
+      return { label: 'Back to Workspace Selection', destination: '/' };
     }
 
-    return '/';
+    return { label: 'Back', destination: '/' };
   };
 
-  // Direct single-click back navigation - no broken history stack dependency
+  const backStep = resolveBackStep();
+
+  // Single unified back navigation handler for the entire application
   const handleBackClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const destination = getBackDestination();
-    navigate(destination);
+    if (backStep.onBack) {
+      backStep.onBack();
+      return;
+    }
+    navigate(backStep.destination);
   };
-
 
   return (
     <header className="w-full flex items-center justify-between py-2 sm:py-2.5 px-3 sm:px-5 select-none relative z-30 shrink-0 no-print print:hidden">
-      {/* Back Navigation Button - Synced with browser history stack via navigate(-1) */}
+      {/* SINGLE GLOBAL BACK BUTTON - Only Back button permitted on any non-root page or sub-step */}
       {!isRoot ? (
         <button
+          type="button"
           onClick={handleBackClick}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/85 hover:bg-white text-slate-700 hover:text-slate-950 font-medium text-xs sm:text-sm shadow-xs backdrop-blur-md border border-white/80 transition-all duration-200 hover:shadow-sm cursor-pointer group"
           id="btn-nav-back"
-          title="Go back to previous screen (Browser History)"
+          title={backStep.label}
         >
           <ArrowLeft className="w-3.5 h-3.5 text-slate-500 group-hover:text-blue-600 transition-transform group-hover:-translate-x-0.5" />
-          <span>{getBackLabel()}</span>
+          <span>{backStep.label}</span>
         </button>
       ) : (
         <div className="hidden sm:block">
