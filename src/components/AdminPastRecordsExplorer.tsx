@@ -17,6 +17,7 @@ import {
 } from '../inspectionHierarchyData';
 import { InspectionCardIconRenderer } from './InspectionCardIconRenderer';
 import { PastRecordsList } from './PastRecordsList';
+import { PortalPageLayout } from './PortalPageLayout';
 
 interface AdminPastRecordsExplorerProps {
   onBack: () => void;
@@ -153,40 +154,42 @@ export const AdminPastRecordsExplorer: React.FC<AdminPastRecordsExplorerProps> =
   // =========================================================================
   if (activeMainCard) {
     return (
-      <div className="w-full flex-1 flex flex-col items-center justify-between px-4 sm:px-6 py-4 z-10 max-w-7xl mx-auto animate-in fade-in duration-200">
-        
-        {/* Navigation Breadcrumb Bar */}
-        <div className="w-full flex items-center justify-between mb-4 pb-3 border-b border-slate-200/80">
-          <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 font-medium">
-            <span className="cursor-pointer hover:text-blue-600" onClick={handleBackToMainCards}>
-              Past Records
+      <PortalPageLayout
+        maxWidthClass="max-w-7xl"
+        className="animate-in fade-in duration-200"
+        topBar={
+          <div className="w-full flex items-center justify-between pb-3 border-b border-slate-200/80">
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 font-medium">
+              <span className="cursor-pointer hover:text-blue-600" onClick={handleBackToMainCards}>
+                Past Records
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+              <span className="font-bold text-slate-900">
+                {activeMainCard.name.replace(/#\s*\d*/g, '').replace(/#/g, '').trim()}
+              </span>
+            </div>
+
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+              {childCards.length} Categories Available
             </span>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
-            <span className="font-bold text-slate-900">
+          </div>
+        }
+        header={
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-md shadow-blue-500/25 ring-2 ring-white mb-2">
+              <InspectionCardIconRenderer iconName={activeMainCard.iconName} className="w-6 h-6 stroke-[2]" />
+            </div>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
               {activeMainCard.name.replace(/#\s*\d*/g, '').replace(/#/g, '').trim()}
-            </span>
+            </h1>
+            <p className="text-slate-500 text-xs sm:text-sm max-w-xl mx-auto font-medium mt-1">
+              Select a child category below to view historical quality inspection sheets and audit logs
+            </p>
           </div>
-
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-            {childCards.length} Categories Available
-          </span>
-        </div>
-
-        {/* Section Title */}
-        <div className="text-center mb-5 sm:mb-6">
-          <div className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-md shadow-blue-500/25 ring-2 ring-white mb-2">
-            <InspectionCardIconRenderer iconName={activeMainCard.iconName} className="w-6 h-6 stroke-[2]" />
-          </div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-            {activeMainCard.name.replace(/#\s*\d*/g, '').replace(/#/g, '').trim()}
-          </h1>
-          <p className="text-slate-500 text-xs sm:text-sm max-w-xl mx-auto font-medium mt-0.5">
-            Select a child category below to view historical quality inspection sheets and audit logs
-          </p>
-        </div>
-
+        }
+      >
         {/* Child Cards Container */}
-        <div className="w-full max-w-7xl mx-auto mb-6">
+        <div className="w-full max-w-7xl mx-auto">
           {childCards.length === 0 ? (
             <div className="p-8 text-center bg-white/80 rounded-2xl border border-slate-200 max-w-md mx-auto">
               <Layers className="w-10 h-10 text-slate-300 mx-auto mb-2" />
@@ -245,7 +248,7 @@ export const AdminPastRecordsExplorer: React.FC<AdminPastRecordsExplorerProps> =
             </div>
           )}
         </div>
-      </div>
+      </PortalPageLayout>
     );
   }
 
@@ -253,21 +256,23 @@ export const AdminPastRecordsExplorer: React.FC<AdminPastRecordsExplorerProps> =
   // LEVEL 1: MAIN MODULE CARDS (Incoming, In-Process, Subcontracting)
   // =========================================================================
   return (
-    <div className="w-full flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-4 z-10 max-w-6xl mx-auto my-auto animate-in fade-in duration-200">
-      
-      {/* Top Header */}
-      <div className="text-center mb-5 sm:mb-6">
-        <div className="inline-flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-500/30 mb-2 ring-3 ring-blue-100/60">
-          <FolderArchive className="w-6 h-6 stroke-[2.2]" />
+    <PortalPageLayout
+      maxWidthClass="max-w-6xl"
+      className="animate-in fade-in duration-200"
+      header={
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-500/30 mb-2 ring-3 ring-blue-100/60">
+            <FolderArchive className="w-6 h-6 stroke-[2.2]" />
+          </div>
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+            Past Inspection Records
+          </h1>
+          <p className="text-slate-500 font-medium mt-1 text-xs sm:text-sm max-w-lg mx-auto">
+            Select an inspection module to explore submitted quality audit sheets by category and item
+          </p>
         </div>
-        <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-          Past Inspection Records
-        </h1>
-        <p className="text-slate-500 font-medium mt-0.5 text-xs sm:text-sm max-w-lg mx-auto">
-          Select an inspection module to explore submitted quality audit sheets by category and item
-        </p>
-      </div>
-
+      }
+    >
       {/* Main Cards Grid */}
       <div className={`w-full ${
         mainCards.length === 1
@@ -277,7 +282,7 @@ export const AdminPastRecordsExplorer: React.FC<AdminPastRecordsExplorerProps> =
           : mainCards.length === 3
           ? 'max-w-5xl'
           : 'max-w-6xl'
-      } mx-auto mb-4`}>
+      } mx-auto`}>
         <div className="flex flex-wrap items-stretch justify-center gap-4 w-full mx-auto">
           {mainCards.map((card) => {
             const cardWidthClass =
@@ -328,6 +333,6 @@ export const AdminPastRecordsExplorer: React.FC<AdminPastRecordsExplorerProps> =
           })}
         </div>
       </div>
-    </div>
+    </PortalPageLayout>
   );
 };

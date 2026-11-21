@@ -38,6 +38,7 @@ import {
 } from '../services/adminUserService';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { PortalPageLayout } from './PortalPageLayout';
 
 interface UserManagementProps {
   onBack: () => void;
@@ -375,30 +376,31 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     return true;
   });
 
-  return (
-    <div className="w-full flex-1 flex flex-col items-center px-4 sm:px-6 py-4 sm:py-6 z-10 max-w-6xl mx-auto my-auto animate-in fade-in duration-300">
-
-      {/* Top Bar with Logged In Admin Username and Active Role */}
-      <div className="w-full max-w-3xl mb-4 bg-white/80 backdrop-blur-md rounded-2xl px-4 py-2.5 border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-            Logged In Admin:
-          </span>
-          <span className="font-bold text-xs text-slate-900 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200 flex items-center gap-1.5">
-            <span>{sessionStorage.getItem('qc_auth_full_name') || sessionStorage.getItem('qc_auth_employee_id') || 'Admin'}</span>
-            <span className="text-slate-400 font-mono text-[11px]">({sessionStorage.getItem('qc_auth_employee_id') || 'admin'})</span>
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-            Active Role:
-          </span>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold uppercase border shadow-2xs bg-indigo-50 text-indigo-700 border-indigo-200">
-            <ShieldCheck className="w-3.5 h-3.5 text-indigo-700 stroke-[2.2]" />
-            <span>ADMIN</span>
-          </span>
-        </div>
+  const adminStatusBar = (
+    <div className="w-full max-w-3xl mx-auto bg-white/80 backdrop-blur-md rounded-2xl px-4 py-2.5 border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+          Logged In Admin:
+        </span>
+        <span className="font-bold text-xs text-slate-900 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200 flex items-center gap-1.5">
+          <span>{sessionStorage.getItem('qc_auth_full_name') || sessionStorage.getItem('qc_auth_employee_id') || 'Admin'}</span>
+          <span className="text-slate-400 font-mono text-[11px]">({sessionStorage.getItem('qc_auth_employee_id') || 'admin'})</span>
+        </span>
       </div>
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+          Active Role:
+        </span>
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold uppercase border shadow-2xs bg-indigo-50 text-indigo-700 border-indigo-200">
+          <ShieldCheck className="w-3.5 h-3.5 text-indigo-700 stroke-[2.2]" />
+          <span>ADMIN</span>
+        </span>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="w-full flex-1 flex flex-col items-center z-10 animate-in fade-in duration-300">
 
       {/* ========================================================================= */}
       {/* VIEW 1: THE TWO MAIN OPERATION CARDS                                      */}
@@ -406,22 +408,25 @@ export const UserManagement: React.FC<UserManagementProps> = ({
       {/* 2. View All Users Card                                                    */}
       {/* ========================================================================= */}
       {activeView === 'cards' && (
-        <div className="w-full flex-1 flex flex-col items-center justify-between my-auto">
-          {/* Section Header */}
-          <div className="w-full text-center mb-6 sm:mb-8">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25 ring-3 ring-blue-100 mb-3">
-              <Users className="w-6 h-6 stroke-[2.2]" />
+        <PortalPageLayout
+          maxWidthClass="max-w-6xl"
+          topBar={adminStatusBar}
+          header={
+            <div className="w-full text-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25 ring-3 ring-blue-100 mb-3">
+                <Users className="w-6 h-6 stroke-[2.2]" />
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                User Management
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-lg mx-auto mt-1">
+                Workforce Accounts Management &amp; Access Controls
+              </p>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              User Management
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-lg mx-auto mt-1">
-              Workforce Accounts Management &amp; Access Controls
-            </p>
-          </div>
-
+          }
+        >
           {/* THE 2 CARDS */}
-          <div className="w-full max-w-3xl mx-auto my-auto grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 mb-8 justify-center">
+          <div className="w-full max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 justify-center">
             
             {/* CARD 1: CREATE USER */}
             <div
@@ -530,7 +535,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             </div>
 
           </div>
-        </div>
+        </PortalPageLayout>
       )}
 
       {/* ========================================================================= */}
@@ -540,7 +545,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
       {/* - ADMIN: Role dropdown is hidden and hardcoded to USER                    */}
       {/* ========================================================================= */}
       {activeView === 'create-user' && (
-        <div className="w-full max-w-2xl mx-auto my-auto animate-in fade-in duration-300">
+        <div className="w-full max-w-2xl mx-auto px-4 sm:px-6 py-6 animate-in fade-in duration-300">
+          <div className="mb-5">{adminStatusBar}</div>
           
           <div className="w-full flex items-center justify-between mb-5 pb-3 border-b border-slate-200/70">
             <div>
@@ -761,7 +767,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
       {/* - Table hides restricted actions based on logged-in user role             */}
       {/* ========================================================================= */}
       {activeView === 'view-all-users' && (
-        <div className="w-full max-w-6xl mx-auto my-auto animate-in fade-in duration-300">
+        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 animate-in fade-in duration-300">
+          <div className="mb-5">{adminStatusBar}</div>
           
           <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-3 border-b border-slate-200/70">
             <div>

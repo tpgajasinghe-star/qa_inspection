@@ -8,6 +8,7 @@ import {
   HIERARCHY_UPDATED_EVENT
 } from '../inspectionHierarchyData';
 import { InspectionCardIconRenderer } from './InspectionCardIconRenderer';
+import { PortalPageLayout } from './PortalPageLayout';
 
 interface InspectionDashboardProps {
   onSelectModule: (module: InspectionModule, cardId?: string) => void;
@@ -45,20 +46,22 @@ export const InspectionDashboard: React.FC<InspectionDashboardProps> = ({
   };
 
   return (
-    <div className="w-full flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-2 z-10 max-w-6xl mx-auto my-auto">
-      {/* Portal Header - Compact to ensure 100% viewport fit */}
-      <div className="text-center mb-3 sm:mb-4">
-        <div className="inline-flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-500/30 mb-1.5 ring-3 ring-blue-100/60">
-          <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.2]" />
+    <PortalPageLayout
+      maxWidthClass="max-w-6xl"
+      header={
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-500/30 mb-2 ring-3 ring-blue-100/60">
+            <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.2]" />
+          </div>
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+            QA Inspection Portal
+          </h1>
+          <p className="text-slate-500 font-medium mt-1 text-xs sm:text-sm">
+            Select an inspection module to begin quality audits
+          </p>
         </div>
-        <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-          QA Inspection Portal
-        </h1>
-        <p className="text-slate-500 font-medium mt-0.5 text-xs sm:text-sm">
-          Select an inspection module to begin quality audits
-        </p>
-      </div>
-
+      }
+    >
       {/* Dynamic Module Cards Container: Universally Centered across all Laptops, Desktops, Tablets & Mobile */}
       <div className={`w-full ${
         mainCards.length === 1
@@ -70,7 +73,7 @@ export const InspectionDashboard: React.FC<InspectionDashboardProps> = ({
           : mainCards.length === 4
           ? 'max-w-6xl'
           : 'max-w-7xl'
-      } mx-auto my-auto mb-2 sm:mb-3`}>
+      } mx-auto`}>
         <div className="flex flex-wrap items-stretch justify-center gap-3 sm:gap-4.5 w-full mx-auto">
           {mainCards.map((card) => {
             const cardWidthClass =
@@ -120,6 +123,6 @@ export const InspectionDashboard: React.FC<InspectionDashboardProps> = ({
           })}
         </div>
       </div>
-    </div>
+    </PortalPageLayout>
   );
 };

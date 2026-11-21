@@ -10,6 +10,7 @@ import {
 } from '../inspectionHierarchyData';
 import { InspectionCardIconRenderer } from './InspectionCardIconRenderer';
 import { ChildCardOperationsWorkspace } from './ChildCardOperationsWorkspace';
+import { PortalPageLayout } from './PortalPageLayout';
 
 interface ModuleInspectionPortalProps {
   mainCardId: string;
@@ -52,10 +53,10 @@ export const ModuleInspectionPortal: React.FC<ModuleInspectionPortalProps> = ({
 
   if (!mainCard) {
     return (
-      <div className="w-full flex-1 flex flex-col items-center justify-center p-8 text-center my-auto">
-        <h2 className="text-xl font-bold text-slate-800 mb-2">Module Not Found</h2>
+      <PortalPageLayout maxWidthClass="max-w-xl" className="text-center" gapClass="gap-2">
+        <h2 className="text-xl font-bold text-slate-800">Module Not Found</h2>
         <p className="text-xs text-slate-500">The selected inspection module could not be loaded.</p>
-      </div>
+      </PortalPageLayout>
     );
   }
 
@@ -79,11 +80,11 @@ export const ModuleInspectionPortal: React.FC<ModuleInspectionPortalProps> = ({
   }
 
   return (
-    <div className="w-full flex-1 flex flex-col items-center justify-between px-4 sm:px-6 py-2 z-10 max-w-7xl mx-auto my-auto animate-in fade-in duration-200">
-      
-      {/* Top Header Section - Compact to fit 100% in viewport */}
-      <div className="w-full flex flex-col items-center">
-        <div className="text-center mb-2 sm:mb-3">
+    <PortalPageLayout
+      maxWidthClass="max-w-7xl"
+      className="animate-in fade-in duration-200"
+      header={
+        <div className="w-full flex flex-col items-center text-center">
           <div className="flex items-center justify-center gap-2 mb-1">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-sm shadow-blue-500/25 ring-2 ring-white">
               <InspectionCardIconRenderer iconName={mainCard.iconName} className="w-5 h-5 stroke-[2]" />
@@ -96,8 +97,8 @@ export const ModuleInspectionPortal: React.FC<ModuleInspectionPortalProps> = ({
             Select a child category below to perform quality inspection operations
           </p>
         </div>
-      </div>
-
+      }
+    >
       {/* Child Cards Container - Universally Centered across all Laptops, Desktops, Tablets & Phones */}
       <div className={`w-full ${
         childCards.length === 1
@@ -109,7 +110,7 @@ export const ModuleInspectionPortal: React.FC<ModuleInspectionPortalProps> = ({
           : childCards.length === 4
           ? 'max-w-6xl'
           : 'max-w-7xl'
-      } mx-auto my-auto mb-2 sm:mb-3`}>
+      } mx-auto`}>
         {childCards.length === 0 ? (
           <div className="p-8 text-center bg-white/80 rounded-2xl border border-slate-200 max-w-md mx-auto">
             <Layers className="w-10 h-10 text-slate-300 mx-auto mb-2" />
@@ -184,6 +185,6 @@ export const ModuleInspectionPortal: React.FC<ModuleInspectionPortalProps> = ({
         )}
       </div>
 
-    </div>
+    </PortalPageLayout>
   );
 };

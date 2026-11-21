@@ -38,6 +38,7 @@ import {
 } from '../deployedFormsData';
 import { DeployedInspectionFormView } from './DeployedInspectionFormView';
 import { RoundClockTimePickerModal } from './RoundClockTimePickerModal';
+import { PortalPageLayout } from './PortalPageLayout';
 import { PastRecordsList } from './PastRecordsList';
 
 interface ChildCardOperationsWorkspaceProps {
@@ -434,48 +435,51 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
       const imdForm = deployedForms.find(f => f.id === 'deployed-imd-1' || /imd/i.test(f.name || f.productType || ''));
 
       return (
-        <div className="w-full flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-4 sm:py-6 z-10 max-w-6xl mx-auto my-auto animate-in fade-in duration-300">
-          
-          {/* Header & Breadcrumbs */}
-          <div className="w-full flex flex-col items-center text-center mb-6">
-            {/* Breadcrumb Trail */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-slate-100/90 text-slate-600 text-xs font-semibold mb-3 border border-slate-200/80 shadow-2xs">
-              <span 
-                onClick={onBackToChildCards} 
-                className="hover:text-blue-600 cursor-pointer transition-colors"
-              >
-                {mainCard.name}
-              </span>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-              <span className="text-blue-700 font-bold flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                {childCard.name}
-              </span>
-            </div>
-
-            {/* Title & Tag */}
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/25 ring-3 ring-white">
-                <InspectionCardIconRenderer iconName={childCard.iconName} className="w-6 h-6 stroke-[1.9]" />
+        <PortalPageLayout
+          maxWidthClass="max-w-6xl"
+          gapClass="gap-6"
+          className="animate-in fade-in duration-300"
+          header={
+            <div className="w-full flex flex-col items-center text-center">
+              {/* Breadcrumb Trail */}
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-slate-100/90 text-slate-600 text-xs font-semibold mb-3 border border-slate-200/80 shadow-2xs">
+                <span 
+                  onClick={onBackToChildCards} 
+                  className="hover:text-blue-600 cursor-pointer transition-colors"
+                >
+                  {mainCard.name}
+                </span>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                <span className="text-blue-700 font-bold flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                  {childCard.name}
+                </span>
               </div>
-              <div className="text-left">
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">
-                    IMD Machine Stations (MC-1 to MC-8)
-                  </h1>
-                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-                    8 Operational Units
-                  </span>
+
+              {/* Title & Tag */}
+              <div className="flex items-center justify-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/25 ring-3 ring-white">
+                  <InspectionCardIconRenderer iconName={childCard.iconName} className="w-6 h-6 stroke-[1.9]" />
                 </div>
-                <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-                  Select a molding machine station below to record live online inspections or inspect historical batch records.
-                </p>
+                <div className="text-left">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">
+                      IMD Machine Stations (MC-1 to MC-8)
+                    </h1>
+                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                      8 Operational Units
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+                    Select a molding machine station below to record live online inspections or inspect historical batch records.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-
+          }
+        >
           {/* 8 MACHINE CARDS GRID */}
-          <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-6">
+          <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
             {IMD_MACHINES.map((mc) => {
               return (
                 <div
@@ -545,7 +549,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
               );
             })}
           </div>
-        </div>
+        </PortalPageLayout>
       );
     }
 
@@ -557,71 +561,72 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
       const machineMeta = IMD_MACHINES.find(m => m.id === selectedMachine);
 
       return (
-        <div className="w-full flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-2 sm:py-4 z-10 max-w-5xl mx-auto my-auto animate-in fade-in duration-300">
-          
-          {/* Header & Breadcrumbs */}
-          <div className="w-full max-w-5xl flex flex-col items-center text-center mb-4 sm:mb-5">
-            
-            {/* Breadcrumb Trail */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-slate-100/90 text-slate-600 text-xs font-semibold mb-2 sm:mb-3 border border-slate-200/80 shadow-2xs">
-              <span 
-                onClick={onBackToChildCards} 
-                className="hover:text-blue-600 cursor-pointer transition-colors"
-              >
-                {mainCard.name}
-              </span>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-              <button
-                type="button"
-                onClick={() => navigate('?view=operation-cards')}
-                className="hover:text-blue-600 cursor-pointer transition-colors"
-              >
-                {childCard.name}
-              </button>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-              <span className="text-blue-700 font-bold flex items-center gap-1.5 font-mono">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                Machine {selectedMachine}
-              </span>
-            </div>
-
-            {/* Machine Heading */}
-            <div className="flex flex-col items-center justify-center gap-1.5 mb-2">
-              <div className="flex items-center gap-3">
-                <span className="font-mono text-sm sm:text-base font-extrabold px-3.5 py-1.5 rounded-xl bg-blue-600 text-white shadow-sm tracking-wider">
-                  {selectedMachine}
-                </span>
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">
-                  Machine {selectedMachine} Station Operations
-                </h1>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                Dedicated Injection Molding Quality Station
-              </p>
-            </div>
-
-            {/* Machine Switcher Quick Bar */}
-            <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 shadow-2xs">
-              {IMD_MACHINES.map(m => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => navigate(`?mc=${m.id}&view=operation-cards`)}
-                  className={`px-2.5 py-1 rounded-xl text-xs font-mono font-bold transition cursor-pointer ${
-                    selectedMachine === m.id
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white'
-                  }`}
-                  id={`btn-tab-mc-${m.id.toLowerCase()}`}
+        <PortalPageLayout
+          maxWidthClass="max-w-5xl"
+          className="animate-in fade-in duration-300"
+          header={
+            <div className="w-full max-w-5xl flex flex-col items-center text-center">
+              {/* Breadcrumb Trail */}
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-slate-100/90 text-slate-600 text-xs font-semibold mb-2 sm:mb-3 border border-slate-200/80 shadow-2xs">
+                <span 
+                  onClick={onBackToChildCards} 
+                  className="hover:text-blue-600 cursor-pointer transition-colors"
                 >
-                  {m.id}
+                  {mainCard.name}
+                </span>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                <button
+                  type="button"
+                  onClick={() => navigate('?view=operation-cards')}
+                  className="hover:text-blue-600 cursor-pointer transition-colors"
+                >
+                  {childCard.name}
                 </button>
-              ))}
-            </div>
-          </div>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                <span className="text-blue-700 font-bold flex items-center gap-1.5 font-mono">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                  Machine {selectedMachine}
+                </span>
+              </div>
 
+              {/* Machine Heading */}
+              <div className="flex flex-col items-center justify-center gap-1.5 mb-2">
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-sm sm:text-base font-extrabold px-3.5 py-1.5 rounded-xl bg-blue-600 text-white shadow-sm tracking-wider">
+                    {selectedMachine}
+                  </span>
+                  <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">
+                    Machine {selectedMachine} Station Operations
+                  </h1>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                  Dedicated Injection Molding Quality Station
+                </p>
+              </div>
+
+              {/* Machine Switcher Quick Bar */}
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5 bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200 shadow-2xs">
+                {IMD_MACHINES.map(m => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => navigate(`?mc=${m.id}&view=operation-cards`)}
+                    className={`px-2.5 py-1 rounded-xl text-xs font-mono font-bold transition cursor-pointer ${
+                      selectedMachine === m.id
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white'
+                    }`}
+                    id={`btn-tab-mc-${m.id.toLowerCase()}`}
+                  >
+                    {m.id}
+                  </button>
+                ))}
+              </div>
+            </div>
+          }
+        >
           {/* THE TWO OPERATION CARDS CUSTOMIZED FOR THIS MACHINE */}
-          <div className="w-full max-w-xl mx-auto my-auto grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4 mb-4 sm:mb-6 justify-center">
+          <div className="w-full max-w-xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4 justify-center">
             
             {/* CARD 1: MAKE TO NEW INSPECTION FOR SELECTED MACHINE */}
             <div
@@ -729,7 +734,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
               </div>
             </div>
           </div>
-        </div>
+        </PortalPageLayout>
       );
     }
 
@@ -737,45 +742,46 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
     // CASE C: Standard Non-IMD Child Cards -> Standard 2 Operation Cards
     // -----------------------------------------------------------------------
     return (
-      <div className="w-full flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-2 sm:py-4 z-10 max-w-5xl mx-auto my-auto animate-in fade-in duration-300">
-        
-        {/* Top Header & Breadcrumbs */}
-        <div className="w-full max-w-5xl flex flex-col items-center text-center mb-3 sm:mb-4">
-          
-          {/* Breadcrumb Trail */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100/90 text-slate-600 text-xs font-semibold mb-2 sm:mb-3 border border-slate-200/80 shadow-2xs">
-            <span 
-              onClick={onBackToChildCards} 
-              className="hover:text-blue-600 cursor-pointer transition-colors"
-            >
-              {mainCard.name}
-            </span>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-blue-700 font-bold flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-              {childCard.name}
-            </span>
-          </div>
-
-          {/* Child Card Icon & Heading */}
-          <div className="flex items-center justify-center gap-3 mb-1">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/25 ring-3 ring-white">
-              <InspectionCardIconRenderer iconName={childCard.iconName} className="w-6 h-6 stroke-[1.9]" />
-            </div>
-            <div className="text-left">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">
+      <PortalPageLayout
+        maxWidthClass="max-w-5xl"
+        className="animate-in fade-in duration-300"
+        header={
+          <div className="w-full max-w-5xl flex flex-col items-center text-center">
+            {/* Breadcrumb Trail */}
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100/90 text-slate-600 text-xs font-semibold mb-2 sm:mb-3 border border-slate-200/80 shadow-2xs">
+              <span 
+                onClick={onBackToChildCards} 
+                className="hover:text-blue-600 cursor-pointer transition-colors"
+              >
+                {mainCard.name}
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-blue-700 font-bold flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
                 {childCard.name}
-              </h1>
+              </span>
+            </div>
+
+            {/* Child Card Icon & Heading */}
+            <div className="flex items-center justify-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/25 ring-3 ring-white">
+                <InspectionCardIconRenderer iconName={childCard.iconName} className="w-6 h-6 stroke-[1.9]" />
+              </div>
+              <div className="text-left">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">
+                  {childCard.name}
+                </h1>
+              </div>
             </div>
           </div>
-        </div>
-
+        }
+      >
         {/* ================================================================= */}
         {/* THE TWO OPERATION CARDS (Smaller, Compact & Neatly Sized)         */}
         {/* 1. Make New Inspection                                            */}
         {/* 2. View Past Inspection Records                                   */}
         {/* ================================================================= */}
-        <div className="w-full max-w-xl mx-auto my-auto grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4 mb-4 sm:mb-6 justify-center">
+        <div className="w-full max-w-xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4 justify-center">
           
           {/* CARD 1: MAKE TO NEW INSPECTION */}
           <div
@@ -869,7 +875,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
             </div>
           </div>
         </div>
-      </div>
+      </PortalPageLayout>
     );
   }
 
@@ -1462,7 +1468,7 @@ export const ChildCardOperationsWorkspace: React.FC<ChildCardOperationsWorkspace
   const currentListForms = deployedForms;
 
   return (
-    <div className="w-full flex-1 flex flex-col items-center px-4 sm:px-6 py-4 sm:py-6 z-10 max-w-5xl mx-auto my-auto animate-in fade-in duration-300">
+    <div className="w-full flex-1 flex flex-col items-center px-4 sm:px-6 py-4 sm:py-6 z-10 max-w-5xl mx-auto animate-in fade-in duration-300">
       
       {/* Top Breadcrumb Bar (Zero duplicate back buttons — uses global PortalHeader Back) */}
       <div className="w-full flex items-center justify-between mb-4 sm:mb-6 pb-3 border-b border-slate-200/70">

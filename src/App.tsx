@@ -272,7 +272,7 @@ export default function App() {
 
   return (
     <BackNavigationProvider>
-    <div className="min-h-screen text-slate-800 font-sans flex flex-col justify-between selection:bg-blue-500 selection:text-white relative overflow-x-hidden">
+    <div className="min-h-screen text-slate-800 font-sans flex flex-col selection:bg-blue-500 selection:text-white relative overflow-x-hidden">
       {/* Vercel Live Deployment Auto-Update Detector Banner */}
       <VersionUpdateBanner />
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowRight, CheckCircle2, ShieldCheck, ClipboardCheck } from 'lucide-react';
+import { PortalPageLayout } from './PortalPageLayout';
 
 interface WorkspaceSelectionProps {
   onSelectWorkspace: (workspace: 'inspection' | 'admin') => void;
@@ -10,26 +11,27 @@ export const WorkspaceSelection: React.FC<WorkspaceSelectionProps> = ({
   onSelectWorkspace,
 }) => {
   return (
-    <div className="w-full flex-1 flex flex-col items-center justify-center py-2 px-4 z-10 my-auto">
-
-      {/* Main Title & Brand Icon - Compact to ensure 100% viewport fit */}
-      <div className="text-center mb-3 sm:mb-4">
-        <div className="flex items-center justify-center gap-2.5 mb-1.5">
-          {/* Blue Shield / Check Icon Badge */}
-          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-sky-400 flex items-center justify-center text-white shadow-md shadow-blue-500/25 ring-3 ring-white">
-            <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.2]" />
+    <PortalPageLayout
+      maxWidthClass="max-w-4xl"
+      header={
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-2.5 mb-2">
+            {/* Blue Shield / Check Icon Badge */}
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-sky-400 flex items-center justify-center text-white shadow-md shadow-blue-500/25 ring-3 ring-white">
+              <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.2]" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+              QA Inspection Portal
+            </h1>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-            QA Inspection Portal
-          </h1>
+          <p className="text-slate-500 text-xs sm:text-sm max-w-md mx-auto font-medium">
+            Quality Meets Precision • Select your workspace to continue
+          </p>
         </div>
-        <p className="text-slate-500 text-xs sm:text-sm max-w-md mx-auto font-medium">
-          Quality Meets Precision • Select your workspace to continue
-        </p>
-      </div>
-
+      }
+    >
       {/* Workspace Selection Cards Container - Universally Centered */}
-      <div className="w-full max-w-3xl mx-auto px-2 sm:px-4 my-auto">
+      <div className="w-full max-w-3xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 justify-center">
           {/* Card 1: Inspection */}
           <div
@@ -132,6 +134,6 @@ export const WorkspaceSelection: React.FC<WorkspaceSelectionProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </PortalPageLayout>
   );
 };

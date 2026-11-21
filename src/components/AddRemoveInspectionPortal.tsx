@@ -34,6 +34,7 @@ import {
 import { fetchItems, DbItem } from '../services/itemService';
 import { FormEditorStudio, DocumentHeaderData } from './FormEditorStudio';
 import { InspectionEditor } from './InspectionEditor';
+import { PortalPageLayout } from './PortalPageLayout';
 
 export interface DynamicInspectionElement {
   id: string;
@@ -654,7 +655,7 @@ export const AddRemoveInspectionPortal: React.FC<AddRemoveInspectionPortalProps>
   };
 
   return (
-    <div className={`w-full flex-1 flex flex-col items-center justify-between px-3 sm:px-6 py-6 z-10 ${activeTab === 'form' ? 'max-w-[1720px]' : 'max-w-7xl'} mx-auto min-h-[calc(100vh-6rem)]`}>
+    <div className="w-full flex-1 flex flex-col items-center z-10">
       
       {/* Toast Notification */}
       {notification && (
@@ -675,35 +676,32 @@ export const AddRemoveInspectionPortal: React.FC<AddRemoveInspectionPortalProps>
         </div>
       )}
 
-      {/* Top Section: Corporate Brand & Main Header */}
-      {activeTab !== 'form' && activeTab !== 'editor' && (
-      <div className="w-full flex flex-col items-center">
-
-        {/* Main Portal Title & Icon */}
-        <div className="text-center mb-6 sm:mb-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200/80 text-blue-700 text-xs font-bold uppercase tracking-wider mb-3">
-            <Sliders className="w-3.5 h-3.5" />
-            <span>Specification Controls &amp; Form Generator</span>
-          </div>
-          <div className="flex items-center justify-center gap-3.5 mb-3">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 ring-4 ring-white">
-              <Sliders className="w-7 h-7 sm:w-8 sm:h-8 stroke-[2]" />
-            </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
-              Specification Controls
-            </h1>
-          </div>
-          <p className="text-slate-500 text-base sm:text-lg max-w-2xl mx-auto font-medium">
-            Configure QA specifications, form generator templates, and inspection hierarchy
-          </p>
-        </div>
-      </div>
-      )}
-
       {/* Main Content Area */}
       {activeTab === 'cards' ? (
-        /* Cards View: Dual Cards - Specification Controls & Inspection Editor */
-        <div className="w-full max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 my-auto mb-8 px-2 justify-center">
+        <PortalPageLayout
+          maxWidthClass="max-w-7xl"
+          header={
+            <div className="w-full flex flex-col items-center text-center">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200/80 text-blue-700 text-xs font-bold uppercase tracking-wider mb-3">
+                <Sliders className="w-3.5 h-3.5" />
+                <span>Specification Controls &amp; Form Generator</span>
+              </div>
+              <div className="flex items-center justify-center gap-3.5 mb-3">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 ring-4 ring-white">
+                  <Sliders className="w-7 h-7 sm:w-8 sm:h-8 stroke-[2]" />
+                </div>
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
+                  Specification Controls
+                </h1>
+              </div>
+              <p className="text-slate-500 text-base sm:text-lg max-w-2xl mx-auto font-medium">
+                Configure QA specifications, form generator templates, and inspection hierarchy
+              </p>
+            </div>
+          }
+        >
+        {/* Cards View: Dual Cards - Specification Controls & Inspection Editor */}
+        <div className="w-full max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 px-2 justify-center">
           {/* Card 1: Specification Controls & Form Generator */}
           <div
             onClick={() => handleOpenAddModal()}
@@ -801,9 +799,10 @@ export const AddRemoveInspectionPortal: React.FC<AddRemoveInspectionPortalProps>
             </button>
           </div>
         </div>
+        </PortalPageLayout>
       ) : activeTab === 'editor' ? (
         /* Inspection Hierarchy & Cards Editor */
-        <div className="w-full my-auto mb-8 animate-in fade-in duration-200">
+        <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 py-4 animate-in fade-in duration-200">
           <InspectionEditor
             onBack={() => {
               navigate('/admin/specs');
@@ -814,7 +813,7 @@ export const AddRemoveInspectionPortal: React.FC<AddRemoveInspectionPortalProps>
         </div>
       ) : activeTab === 'form' ? (
         /* Form Editor Studio matching user requested form editor designs */
-        <div className="w-full my-auto mb-8 animate-in fade-in duration-200">
+        <div className="w-full max-w-[1720px] mx-auto px-3 sm:px-6 py-4 animate-in fade-in duration-200">
           <FormEditorStudio
             onBack={() => {
               navigate('/admin/specs');

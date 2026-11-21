@@ -3,6 +3,7 @@ import { ShieldCheck, Users, Sliders, FileSpreadsheet, BarChart3, ArrowRight } f
 import { useNavigate } from 'react-router-dom';
 import { WorkspaceMode } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { PortalPageLayout } from './PortalPageLayout';
 
 interface AdminDashboardProps {
   onNavigateAdminSub?: (mode: WorkspaceMode) => void;
@@ -25,39 +26,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const displayEmpId = employeeId || sessionStorage.getItem('qc_auth_employee_id') || 'admin';
 
   return (
-    <div className="w-full flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 py-2 z-10 max-w-7xl mx-auto my-auto">
-      {/* Central Header Section - Compact to fit 100% in viewport */}
-      <section className="flex flex-col items-center text-center mb-3 sm:mb-4">
-        {/* Shield Brand Badge */}
-        <div className="relative mb-1.5">
-          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-blue-600 shadow-md shadow-blue-500/35 flex items-center justify-center text-white ring-3 ring-blue-200/50">
-            <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.2]" />
+    <PortalPageLayout
+      maxWidthClass="max-w-7xl"
+      header={
+        <section className="flex flex-col items-center text-center">
+          {/* Shield Brand Badge */}
+          <div className="relative mb-2">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-blue-600 shadow-md shadow-blue-500/35 flex items-center justify-center text-white ring-3 ring-blue-200/50">
+              <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.2]" />
+            </div>
           </div>
-        </div>
 
-        {/* Main Portal Header Title */}
-        <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight mb-0.5">
-          QA Admin Dashboard
-        </h1>
+          {/* Main Portal Header Title */}
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight mb-0.5">
+            QA Admin Dashboard
+          </h1>
 
-        {/* Logged in Admin Identity Banner */}
-        <div className="flex items-center gap-2 mt-1 mb-1.5">
-          <span className="text-xs text-slate-500 font-medium">Logged in as:</span>
-          <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold shadow-2xs">
-            <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 stroke-[2.2]" />
-            <span>{displayFullName}</span>
-            <span className="text-indigo-400 font-mono text-[11px] font-normal">({displayEmpId})</span>
-          </span>
-        </div>
+          {/* Logged in Admin Identity Banner */}
+          <div className="flex items-center gap-2 mt-1.5 mb-1.5">
+            <span className="text-xs text-slate-500 font-medium">Logged in as:</span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold shadow-2xs">
+              <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 stroke-[2.2]" />
+              <span>{displayFullName}</span>
+              <span className="text-indigo-400 font-mono text-[11px] font-normal">({displayEmpId})</span>
+            </span>
+          </div>
 
-        {/* Subtitle */}
-        <p className="text-slate-600 text-xs sm:text-sm font-normal max-w-xl leading-relaxed">
-          Manage system access, quality specifications, and audit analytics
-        </p>
-      </section>
-
+          {/* Subtitle */}
+          <p className="text-slate-600 text-xs sm:text-sm font-normal max-w-xl leading-relaxed">
+            Manage system access, quality specifications, and audit analytics
+          </p>
+        </section>
+      }
+    >
       {/* Admin Action Cards Container - Universally Centered across all Laptops, Desktops, Tablets & Mobile */}
-      <div className={`w-full ${canManageUsers ? 'max-w-6xl' : 'max-w-5xl'} mx-auto my-auto mb-2 sm:mb-3`}>
+      <div className={`w-full ${canManageUsers ? 'max-w-6xl' : 'max-w-5xl'} mx-auto`}>
         <div className="flex flex-wrap items-stretch justify-center gap-3 sm:gap-4.5 w-full mx-auto">
           {/* CARD 1: User Management - Shown strictly to SUPER_ADMIN and ADMIN accounts */}
           {canManageUsers && (
@@ -205,6 +208,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </PortalPageLayout>
   );
 };

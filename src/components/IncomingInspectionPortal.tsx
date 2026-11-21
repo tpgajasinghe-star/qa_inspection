@@ -30,6 +30,7 @@ import {
 } from '../inspectionHierarchyData';
 import { InspectionCardIconRenderer } from './InspectionCardIconRenderer';
 import { ChildCardOperationsWorkspace } from './ChildCardOperationsWorkspace';
+import { PortalPageLayout } from './PortalPageLayout';
 
 interface IncomingInspectionPortalProps {
   onBack: () => void;
@@ -245,14 +246,11 @@ export const IncomingInspectionPortal: React.FC<IncomingInspectionPortalProps> =
   }
 
   return (
-    <div className="w-full flex-1 flex flex-col items-center justify-between px-4 sm:px-6 py-2 z-10 max-w-7xl mx-auto my-auto">
-      
-      {/* Top Section: Corporate Brand & Back Button */}
-      <div className="w-full flex flex-col items-center">
-
-        {/* Main Portal Title & Icon */}
-        <div className="text-center mb-2 sm:mb-3">
-          <div className="flex items-center justify-center gap-2 mb-1">
+    <PortalPageLayout
+      maxWidthClass="max-w-7xl"
+      header={
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-2 mb-1.5">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-sky-400 flex items-center justify-center text-white shadow-sm shadow-blue-500/25 ring-2 ring-white">
               <Boxes className="w-5 h-5 stroke-[2]" />
             </div>
@@ -264,8 +262,8 @@ export const IncomingInspectionPortal: React.FC<IncomingInspectionPortalProps> =
             Select an incoming category to begin quality audits
           </p>
         </div>
-      </div>
-
+      }
+    >
       {/* Cards Container: Universally Centered on All Laptops, Desktops, Tablets & Mobile */}
       <div className={`w-full ${
         configuredChildCards.length === 1
@@ -277,7 +275,7 @@ export const IncomingInspectionPortal: React.FC<IncomingInspectionPortalProps> =
           : configuredChildCards.length === 4
           ? 'max-w-6xl'
           : 'max-w-7xl'
-      } mx-auto my-auto mb-2 sm:mb-3`}>
+      } mx-auto`}>
         <div className="flex flex-wrap items-stretch justify-center gap-3 sm:gap-4.5 w-full mx-auto">
           {configuredChildCards.map((childCard) => {
             const cardWidthClass =
@@ -652,6 +650,6 @@ export const IncomingInspectionPortal: React.FC<IncomingInspectionPortalProps> =
         </div>
       )}
 
-    </div>
+    </PortalPageLayout>
   );
 };
